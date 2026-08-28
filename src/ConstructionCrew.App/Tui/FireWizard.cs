@@ -1,4 +1,5 @@
 using ConstructionCrew.Config;
+using ConstructionCrew.Core;
 using ConstructionCrew.SiteOffice;
 using Spectre.Console;
 
@@ -95,7 +96,7 @@ public static class FireWizard
         var instructionsDir = Path.GetFullPath(Path.Combine(repoRoot, "config", "instructions"));
         var fullPath = Path.GetFullPath(instructionsFilePath);
 
-        if (File.Exists(fullPath) && fullPath.StartsWith(instructionsDir, StringComparison.OrdinalIgnoreCase))
+        if (File.Exists(fullPath) && fullPath.StartsWith(instructionsDir, PathComparison.ForPathPrefix))
         {
             File.Delete(fullPath);
         }

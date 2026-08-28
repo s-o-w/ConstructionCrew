@@ -1,4 +1,5 @@
 using System.Text;
+using ConstructionCrew.Core;
 using ConstructionCrew.Core.Models;
 
 namespace ConstructionCrew.Config;
@@ -52,7 +53,7 @@ public static class ForemanConfigWriter
     public static bool RemoveForeman(string path, string name) => YamlListEditor.RemoveEntry(path, "foremen", name);
 
     private static string CollapseRepoRoot(string absolutePath, string repoRoot) =>
-        absolutePath.StartsWith(repoRoot, StringComparison.OrdinalIgnoreCase)
+        absolutePath.StartsWith(repoRoot, PathComparison.ForPathPrefix)
             ? "${repoRoot}" + absolutePath[repoRoot.Length..].Replace('\\', '/')
             : absolutePath;
 
