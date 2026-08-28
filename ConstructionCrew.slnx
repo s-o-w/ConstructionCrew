@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/ConstructionCrew.App/ConstructionCrew.App.csproj" />
+    <Project Path="src/ConstructionCrew.Config/ConstructionCrew.Config.csproj" />
+    <Project Path="src/ConstructionCrew.Core/ConstructionCrew.Core.csproj" />
+    <Project Path="src/ConstructionCrew.Memory/ConstructionCrew.Memory.csproj" />
+    <Project Path="src/ConstructionCrew.Providers/ConstructionCrew.Providers.csproj" />
+    <Project Path="src/ConstructionCrew.SiteOffice/ConstructionCrew.SiteOffice.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ConstructionCrew.Tests/ConstructionCrew.Tests.csproj" />
+  </Folder>
+</Solution>

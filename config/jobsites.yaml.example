@@ -1,0 +1,11 @@
+# ConstructionCrew Jobsite registry -- copy this file to jobsites.yaml to get
+# started (jobsites.yaml itself is git-ignored: it's personal to whoever's
+# running the tool -- real repo paths, not something to ship or commit).
+#
+# Each Foreman in foremen.yaml is assigned to exactly one jobsite by name.
+# Starts empty; the /hire wizard's "add a new jobsite" step creates entries
+# here for you (name, an existing local repo clone path, a description, a
+# border color). Hand-editing is fine too. This file doesn't even need to
+# exist -- ConstructionCrew creates it on the first jobsite you add.
+
+jobsites:

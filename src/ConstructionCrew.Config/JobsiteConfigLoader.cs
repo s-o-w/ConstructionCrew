@@ -1,0 +1,61 @@
+using ConstructionCrew.Core.Models;
+using YamlDotNet.Serialization;
+using YamlDotNet.Serialization.NamingConventions;
+
+namespace ConstructionCrew.Config;
+
+public sealed class JobsiteConfigLoader
+{
+    private readonly IDeserializer _deserializer = new DeserializerBuilder()
+        .WithNamingConvention(CamelCaseNamingConvention.Instance)
+        .Build();
+
+    /// <summary>Missing file is not an error -- jobsites.yaml starts empty until the first /hire flow creates one.</summary>
+    public IReadOnlyList<JobsiteConfig> LoadFromFile(string path, string repoRoot)
+    {
+        if (!File.Exists(path))
+        {
+            return [];
+        }
+
+        var yaml = File.ReadAllText(path);
+        var document = _deserializer.Deserialize<JobsiteFileDto>(yaml) ?? new JobsiteFileDto();
+
+        var configs = new List<JobsiteConfig>();
+        // An empty "jobsites:" key deserializes the list property to null, not
+        // an empty list -- confirmed by hitting this for real on a freshly
+        // seeded jobsites.yaml, not assumed.
+        foreach (var dto in document.Jobsites ?? [])
+        {
+            var repoPath = dto.RepoPath?.Replace("${repoRoot}", repoRoot);
+
+            if (string.IsNullOrWhiteSpace(dto.Name))
+            {
+                throw new InvalidOperationException($"A jobsite entry in '{path}' is missing 'name'.");
+            }
+
+            if (string.IsNullOrWhiteSpace(repoPath) || !Directory.Exists(repoPath))
+            {
+                throw new InvalidOperationException($"Jobsite '{dto.Name}' repoPath does not exist: '{repoPath}'.");
+            }
+
+            configs.Add(new JobsiteConfig(dto.Name, repoPath, dto.Description ?? string.Empty, dto.RepoUrl, dto.Color));
+        }
+
+        return configs;
+    }
+
+    private sealed class JobsiteFileDto
+    {
+        public List<JobsiteDto> Jobsites { get; set; } = new();
+    }
+
+    private sealed class JobsiteDto
+    {
+        public string? Name { get; set; }
+        public string? RepoPath { get; set; }
+        public string? Description { get; set; }
+        public string? RepoUrl { get; set; }
+        public string? Color { get; set; }
+    }
+}
