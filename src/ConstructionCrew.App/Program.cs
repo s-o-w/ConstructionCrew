@@ -1,3 +1,4 @@
+using ConstructionCrew.App;
 using ConstructionCrew.App.Tui;
 using ConstructionCrew.Config;
 using ConstructionCrew.Core.Abstractions;
@@ -12,6 +13,50 @@ var repoRoot = RepoPaths.FindRepoRoot(AppContext.BaseDirectory);
 var settings = AppSettingsLoader.Load(repoRoot, args);
 
 AnsiConsole.Write(new Rule("[bold yellow]ConstructionCrew[/]").LeftJustified());
+
+// Which CLIs this machine can actually hire: registered in code AND resolvable on
+// PATH. There is deliberately no "id != gemini" filter here -- GeminiProvider reports
+// IsImplemented == false itself, so it stays out even on a box where `gemini` is
+// installed. Results cache to state/tools.json; /settings re-probes.
+//
+// Resolved before the roster loads because first run needs the list to hire a GC with.
+var providerRegistry = ProviderRegistry.Default(settings.StateDirectory);
+var availableProviderIds = providerRegistry.AvailableIds();
+
+// No roster file at all is a fresh install, not a broken config -- run first-run
+// setup instead of failing. This is deliberately NOT the "gcConfig is null" branch
+// below: that one means a file that loads but has no GC-named entry, which is a
+// genuinely different failure and stays a hard fail.
+if (!File.Exists(settings.ForemenConfigPath))
+{
+    string? resolvedVaultRoot;
+    try
+    {
+        resolvedVaultRoot = FirstRunWizard.Run(repoRoot, settings, availableProviderIds);
+    }
+    catch (Exception ex)
+    {
+        // First run is the one wizard that runs before the TUI is up, so it is
+        // also the one that can be hit with no terminal at all (a piped run, CI).
+        // Spectre throws rather than degrades there; report it like every other
+        // startup failure instead of dumping a stack trace.
+        AnsiConsole.MarkupLine($"[red]First-run setup could not run:[/] {Markup.Escape(ex.Message)}");
+        AnsiConsole.MarkupLine("[grey]It needs an interactive terminal. Copy config/foremen.yaml.example to config/foremen.yaml to set the roster up by hand instead.[/]");
+        return 1;
+    }
+
+    if (resolvedVaultRoot is null)
+    {
+        AnsiConsole.MarkupLine("[yellow]First-run setup didn't finish -- nothing to run without a GC.[/]");
+        return 1;
+    }
+
+    // AppSettings is a record and `settings` is a plain local: nothing reloads it
+    // from disk. Without this reassignment the ${vaultRoot} the wizard just wrote
+    // would fail to expand on the very next line, and /hire's Vault guard would
+    // still see null for the rest of this process.
+    settings = settings with { VaultRoot = resolvedVaultRoot };
+}
 
 IReadOnlyList<ForemanConfig> foremenSeed;
 try
@@ -44,13 +89,6 @@ catch (Exception ex)
 }
 
 var jobsiteDirectory = new JobsiteDirectory(jobsitesSeed);
-
-// Which CLIs this machine can actually hire: registered in code AND resolvable on
-// PATH. There is deliberately no "id != gemini" filter here -- GeminiProvider reports
-// IsImplemented == false itself, so it stays out even on a box where `gemini` is
-// installed. Results cache to state/tools.json; /settings re-probes.
-var providerRegistry = ProviderRegistry.Default(settings.StateDirectory);
-var availableProviderIds = providerRegistry.AvailableIds();
 
 var runner = new CliProcessRunner();
 // The factory gets every registered provider, not just the available ones, so a

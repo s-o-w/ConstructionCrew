@@ -1,0 +1,32 @@
+{
+  "@context": {
+    "@base": "https://vault.weekly.dev/vaultmeta#",
+    "vm": "https://vault.weekly.dev/vaultmeta#",
+
+    "touchesProject": {
+      "@id": "vm:touchesProject",
+      "@type": "@id",
+      "@container": "@set"
+    },
+    "audience": {
+      "@id": "vm:audience",
+      "@type": "@id"
+    },
+    "maturity": {
+      "@id": "vm:maturity",
+      "@type": "@id"
+    },
+    "references": {
+      "@id": "vm:references",
+      "@type": "@id",
+      "@container": "@set"
+    },
+    "related": {
+      "@id": "vm:references",
+      "@type": "@id",
+      "@container": "@set"
+    },
+    "repoPath": "vm:repoPath",
+    "authoredBy": "vm:authoredBy"
+  }
+}

@@ -45,7 +45,7 @@ public static class HireWizard
                 }));
 
         // 2. Workspace -- pick or create the one Jobsite this Foreman owns
-        var jobsite = PickOrCreateJobsite(jobsites, foremen, repoRoot);
+        var jobsite = PickOrCreateJobsite(jobsites, foremen, repoRoot, vaultRoot);
         if (jobsite is null)
         {
             AnsiConsole.MarkupLine("[yellow]Cancelled -- no jobsite.[/]");
@@ -82,6 +82,15 @@ public static class HireWizard
             ? string.Join('\n', briefingLines)
             : $"You are the {name} Foreman.";
 
+        // 5. Vault write scope. Last, so a Boss who backs out at the Engine step
+        // is never asked for it. A Jobsite created moments ago already carries it
+        // (derived there, where the name is first known), so a recognized layout
+        // never asks twice. An existing Jobsite from before this field existed,
+        // or an unrecognized vault layout, falls through to the prompt.
+        var vaultFolders = jobsite.VaultFolders is { Count: > 0 } existingFolders
+            ? existingFolders
+            : DeriveVaultFolders(vaultRoot, jobsite.Name) ?? PromptForVaultFolders(jobsite.Name);
+
         // Confirm
         var jobsiteColorName = jobsite.ColorName ?? "grey";
         var jobsiteLine = new Columns(
@@ -92,6 +101,7 @@ public static class HireWizard
                 new Markup($"[bold]Name:[/] {Markup.Escape(name)}"),
                 jobsiteLine,
                 new Markup($"[bold]Engine:[/] {Markup.Escape(provider)}"),
+                new Markup($"[bold]Vault folders:[/] {Markup.Escape(vaultFolders.Count > 0 ? string.Join(", ", vaultFolders) : "(none)")}"),
                 new Markup($"[bold]Briefing:[/] {Markup.Escape(Truncate(briefing, 200))}")))
             .Header("confirm")
             .Border(BoxBorder.Rounded));
@@ -129,8 +139,10 @@ public static class HireWizard
             DisplayName: null,
             // Every Foreman gets the Vault on --add-dir: its cwd is its Jobsite
             // repo, so the Vault is otherwise unreachable for reads or sitreps.
-            // VaultFolders derivation is Phase 3, not here.
-            AddDirs: [vaultRoot]);
+            // AddDirs is the absolute read scope; VaultFolders below is the
+            // vault-relative WRITE scope, and the two are not the same thing.
+            AddDirs: [vaultRoot],
+            VaultFolders: vaultFolders);
 
         var foremenYamlPath = Path.Combine(repoRoot, "config", "foremen.yaml");
         ForemanConfigWriter.AppendForeman(foremenYamlPath, config, repoRoot, vaultRoot);
@@ -140,7 +152,43 @@ public static class HireWizard
         return config;
     }
 
-    private static JobsiteConfig? PickOrCreateJobsite(JobsiteDirectory jobsites, ForemanDirectory foremen, string repoRoot)
+    /// <summary>
+    /// The vault-relative folders a Foreman on <paramref name="jobsiteName"/> owns,
+    /// derived from the vault's own layout. A recognized layout (HOME.md, CLAUDE.md,
+    /// Notes/, Plans/) means the convention holds and the paths are knowable without
+    /// asking. Null means "unrecognized -- ask the Boss instead", which is a different
+    /// answer from an empty list.
+    /// </summary>
+    public static IReadOnlyList<string>? DeriveVaultFolders(string vaultRoot, string jobsiteName) =>
+        VaultLayout.Recognize(vaultRoot) == VaultRecognition.Recognized
+            ? [$"Notes/{jobsiteName}", $"Plans/{jobsiteName}"]
+            : null;
+
+    private static IReadOnlyList<string> PromptForVaultFolders(string jobsiteName)
+    {
+        AnsiConsole.MarkupLine(
+            $"[bold]Vault folders[/] -- vault-relative paths this Foreman may write into for " +
+            $"'{Markup.Escape(jobsiteName)}' (e.g. [grey]Notes/{Markup.Escape(jobsiteName)}[/]). " +
+            "One per line, blank line to finish:");
+
+        var folders = new List<string>();
+        while (true)
+        {
+            var line = Console.ReadLine();
+            if (string.IsNullOrWhiteSpace(line))
+            {
+                break;
+            }
+
+            // Vault-relative, always: an absolute path here would silently
+            // escape the Vault when it is later combined with VaultRoot.
+            folders.Add(line.Trim().Replace('\\', '/').TrimStart('/'));
+        }
+
+        return folders;
+    }
+
+    private static JobsiteConfig? PickOrCreateJobsite(JobsiteDirectory jobsites, ForemanDirectory foremen, string repoRoot, string vaultRoot)
     {
         const string addNew = "+ add a new jobsite";
         var assignedNames = new HashSet<string>(
@@ -204,7 +252,11 @@ public static class HireWizard
             repoPath,
             descriptionLines.Count > 0 ? string.Join('\n', descriptionLines) : string.Empty,
             string.IsNullOrWhiteSpace(repoUrl) ? null : repoUrl,
-            colorName);
+            colorName,
+            // Derived here, where the Jobsite name is first known, so a
+            // recognized layout never has to ask. An unrecognized layout leaves
+            // this null and Run() prompts once, on the Foreman.
+            DeriveVaultFolders(vaultRoot, jobsiteName));
 
         var jobsitesYamlPath = Path.Combine(repoRoot, "config", "jobsites.yaml");
         JobsiteConfigWriter.AppendJobsite(jobsitesYamlPath, jobsite, repoRoot);

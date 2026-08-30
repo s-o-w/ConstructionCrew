@@ -32,4 +32,45 @@ public static class ProviderDefaults
 
             _ => new Dictionary<string, string>(),
         };
+
+    /// <summary>The Home Office MCP tools GC has to be able to call to do its job at all.</summary>
+    private static readonly string[] HomeOfficeTools =
+    [
+        "mcp__home_office__list_foremen",
+        "mcp__home_office__list_jobsites",
+        "mcp__home_office__dispatch_task",
+        "mcp__home_office__spawn_worker",
+        "mcp__home_office__ask_foreman",
+        "mcp__home_office__get_job_status",
+        "mcp__home_office__build_graph",
+        "mcp__home_office__query_graph",
+    ];
+
+    /// <summary>
+    /// GC's starting ProviderOptions, which are NOT a Foreman's. GC reads and
+    /// dispatches; it never edits code or runs shell commands itself. The one
+    /// thing it must have is the Home Office MCP tools -- under `claude -p` an
+    /// allow-list that omits them silently denies every dispatch, which reads as
+    /// a GC that talks but never delegates.
+    /// </summary>
+    public static IReadOnlyDictionary<string, string> GcToolPolicy(string providerId) =>
+        providerId.ToLowerInvariant() switch
+        {
+            "claude" => new Dictionary<string, string>
+            {
+                ["allowedTools"] = string.Join(',', new[] { "Read", "Glob", "Grep" }.Concat(HomeOfficeTools)),
+            },
+
+            // Copilot allows a whole MCP server by bare name; no shell, no write.
+            "copilot" => new Dictionary<string, string>
+            {
+                ["allowedTools"] = CopilotProvider.HomeOfficeServerName,
+            },
+
+            // Codex has no per-tool allow-list; read-only is the analogue of
+            // "can look, cannot touch."
+            "codex" => new Dictionary<string, string> { ["sandbox"] = "read-only" },
+
+            _ => new Dictionary<string, string>(),
+        };
 }

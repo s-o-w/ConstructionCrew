@@ -7,5 +7,22 @@
 # here for you (name, an existing local repo clone path, a description, a
 # border color). Hand-editing is fine too. This file doesn't even need to
 # exist -- ConstructionCrew creates it on the first jobsite you add.
+#
+# vaultFolders is the jobsite's write scope inside the Vault, always
+# vault-RELATIVE (never an absolute path -- it is resolved against the
+# configured Vault root at use time, so it survives the Vault moving). On a
+# recognized vault layout (HOME.md, CLAUDE.md, Notes/, Plans/ at the root)
+# /hire derives "Notes/<Jobsite>" and "Plans/<Jobsite>" without asking;
+# otherwise it prompts.
 
 jobsites:
+
+  # An example jobsite, for reference -- /hire writes entries in this shape.
+  # - name: frontend
+  #   repoPath: /home/you/Projects/frontend
+  #   description: 'The customer-facing web app.'
+  #   repoUrl: 'https://github.com/you/frontend'
+  #   color: 'purple'
+  #   vaultFolders:
+  #     - Notes/frontend
+  #     - Plans/frontend

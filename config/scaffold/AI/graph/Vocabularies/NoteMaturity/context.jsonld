@@ -1,0 +1,6 @@
+{
+  "@context": {
+    "@base": "https://vault.weekly.dev/vaultmeta#",
+    "vm": "https://vault.weekly.dev/vaultmeta#"
+  }
+}

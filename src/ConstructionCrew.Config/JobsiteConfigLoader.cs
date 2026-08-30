@@ -39,7 +39,15 @@ public sealed class JobsiteConfigLoader
                 throw new InvalidOperationException($"Jobsite '{dto.Name}' repoPath does not exist: '{repoPath}'.");
             }
 
-            configs.Add(new JobsiteConfig(dto.Name, repoPath, dto.Description ?? string.Empty, dto.RepoUrl, dto.Color));
+            // vaultFolders needs its own "?? []": the guard on document.Jobsites
+            // above protects the outer list only, never a per-entry list field.
+            configs.Add(new JobsiteConfig(
+                dto.Name,
+                repoPath,
+                dto.Description ?? string.Empty,
+                dto.RepoUrl,
+                dto.Color,
+                dto.VaultFolders ?? []));
         }
 
         return configs;
@@ -57,5 +65,6 @@ public sealed class JobsiteConfigLoader
         public string? Description { get; set; }
         public string? RepoUrl { get; set; }
         public string? Color { get; set; }
+        public List<string>? VaultFolders { get; set; }
     }
 }

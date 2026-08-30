@@ -10,4 +10,10 @@ public sealed record JobsiteConfig(
     string RepoPath,
     string Description,
     string? RepoUrl = null,
-    string? ColorName = null);
+    string? ColorName = null,
+    // Vault-relative write scope for this Jobsite -- "Notes/<Jobsite>",
+    // "Plans/<Jobsite>" on a recognized vault layout, or whatever the Boss
+    // named on an unrecognized one. Never an absolute path: it is resolved
+    // against the configured VaultRoot at use time, so it survives the Vault
+    // moving. Trailing default, like every other persisted field here.
+    IReadOnlyList<string>? VaultFolders = null);

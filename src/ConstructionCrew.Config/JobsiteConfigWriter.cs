@@ -37,6 +37,16 @@ public static class JobsiteConfigWriter
             block.AppendLine($"    color: {ForemanConfigWriter.Quote(config.ColorName)}");
         }
 
+        if (config.VaultFolders is { Count: > 0 })
+        {
+            block.AppendLine("    vaultFolders:");
+            foreach (var folder in config.VaultFolders)
+            {
+                // Vault-relative by definition -- there is no root to collapse.
+                block.AppendLine($"      - {ForemanConfigWriter.Quote(folder)}");
+            }
+        }
+
         File.AppendAllText(path, block.ToString());
     }
 

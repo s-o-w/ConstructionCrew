@@ -1,0 +1,47 @@
+{
+  "@context": [
+    {
+      "@base": "https://vault.weekly.dev/notes/",
+      "type": "@type",
+      "id": "@id",
+      "owl": "http://www.w3.org/2002/07/owl#",
+      "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+      "skos": "http://www.w3.org/2004/02/skos/core#",
+      "xsd": "http://www.w3.org/2001/XMLSchema#",
+      "vld": "https://github.com/The-Knowledge-Graph-Guys/vault-ld#",
+      "label": "rdfs:label",
+      "comment": "rdfs:comment",
+      "prefLabel": "skos:prefLabel",
+      "definition": "skos:definition",
+      "subClassOf": {
+        "@id": "rdfs:subClassOf",
+        "@type": "@id",
+        "@container": "@set"
+      },
+      "subPropertyOf": {
+        "@id": "rdfs:subPropertyOf",
+        "@type": "@id",
+        "@container": "@set"
+      },
+      "topConceptOf": {
+        "@id": "skos:topConceptOf",
+        "@type": "@id"
+      },
+      "inScheme": {
+        "@id": "skos:inScheme",
+        "@type": "@id"
+      },
+      "domain": {
+        "@id": "rdfs:domain",
+        "@type": "@id"
+      },
+      "range": {
+        "@id": "rdfs:range",
+        "@type": "@id"
+      }
+    },
+    "Ontologies/VaultMeta/context.jsonld",
+    "Vocabularies/InformationClassification/context.jsonld",
+    "Vocabularies/NoteMaturity/context.jsonld"
+  ]
+}

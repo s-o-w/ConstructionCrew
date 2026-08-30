@@ -1,0 +1,171 @@
+using ConstructionCrew.Config;
+
+namespace ConstructionCrew.Tests.ConfigTests;
+
+/// <summary>
+/// The recognition predicate is what decides whether /hire derives a Foreman's
+/// vault write scope or has to ask for it, so it gets pinned against both a real
+/// vault and a deliberately incomplete one.
+/// </summary>
+public class VaultLayoutTests
+{
+    /// <summary>
+    /// The vault this tool was built against. Skipped rather than failed on a
+    /// machine that doesn't have it -- the temp-directory cases below carry the
+    /// actual predicate coverage; this one proves the predicate matches a real
+    /// vault's real shape.
+    /// </summary>
+    private const string RealVaultRoot = "/home/shawn/Documents/MyObsidianVault";
+
+    [Fact]
+    public void Recognize_RealVault_IsRecognized()
+    {
+        if (!Directory.Exists(RealVaultRoot))
+        {
+            return;
+        }
+
+        Assert.Equal(VaultRecognition.Recognized, VaultLayout.Recognize(RealVaultRoot));
+        Assert.Empty(VaultLayout.MissingMarkers(RealVaultRoot));
+    }
+
+    [Fact]
+    public void Recognize_OnlyHomeMd_IsNotRecognized()
+    {
+        var root = NewTempDir();
+        try
+        {
+            File.WriteAllText(Path.Combine(root, "HOME.md"), "# HOME");
+
+            Assert.Equal(VaultRecognition.Unrecognized, VaultLayout.Recognize(root));
+
+            // The three that are actually absent, and only those -- the wizard
+            // shows this list to the Boss verbatim.
+            Assert.Equal(["CLAUDE.md", "Notes/", "Plans/"], VaultLayout.MissingMarkers(root));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Recognize_AllFourMarkers_IsRecognized()
+    {
+        var root = NewTempDir();
+        try
+        {
+            File.WriteAllText(Path.Combine(root, "HOME.md"), "# HOME");
+            File.WriteAllText(Path.Combine(root, "CLAUDE.md"), "# CLAUDE");
+            Directory.CreateDirectory(Path.Combine(root, "Notes"));
+            Directory.CreateDirectory(Path.Combine(root, "Plans"));
+
+            Assert.Equal(VaultRecognition.Recognized, VaultLayout.Recognize(root));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Recognize_MarkersAsWrongKind_IsNotRecognized()
+    {
+        // HOME.md as a directory and Notes as a file both have to fail: plan-Work's
+        // Step 0 tests HOME.md/CLAUDE.md with `-f`, and a "Notes" file is not
+        // somewhere a Foreman's Notes/<Jobsite> path can ever be written.
+        var root = NewTempDir();
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "HOME.md"));
+            File.WriteAllText(Path.Combine(root, "CLAUDE.md"), "# CLAUDE");
+            File.WriteAllText(Path.Combine(root, "Notes"), "not a directory");
+            Directory.CreateDirectory(Path.Combine(root, "Plans"));
+
+            Assert.Equal(VaultRecognition.Unrecognized, VaultLayout.Recognize(root));
+            Assert.Equal(["HOME.md", "Notes/"], VaultLayout.MissingMarkers(root));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Recognize_MissingOrBlankRoot_IsNotRecognized()
+    {
+        Assert.Equal(VaultRecognition.Unrecognized, VaultLayout.Recognize(null));
+        Assert.Equal(VaultRecognition.Unrecognized, VaultLayout.Recognize("   "));
+        Assert.Equal(
+            VaultRecognition.Unrecognized,
+            VaultLayout.Recognize(Path.Combine(Path.GetTempPath(), "ccrew-does-not-exist-" + Guid.NewGuid().ToString("n"))));
+    }
+
+    [Fact]
+    public void Scaffold_ProducesARecognizedVault()
+    {
+        // The scaffold's whole point: what it lays down must satisfy the very
+        // predicate /hire then checks. If these two ever drift, a freshly
+        // scaffolded vault would start asking the Boss for paths it should know.
+        var repoRoot = FindRepoRoot();
+        var root = NewTempDir();
+        try
+        {
+            var written = VaultLayout.Scaffold(VaultLayout.ScaffoldSourceDirectory(repoRoot), root);
+
+            Assert.Equal(VaultRecognition.Recognized, VaultLayout.Recognize(root));
+            Assert.NotEmpty(written);
+
+            // The empty directories are created even though .gitkeep is not copied.
+            Assert.True(Directory.Exists(Path.Combine(root, "Journal")));
+            Assert.True(Directory.Exists(Path.Combine(root, "AI", "graph", "build")));
+            Assert.False(File.Exists(Path.Combine(root, "Notes", ".gitkeep")));
+
+            // The graph layer a build_graph run needs.
+            Assert.True(File.Exists(Path.Combine(root, "AI", "graph", "context.jsonld")));
+            Assert.True(File.Exists(Path.Combine(root, "AI", "graph", "Ontologies", "VaultMeta", "context.jsonld")));
+            Assert.True(File.Exists(Path.Combine(root, "AI", "graph", "Ontologies", "VaultMeta", "Classes", "Project.md")));
+            Assert.True(File.Exists(Path.Combine(root, "AI", "graph", "Ontologies", "VaultMeta", "Properties", "touchesProject.md")));
+            Assert.True(File.Exists(Path.Combine(root, "AI", "graph", "Vocabularies", "InformationClassification", "External.md")));
+            Assert.True(File.Exists(Path.Combine(root, "AI", "graph", "Vocabularies", "NoteMaturity", "Superseded.md")));
+
+            // A scaffolded vault must not ship a Python prerequisite -- build_graph
+            // is the export mechanism now, so no export_graph.sh comes along.
+            Assert.Empty(Directory.EnumerateFiles(root, "export_graph.*", SearchOption.AllDirectories));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Scaffold_NeverOverwritesAnExistingFile()
+    {
+        var repoRoot = FindRepoRoot();
+        var root = NewTempDir();
+        try
+        {
+            var claudeMd = Path.Combine(root, "CLAUDE.md");
+            File.WriteAllText(claudeMd, "MY OWN CONVENTIONS");
+
+            var written = VaultLayout.Scaffold(VaultLayout.ScaffoldSourceDirectory(repoRoot), root);
+
+            Assert.Equal("MY OWN CONVENTIONS", File.ReadAllText(claudeMd));
+            Assert.DoesNotContain("CLAUDE.md", written);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    private static string NewTempDir()
+    {
+        var path = Path.Combine(Path.GetTempPath(), "ccrew-vault-test-" + Guid.NewGuid().ToString("n")[..8]);
+        Directory.CreateDirectory(path);
+        return path;
+    }
+
+    private static string FindRepoRoot() => RepoPaths.FindRepoRoot(AppContext.BaseDirectory);
+}
