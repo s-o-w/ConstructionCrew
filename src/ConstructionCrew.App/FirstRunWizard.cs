@@ -169,6 +169,16 @@ public static class FirstRunWizard
     /// never pointed at a Vault -- e.g. a hand-edited <c>foremen.yaml</c>, which
     /// means the automatic first-run flow at startup never triggers because the
     /// file already exists).
+    ///
+    /// Does NOT check whether the vault's `consult-tha-graph` Claude Code skill
+    /// is reachable from `~/.claude/skills/` -- that check made sense when this
+    /// was written, before ConstructionCrew's own `build_graph`/`query_graph` MCP
+    /// tools existed. GC and Foreman instructions call those tools directly
+    /// (see config/templates/*.md); neither ever invokes the skill, so its
+    /// reachability has no bearing on ConstructionCrew's own operation. The skill
+    /// still exists for a human, or an external Claude Code session, querying the
+    /// vault directly outside this app -- that's a separate concern from hiring
+    /// a GC here.
     /// </summary>
     public static string? ResolveAndConfirmVault(string repoRoot)
     {
@@ -179,14 +189,6 @@ public static class FirstRunWizard
         }
 
         ReportRecognition(vaultRoot);
-
-        // Phase 1c's reachability check, run at the one moment a Vault path is
-        // first known. Never repairs the link itself.
-        if (!VaultSkills.ConfirmContinueOnMiss(VaultSkills.Probe(vaultRoot), Console.Out, Console.In))
-        {
-            AnsiConsole.MarkupLine("[yellow]Stopped -- nothing was written.[/]");
-            return null;
-        }
 
         return vaultRoot;
     }
