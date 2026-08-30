@@ -140,6 +140,50 @@ public class FirstRunWizardTests
         }
     }
 
+    [Fact]
+    public void RepointGcAtVault_PointsWorkingDirectoryAtVaultAndAddsRepoToAddDirs()
+    {
+        // The exact shape a foremen.yaml predating Vault setup has: GC's cwd is
+        // the repo (there was no Vault to point it at yet), and no AddDirs at
+        // all, since BuildGcConfig's own repo-in-AddDirs rule never ran.
+        var gc = new ForemanConfig(
+            "GC", CrewRole.GC, "claude", "/repo", "/repo/config/instructions/GC.md",
+            new Dictionary<string, string>());
+
+        var updated = FirstRunWizard.RepointGcAtVault(gc, "/vault", "/repo");
+
+        Assert.Equal("/vault", updated.WorkingDirectory);
+        Assert.Equal(["/repo"], updated.AddDirs);
+
+        // Everything else about GC is untouched.
+        Assert.Equal("GC", updated.Name);
+        Assert.Equal(CrewRole.GC, updated.Role);
+    }
+
+    [Fact]
+    public void RepointGcAtVault_WithRepoAlreadyInAddDirs_DoesNotDuplicateIt()
+    {
+        var gc = new ForemanConfig(
+            "GC", CrewRole.GC, "claude", "/repo", "/repo/config/instructions/GC.md",
+            new Dictionary<string, string>(), AddDirs: ["/repo", "/somewhere/else"]);
+
+        var updated = FirstRunWizard.RepointGcAtVault(gc, "/vault", "/repo");
+
+        Assert.Equal(["/repo", "/somewhere/else"], updated.AddDirs);
+    }
+
+    [Fact]
+    public void RepointGcAtVault_KeepsAnyExistingAddDirsEntriesTheBossAddedByHand()
+    {
+        var gc = new ForemanConfig(
+            "GC", CrewRole.GC, "claude", "/repo", "/repo/config/instructions/GC.md",
+            new Dictionary<string, string>(), AddDirs: ["/somewhere/else"]);
+
+        var updated = FirstRunWizard.RepointGcAtVault(gc, "/vault", "/repo");
+
+        Assert.Equal(["/somewhere/else", "/repo"], updated.AddDirs);
+    }
+
     private static string NewTempDir()
     {
         var path = Path.Combine(Path.GetTempPath(), "ccrew-firstrun-test-" + Guid.NewGuid().ToString("n")[..8]);

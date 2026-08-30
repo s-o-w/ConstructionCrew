@@ -46,19 +46,9 @@ public static class FirstRunWizard
             return null;
         }
 
-        var vaultRoot = ResolveVaultRoot(repoRoot);
+        var vaultRoot = ResolveAndConfirmVault(repoRoot);
         if (vaultRoot is null)
         {
-            return null;
-        }
-
-        ReportRecognition(vaultRoot);
-
-        // Phase 1c's reachability check, run at the one moment a Vault path is
-        // first known. Never repairs the link itself.
-        if (!VaultSkills.ConfirmContinueOnMiss(VaultSkills.Probe(vaultRoot), Console.Out, Console.In))
-        {
-            AnsiConsole.MarkupLine("[yellow]Stopped -- nothing was written.[/]");
             return null;
         }
 
@@ -168,6 +158,100 @@ public static class FirstRunWizard
 
         Directory.CreateDirectory(Path.GetDirectoryName(appSettingsPath)!);
         File.WriteAllText(appSettingsPath, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+    }
+
+    /// <summary>
+    /// Resolves a Vault path (existing or freshly scaffolded), reports layout
+    /// recognition, and runs the Phase 1c skill-reachability check. Null means
+    /// the Boss backed out or the check failed -- nothing was written in either
+    /// case. Shared by <see cref="Run"/> (first hire) and
+    /// <see cref="SetupVaultOnly"/> (a roster that already has a GC but was
+    /// never pointed at a Vault -- e.g. a hand-edited <c>foremen.yaml</c>, which
+    /// means the automatic first-run flow at startup never triggers because the
+    /// file already exists).
+    /// </summary>
+    public static string? ResolveAndConfirmVault(string repoRoot)
+    {
+        var vaultRoot = ResolveVaultRoot(repoRoot);
+        if (vaultRoot is null)
+        {
+            return null;
+        }
+
+        ReportRecognition(vaultRoot);
+
+        // Phase 1c's reachability check, run at the one moment a Vault path is
+        // first known. Never repairs the link itself.
+        if (!VaultSkills.ConfirmContinueOnMiss(VaultSkills.Probe(vaultRoot), Console.Out, Console.In))
+        {
+            AnsiConsole.MarkupLine("[yellow]Stopped -- nothing was written.[/]");
+            return null;
+        }
+
+        return vaultRoot;
+    }
+
+    /// <summary>
+    /// On-demand Vault setup for a roster that already has a GC. The automatic
+    /// first-run flow only ever triggers off a missing <c>foremen.yaml</c>
+    /// (<see cref="Run"/>'s own doc comment) -- a roster written by hand, or
+    /// left over from before a Vault was ever configured, has a GC but no
+    /// Vault, and nothing would otherwise invite the Boss to fix that. This is
+    /// the <c>/setup-vault</c> command's implementation.
+    ///
+    /// Does not hire a GC. If one already exists and its WorkingDirectory isn't
+    /// already the Vault, it is rewritten in place (WorkingDirectory becomes the
+    /// Vault, this repo joins AddDirs if it isn't there already) so GC actually
+    /// gets Vault access as its cwd -- the same shape a fresh <see cref="Run"/>
+    /// hire would have produced. A GC already pointed at the Vault (or no GC at
+    /// all, which should not happen once <c>foremen.yaml</c> exists, but is not
+    /// this method's problem to diagnose) is left untouched.
+    /// </summary>
+    public static string? SetupVaultOnly(
+        string repoRoot, ForemanDirectory foremen, string foremenConfigPath, string gcForemanName)
+    {
+        var vaultRoot = ResolveAndConfirmVault(repoRoot);
+        if (vaultRoot is null)
+        {
+            return null;
+        }
+
+        PersistVaultRoot(Path.Combine(repoRoot, "appsettings.json"), vaultRoot);
+
+        var gc = foremen.Find(gcForemanName);
+        if (gc is not null && !string.Equals(gc.WorkingDirectory, vaultRoot, StringComparison.Ordinal))
+        {
+            var updated = RepointGcAtVault(gc, vaultRoot, repoRoot);
+
+            ForemanConfigWriter.RemoveForeman(foremenConfigPath, gc.Name);
+            ForemanConfigWriter.AppendForeman(foremenConfigPath, updated, repoRoot, vaultRoot);
+            foremen.Add(updated);
+
+            AnsiConsole.MarkupLine(
+                $"[green]{Markup.Escape(gc.Name)}'s working directory updated to the Vault[/] " +
+                "(it was pointed at this repo before -- that's the shape a config predating Vault setup has).");
+        }
+
+        return vaultRoot;
+    }
+
+    /// <summary>
+    /// The pure shaping step behind <see cref="SetupVaultOnly"/>: WorkingDirectory
+    /// becomes <paramref name="vaultRoot"/>, and <paramref name="repoRoot"/> joins
+    /// AddDirs if it isn't already there -- the same repo-stays-reachable rule
+    /// <see cref="BuildGcConfig"/> applies on a fresh hire. Never drops an existing
+    /// AddDirs entry (a Boss may have added others by hand). Separated from the
+    /// interactive method above so this shaping logic is directly testable without
+    /// mocking a console prompt.
+    /// </summary>
+    public static ForemanConfig RepointGcAtVault(ForemanConfig gc, string vaultRoot, string repoRoot)
+    {
+        var addDirs = (gc.AddDirs ?? [])
+            .Append(repoRoot)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
+        return gc with { WorkingDirectory = vaultRoot, AddDirs = addDirs };
     }
 
     /// <summary>Prompts for an existing Vault or scaffolds a new one. Null means the Boss backed out.</summary>

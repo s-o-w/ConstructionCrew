@@ -370,7 +370,7 @@ async Task<bool> HandleBossLine(string input)
 
     if (command.Equals("/help", StringComparison.OrdinalIgnoreCase))
     {
-        AnsiConsole.MarkupLine("[grey]/chat  /tasks  /hire  /fire  /drive <Foreman>  /settings  /exit -- anything else is sent to the GC (or the driven Foreman) as a message.[/]");
+        AnsiConsole.MarkupLine("[grey]/chat  /tasks  /setup-vault  /hire  /fire  /drive <Foreman>  /settings  /exit -- anything else is sent to the GC (or the driven Foreman) as a message.[/]");
         AnsiConsole.Markup("[grey]Press enter to continue...[/]");
         Console.ReadLine();
         return true;
@@ -416,6 +416,35 @@ async Task<bool> HandleBossLine(string input)
         return true;
     }
 
+    if (command.Equals("/setup-vault", StringComparison.OrdinalIgnoreCase))
+    {
+        // The automatic first-run flow only ever triggers off a missing
+        // foremen.yaml (Program.cs's own startup check, above). A roster written
+        // by hand, or one left over from before a Vault was ever configured, has
+        // a GC but no Vault, and that startup check never fires again -- this is
+        // the on-demand escape hatch for exactly that case.
+        AnsiConsole.Clear();
+        AnsiConsole.Write(new Rule("[bold yellow]vault setup[/]").LeftJustified());
+
+        var resolvedVaultRoot = FirstRunWizard.SetupVaultOnly(
+            repoRoot, foremanDirectory, settings.ForemenConfigPath, settings.GcForemanName);
+
+        if (resolvedVaultRoot is not null)
+        {
+            settings = settings with { VaultRoot = resolvedVaultRoot };
+            AnsiConsole.MarkupLine($"[bold green]Vault configured:[/] {Markup.Escape(resolvedVaultRoot)}");
+        }
+        else
+        {
+            AnsiConsole.MarkupLine("[yellow]Vault setup cancelled -- nothing changed.[/]");
+        }
+
+        AnsiConsole.Markup("[grey]Press enter to continue...[/]");
+        Console.ReadLine();
+        state.View = TuiView.Chat;
+        return true;
+    }
+
     if (command.Equals("/hire", StringComparison.OrdinalIgnoreCase))
     {
         // Scoped to /hire, not app startup: before Phase 3's FirstRunWizard exists,
@@ -423,7 +452,7 @@ async Task<bool> HandleBossLine(string input)
         // the app unusable standalone. Phase 3 makes this a pure backstop.
         if (string.IsNullOrWhiteSpace(settings.VaultRoot) || !Directory.Exists(settings.VaultRoot))
         {
-            AnsiConsole.MarkupLine("[yellow]No Vault is configured -- run first-run setup (or set --vault-root) before hiring a Foreman.[/]");
+            AnsiConsole.MarkupLine("[yellow]No Vault is configured -- run [bold]/setup-vault[/] (or set --vault-root) before hiring a Foreman.[/]");
             AnsiConsole.Markup("[grey]Press enter to continue...[/]");
             Console.ReadLine();
             state.View = TuiView.Chat;
