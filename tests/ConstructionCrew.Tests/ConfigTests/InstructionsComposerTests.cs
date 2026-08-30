@@ -56,6 +56,37 @@ public class InstructionsComposerTests
         Assert.DoesNotContain("plan-Work", rendered);
     }
 
+    /// <summary>
+    /// Phase 4: the sitewalk brief is TEMPLATE text, rendered once here, never
+    /// hand-written into HireWizard. It must carry all four load-bearing parts --
+    /// read-only, a note in Notes/&lt;Jobsite&gt;/, the kind="milestone" sitrep that
+    /// is what actually notifies the GC, and build_graph as a non-blocking closing
+    /// step.
+    /// </summary>
+    [Fact]
+    public void Compose_Foreman_RendersTheSitewalkBrief()
+    {
+        var rendered = InstructionsComposer.Compose(
+            "Frontend",
+            CrewRole.Foreman,
+            "You are the Frontend Foreman.",
+            Jobsite(),
+            ["Notes/XINFRA", "Plans/XINFRA"],
+            ["claude", "codex"],
+            RepoRoot,
+            "/home/shawn/Vault");
+
+        Assert.Contains("sitewalk", rendered, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("READ-ONLY", rendered);
+        Assert.Contains("Notes/XINFRA/Sitewalk.md", rendered);
+        // The completion path, spelled out: milestone, not status.
+        Assert.Contains("kind=\"milestone\"", rendered);
+        Assert.Contains("a file appearing in the", rendered);
+        // The closing step, and its clean degrade.
+        Assert.Contains("build_graph()", rendered);
+        Assert.Contains("sitewalk recorded; graph export failed", rendered);
+    }
+
     [Fact]
     public void Compose_Gc_RendersTheWorkorderHandoff()
     {

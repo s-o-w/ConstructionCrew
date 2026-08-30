@@ -1,5 +1,6 @@
 using ConstructionCrew.Config;
 using ConstructionCrew.Core.Models;
+using ConstructionCrew.HomeOffice;
 using ConstructionCrew.Providers;
 using Spectre.Console;
 
@@ -17,6 +18,7 @@ public static class HireWizard
     public static ForemanConfig? Run(
         ForemanDirectory foremen,
         JobsiteDirectory jobsites,
+        JobRegistry jobRegistry,
         IReadOnlyList<string> availableProviderIds,
         string repoRoot,
         string vaultRoot,
@@ -159,8 +161,45 @@ public static class HireWizard
         foremen.Add(config);
 
         AnsiConsole.MarkupLine($"[bold green]{Markup.Escape(name)} is hired[/] for jobsite '{Markup.Escape(jobsite.Name)}'. Saved to config/foremen.yaml.");
+
+        // The sitewalk. Ordinary dispatch, deliberately: StartJob is the same path
+        // the GC uses, so the job shows on the board, carries its own job id, and
+        // reports back through file_sitrep like any other work. A hire that
+        // declines the sitewalk is still a completed hire.
+        if (AnsiConsole.Confirm($"Run {name}'s sitewalk now?", true))
+        {
+            try
+            {
+                var jobId = jobRegistry.StartJob(config.Name, SitewalkPrompt(config.Name, jobsite.Name));
+                AnsiConsole.MarkupLine(
+                    $"[green]Sitewalk dispatched[/] -- job {Markup.Escape(jobId)}. " +
+                    $"{Markup.Escape(name)} reports back to the GC when it lands.");
+            }
+            catch (Exception ex)
+            {
+                // A failed dispatch never un-hires anyone: the config is already
+                // written, and the Boss can dispatch the sitewalk by hand.
+                AnsiConsole.MarkupLine(
+                    $"[yellow]Sitewalk could not be dispatched:[/] {Markup.Escape(ex.Message)} " +
+                    "The hire itself is saved -- ask the GC to dispatch the sitewalk later.");
+            }
+        }
+
         return config;
     }
+
+    /// <summary>
+    /// The dispatched task text for a sitewalk. A POINTER, not the brief: the
+    /// sitewalk brief itself is template text in config/templates/foreman-instructions.md,
+    /// rendered into this Foreman's instructions file by InstructionsComposer and
+    /// prepended by LocalCliAgent on turn one. Writing the brief here too would
+    /// mean maintaining it in two places and letting the two drift.
+    /// </summary>
+    public static string SitewalkPrompt(string foremanName, string jobsiteName) =>
+        $"Run your sitewalk on jobsite '{jobsiteName}' now, exactly as the \"The sitewalk\" section of your " +
+        "instructions describes it: read-only survey of the code, the backlog and the docs; findings written to " +
+        $"Notes/{jobsiteName}/Sitewalk.md; then the kind=\"milestone\" file_sitrep that tells the GC; then " +
+        $"build_graph as the closing step. You are {foremanName}. Change no code and open no PR on this job.";
 
     /// <summary>
     /// The vault-relative folders a Foreman on <paramref name="jobsiteName"/> owns,

@@ -68,6 +68,50 @@ id.
 
 Both take YOUR OWN job id, not the GC's and not a Worker's.
 
+## The sitewalk -- your first task on this jobsite
+
+Right after you are hired you are asked to run a sitewalk. A sitewalk is a
+READ-ONLY survey of the jobsite: you change no code, open no branch, and open no
+PR. You read, you write one note, and you report. Its whole purpose is that your
+first real workorder starts from fact instead of from guesswork.
+
+Run it in this order:
+
+1. **Read the code.** Start at the repo root ({{JobsitePath}}): build files,
+   project layout, entry point, tests. Establish what actually builds, what the
+   test command actually runs, and where the seams are. Cite real files and line
+   numbers. Never restate a claim you have not read for yourself.
+2. **Read the backlog.** Whatever the upstream trackers above point at -- issues,
+   a project board, a TODO file in the repo. Note what is open, what is stale,
+   and what contradicts the code you just read.
+3. **Read the docs.** The repo's own README and docs, plus anything already in
+   your Vault folders that describes this jobsite.
+4. **Write your findings** to `Notes/{{JobsiteName}}/Sitewalk.md` in the Vault,
+   with `authoredBy: "{{AuthoredBy}}"` in the frontmatter. Keep it to: what this
+   jobsite is, how it builds and tests, the current-state anchors (thing -> file
+   and line), what is open on the backlog, and the seams or defects you found
+   that the next workorder should know about. Facts with citations, not opinions.
+5. **Tell the GC, as a milestone.** Once the note is written, call:
+
+       file_sitrep(foreman="{{Name}}", jobId=<your job id>, altitude="summary",
+                   kind="milestone", body=<what you found, and the note's path>)
+
+   `kind="milestone"` is what actually puts the sitewalk in front of the GC: it
+   escalates a one-line summary into the GC's own conversation and returns the
+   GC's reply. A `status` sitrep only writes a file, and a file appearing in the
+   Vault notifies nobody. Do not substitute one for the other here.
+
+6. **Refresh the graph** -- the closing step. Call `build_graph()` so the Vault's
+   knowledge graph picks up the note you just wrote. If it fails, it does NOT
+   fail the sitewalk: do not retry it more than once, do not start repairing the
+   graph tooling, and do not withhold your findings over it. Report exactly
+   "sitewalk recorded; graph export failed" plus the error, and stop there. The
+   sitewalk is already recorded by step 4 and already delivered by step 5.
+
+Keeping `Notes/{{JobsiteName}}/` current is a standing duty after this, not a
+one-off: when later work invalidates something the sitewalk note claims, correct
+the note.
+
 ## Workorders
 
 A dispatched task may reference a workorder: `Plans/<Jobsite>/<Feature>/WORKORDER.md`

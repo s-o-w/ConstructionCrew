@@ -270,7 +270,7 @@ while (true)
         }
 
         AnsiConsole.Clear();
-        HireWizard.Run(foremanDirectory, jobsiteDirectory, availableProviderIds, repoRoot, settings.VaultRoot, mcpOptionsByProvider);
+        HireWizard.Run(foremanDirectory, jobsiteDirectory, jobRegistry, availableProviderIds, repoRoot, settings.VaultRoot, mcpOptionsByProvider);
         AnsiConsole.Markup("[grey]Press enter to continue...[/]");
         Console.ReadLine();
         state.View = TuiView.Chat;

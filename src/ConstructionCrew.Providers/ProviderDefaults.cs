@@ -15,8 +15,17 @@ public static class ProviderDefaults
     public static IReadOnlyDictionary<string, string> ToolPolicy(string providerId) =>
         providerId.ToLowerInvariant() switch
         {
-            // Claude Code tool names, as already used by the shipped GC config.
-            "claude" => new Dictionary<string, string> { ["allowedTools"] = "Bash,Edit,Read,Write" },
+            // Claude Code tool names, as already used by the shipped GC config,
+            // PLUS the Home Office tools -- under `claude -p` an allow-list that
+            // omits them silently denies every ask_gc and file_sitrep, which reads
+            // as a Foreman that works but never reports (the same failure mode
+            // GcToolPolicy below already guards against for dispatch).
+            "claude" => new Dictionary<string, string>
+            {
+                ["allowedTools"] = string.Join(
+                    ',',
+                    new[] { "Bash", "Edit", "Read", "Write" }.Concat(ForemanHomeOfficeTools)),
+            },
 
             // Copilot's permission patterns are kind(argument): bare "shell" allows all
             // shell commands, "write" allows file create/modify, and a bare MCP server
@@ -32,6 +41,26 @@ public static class ProviderDefaults
 
             _ => new Dictionary<string, string>(),
         };
+
+    /// <summary>
+    /// The Home Office MCP tools a Foreman has to be able to call to do its job at
+    /// all: report (file_sitrep), escalate (ask_gc), delegate (spawn_worker and the
+    /// two worktree tools that close a Worker out), and refresh the graph after a
+    /// sitewalk. No dispatch_task -- a Foreman does not dispatch to other Foremen.
+    /// </summary>
+    private static readonly string[] ForemanHomeOfficeTools =
+    [
+        "mcp__home_office__file_sitrep",
+        "mcp__home_office__ask_gc",
+        "mcp__home_office__spawn_worker",
+        "mcp__home_office__merge_worker_branch",
+        "mcp__home_office__close_worktree",
+        "mcp__home_office__get_job_status",
+        "mcp__home_office__list_foremen",
+        "mcp__home_office__list_jobsites",
+        "mcp__home_office__build_graph",
+        "mcp__home_office__query_graph",
+    ];
 
     /// <summary>The Home Office MCP tools GC has to be able to call to do its job at all.</summary>
     private static readonly string[] HomeOfficeTools =
