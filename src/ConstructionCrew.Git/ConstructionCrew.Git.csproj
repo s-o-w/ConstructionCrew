@@ -8,6 +8,12 @@
     <PackageReference Include="CliWrap" Version="3.10.5" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- GitWorkspaceInspector.ParseStatus is internal: the porcelain header
+         parsing is worth asserting directly without making it public API. -->
+    <InternalsVisibleTo Include="ConstructionCrew.Tests" />
+  </ItemGroup>
+
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>

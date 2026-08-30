@@ -62,7 +62,9 @@ public static class Dashboard
         // Boss prompt gets positioned next, so nothing after this ever needs an
         // extra line (i.e. never scrolls the pinned header out of view).
         root["footer"].Update(new Rows(
-            new Markup("[grey]/tasks /hire /fire /chat /settings /help /exit[/]"),
+            new Markup(state.DrivenForeman is null
+                ? "[grey]/tasks /hire /fire /chat /drive <Foreman> /settings /help /exit[/]"
+                : $"[grey]driving [/][yellow]{Markup.Escape(state.DrivenForeman)}[/][grey] -- /exit returns to GC[/]"),
             Text.Empty));
 
         AnsiConsole.Write(root);
@@ -184,7 +186,7 @@ public static class Dashboard
 
         IRenderable content = state.View switch
         {
-            TuiView.Chat => BuildChat(state),
+            TuiView.Chat => BuildChatPane(state),
             TuiView.Tasks => BuildTasks(jobs),
             _ => BuildStub(state.StubLabel ?? "this"),
         };
@@ -216,14 +218,72 @@ public static class Dashboard
         return LiveTabs.Contains(tab.Id) ? $"[white]{tab.Label}[/]" : $"[grey]{tab.Label}[/]";
     }
 
-    private static IRenderable BuildChat(DashboardState state)
+    /// <summary>
+    /// In drive mode the chat pane gets a passive column beside it: a read-only
+    /// <c>git status</c>/<c>git log</c> of the worktree that Foreman (or one of its
+    /// Workers) is in. A Grid, not a nested Layout -- Layout always renders the
+    /// full console height, which is right for the shell and wrong for a cell
+    /// inside it.
+    /// </summary>
+    private static IRenderable BuildChatPane(DashboardState state)
     {
-        if (state.Transcript.Count == 0)
+        var chat = BuildChat(state);
+        if (state.DrivenForeman is null)
         {
-            return new Markup("[grey]Say something to the GC to get started.[/]");
+            return chat;
         }
 
-        var rows = state.Transcript
+        var grid = new Grid().Expand();
+        grid.AddColumn(new GridColumn());
+        grid.AddColumn(new GridColumn().Width(38).NoWrap());
+        grid.AddRow(chat, BuildPassiveColumn(state));
+        return grid;
+    }
+
+    private static IRenderable BuildPassiveColumn(DashboardState state)
+    {
+        var rows = new List<IRenderable>();
+        var snapshot = state.Passive;
+
+        if (snapshot is null)
+        {
+            rows.Add(new Markup("[grey]no worktree to watch[/]"));
+        }
+        else if (snapshot.Error is not null)
+        {
+            rows.Add(new Markup($"[red]{Markup.Escape(Truncate(snapshot.Error, 100))}[/]"));
+        }
+        else
+        {
+            rows.Add(new Markup($"[grey]branch[/] {Markup.Escape(snapshot.Branch ?? "?")}"));
+            rows.Add(new Markup(snapshot.ChangedFiles == 0
+                ? "[grey]working tree clean[/]"
+                : $"[yellow]{snapshot.ChangedFiles} changed file(s)[/]"));
+            rows.Add(Text.Empty);
+
+            rows.AddRange(snapshot.RecentCommits.Count == 0
+                ? [new Markup("[grey]no commits yet[/]")]
+                : snapshot.RecentCommits.Select(c => (IRenderable)new Markup($"[grey]{Markup.Escape(Truncate(c, 34))}[/]")));
+        }
+
+        return new Panel(new Rows(rows))
+            .Header($"[bold]{Markup.Escape(state.DrivenForeman ?? "")}[/]")
+            .Border(BoxBorder.Rounded)
+            .Expand();
+    }
+
+    private static IRenderable BuildChat(DashboardState state)
+    {
+        var transcript = state.ActiveTranscript;
+
+        if (transcript.Count == 0)
+        {
+            return new Markup(state.DrivenForeman is null
+                ? "[grey]Say something to the GC to get started.[/]"
+                : $"[grey]Driving {Markup.Escape(state.DrivenForeman)} -- anything you type goes to them. /exit returns to GC.[/]");
+        }
+
+        var rows = transcript
             .TakeLast(10)
             .Select(line =>
             {

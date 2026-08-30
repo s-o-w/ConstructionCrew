@@ -1,3 +1,4 @@
+using System.Threading.Channels;
 using ConstructionCrew.App;
 using ConstructionCrew.App.Tui;
 using ConstructionCrew.Config;
@@ -174,45 +175,192 @@ if (!mcpOptionsByProvider.ContainsKey(gcConfig.Provider))
     AnsiConsole.MarkupLine($"[yellow]GC's provider '{Markup.Escape(gcConfig.Provider)}' isn't reachable from the Home Office -- it's either not installed or has no verified MCP shape. Run /settings to re-probe.[/]");
 }
 
-var state = new DashboardState { HomeOfficeAddress = homeOffice.BaseAddress.ToString() };
+var state = new DashboardState
+{
+    HomeOfficeAddress = homeOffice.BaseAddress.ToString(),
+    GcForemanName = settings.GcForemanName,
+};
 
-while (true)
+// Boss turns dispatched but not yet reported back. See PendingBossTurns: this is
+// the whole completion-notice mechanism, and it exists so JobRegistry does not
+// have to grow a public completion callback for the TUI's benefit.
+var pendingBossTurns = new PendingBossTurns();
+
+// Read-only git for the passive column, on the same ICliProcessRunner
+// WorktreeManager already shells through -- no second process seam.
+var gitInspector = new GitWorkspaceInspector(runner);
+
+// One event channel, three producers (the input pump, the IJobStatusSink pump,
+// and passive refreshes), exactly one consumer: this loop. Single-reader is what
+// lets every DashboardState mutation happen on one thread with no locking.
+var events = Channel.CreateUnbounded<BossEvent>(new UnboundedChannelOptions { SingleReader = true });
+
+var bossInput = new BossInputReader(Console.ReadLine);
+bossInput.Start();
+
+_ = PumpInputAsync(bossInput.Reader, events.Writer, cts.Token);
+_ = PumpJobStatusAsync(statusSink.Reader, events.Writer, cts.Token);
+
+// 0 = no passive refresh in flight. Interlocked, because the refresh completes on
+// a thread pool thread while the loop may already be deciding to start another.
+var passiveRefreshInFlight = 0;
+
+// The input thread reads nothing until the loop asks for a line. Starts true so
+// the first render is followed immediately by the first prompt.
+var wantsInput = true;
+var running = true;
+
+while (running)
 {
     Dashboard.Render(foremanDirectory, jobsiteDirectory, jobRegistry, state);
+    Console.Write(state.DrivenForeman is null ? "Boss> " : $"Boss[{state.DrivenForeman}]> ");
 
-    Console.Write("Boss> ");
-    var input = Console.ReadLine();
+    // Granted only after the render, and only once per line consumed: while a
+    // modal wizard owns the console, the input thread is parked on this gate
+    // rather than racing the wizard's own prompts for stdin.
+    if (wantsInput)
+    {
+        wantsInput = false;
+        bossInput.Resume();
+    }
 
-    if (input is null || IsExit(input))
+    BossEvent first;
+    try
+    {
+        first = await events.Reader.ReadAsync(cts.Token);
+    }
+    catch (OperationCanceledException)
+    {
+        break;
+    }
+    catch (ChannelClosedException)
     {
         break;
     }
 
+    // Drain whatever else is already queued and render once for the lot -- a
+    // burst of transitions from several Workers is one redraw, not five.
+    var batch = new List<BossEvent> { first };
+    while (events.Reader.TryRead(out var next))
+    {
+        batch.Add(next);
+    }
+
+    var refreshPassive = false;
+
+    foreach (var bossEvent in batch)
+    {
+        switch (bossEvent)
+        {
+            case BossEvent.JobTransition transition:
+                // Every drained record is checked against the pending set. A
+                // tracked id that has gone terminal becomes a transcript line in
+                // whichever conversation the Boss addressed.
+                if (pendingBossTurns.TryTakeCompletion(transition.Record, out var speaker, out var completion))
+                {
+                    state.TranscriptFor(speaker).Add(completion);
+                }
+
+                refreshPassive = true;
+                break;
+
+            case BossEvent.InputClosed:
+                running = false;
+                break;
+
+            case BossEvent.PassiveRefreshed refreshed:
+                state.Passive = refreshed.Snapshot;
+                break;
+
+            case BossEvent.InputLine line:
+                var drivenBefore = state.DrivenForeman;
+                try
+                {
+                    running = await HandleBossLine(line.Text);
+                }
+                catch (Exception ex)
+                {
+                    // The loop is now the only thing keeping the Home Office up and
+                    // background jobs running: one bad command must not take those
+                    // with it. Report it in the transcript and carry on.
+                    state.ActiveTranscript.Add(new TranscriptLine("home office", ex.Message, IsError: true));
+                }
+                finally
+                {
+                    // Always, even if handling threw: skipping this parks the
+                    // input thread forever and the app looks hung.
+                    wantsInput = true;
+                }
+
+                if (!string.Equals(drivenBefore, state.DrivenForeman, StringComparison.OrdinalIgnoreCase))
+                {
+                    refreshPassive = true;
+                }
+
+                break;
+        }
+
+        if (!running)
+        {
+            break;
+        }
+    }
+
+    // Deliberately not triggered by PassiveRefreshed itself -- that would be a
+    // refresh loop that never idles.
+    if (running && refreshPassive && state.DrivenForeman is not null &&
+        Interlocked.CompareExchange(ref passiveRefreshInFlight, 1, 0) == 0)
+    {
+        _ = RefreshPassiveAsync(ResolveWorktreePath(jobRegistry, state.DrivenForeman));
+    }
+}
+
+bossInput.Dispose();
+cts.Cancel();
+await homeOffice.DisposeAsync();
+return 0;
+
+// Returns false when the Boss asked to leave. Never awaits an agent turn: a
+// dispatch is JobRegistry.StartJob, which hands back a job id and runs the turn
+// in the background, so the Boss can keep typing while GC works.
+async Task<bool> HandleBossLine(string input)
+{
     if (string.IsNullOrWhiteSpace(input))
     {
-        continue;
+        return true;
     }
 
     var command = input.Trim();
 
+    // Drive routing gets first look: /exit means "leave this Foreman" while
+    // driving and "quit" otherwise, and /drive must not fall through to the
+    // unknown-slash-command stub below.
+    switch (DriveCommands.Apply(state, command, foremanDirectory.Find, jobRegistry.GetAllJobs()))
+    {
+        case BossCommandResult.Quit:
+            return false;
+        case BossCommandResult.Handled:
+            return true;
+    }
+
     if (command.Equals("/chat", StringComparison.OrdinalIgnoreCase))
     {
         state.View = TuiView.Chat;
-        continue;
+        return true;
     }
 
     if (command.Equals("/tasks", StringComparison.OrdinalIgnoreCase))
     {
         state.View = TuiView.Tasks;
-        continue;
+        return true;
     }
 
     if (command.Equals("/help", StringComparison.OrdinalIgnoreCase))
     {
-        AnsiConsole.MarkupLine("[grey]/chat  /tasks  /hire  /fire  /settings  /exit -- anything else is sent to the GC as a message.[/]");
+        AnsiConsole.MarkupLine("[grey]/chat  /tasks  /hire  /fire  /drive <Foreman>  /settings  /exit -- anything else is sent to the GC (or the driven Foreman) as a message.[/]");
         AnsiConsole.Markup("[grey]Press enter to continue...[/]");
         Console.ReadLine();
-        continue;
+        return true;
     }
 
     if (command.Equals("/settings", StringComparison.OrdinalIgnoreCase))
@@ -252,7 +400,7 @@ while (true)
         AnsiConsole.Markup("[grey]Press enter to continue...[/]");
         Console.ReadLine();
         state.View = TuiView.Chat;
-        continue;
+        return true;
     }
 
     if (command.Equals("/hire", StringComparison.OrdinalIgnoreCase))
@@ -266,7 +414,7 @@ while (true)
             AnsiConsole.Markup("[grey]Press enter to continue...[/]");
             Console.ReadLine();
             state.View = TuiView.Chat;
-            continue;
+            return true;
         }
 
         AnsiConsole.Clear();
@@ -274,17 +422,24 @@ while (true)
         AnsiConsole.Markup("[grey]Press enter to continue...[/]");
         Console.ReadLine();
         state.View = TuiView.Chat;
-        continue;
+        return true;
     }
 
     if (command.Equals("/fire", StringComparison.OrdinalIgnoreCase))
     {
         AnsiConsole.Clear();
         await FireWizard.Run(foremanDirectory, jobsiteDirectory, jobRegistry, repoRoot, worktreeManager, cts.Token);
+
+        // A fired Foreman must not stay the drive target.
+        if (state.DrivenForeman is not null && foremanDirectory.Find(state.DrivenForeman) is null)
+        {
+            DriveCommands.StopDriving(state);
+        }
+
         AnsiConsole.Markup("[grey]Press enter to continue...[/]");
         Console.ReadLine();
         state.View = TuiView.Chat;
-        continue;
+        return true;
     }
 
     if (command.StartsWith('/'))
@@ -292,25 +447,103 @@ while (true)
         var stubLabel = command[1..];
         state.View = TuiView.Stub;
         state.StubLabel = stubLabel;
-        continue;
+        return true;
     }
 
+    // The one dispatch path, for GC and for a driven Foreman alike. Both go
+    // through JobRegistry.StartJob, which sends on the single shared
+    // LiveAgentRegistry -- so GC never ends up with two divergent conversations,
+    // and a driven Foreman's turn queues behind its own in-flight work on that
+    // Foreman's semaphore exactly like any dispatched task.
+    var target = state.DrivenForeman ?? settings.GcForemanName;
+
     state.View = TuiView.Chat;
-    state.Transcript.Add(new TranscriptLine("Boss", input));
+    state.TranscriptFor(target).Add(new TranscriptLine("Boss", input));
 
-    CliRunResult result = null!;
-    await AnsiConsole.Status()
-        .Spinner(Spinner.Known.Dots)
-        .StartAsync("GC is thinking...", async _ =>
-        {
-            result = await liveAgents.SendAsync(settings.GcForemanName, gcConfig, input, cts.Token);
-        });
+    try
+    {
+        // Returns immediately with a job id; the turn runs in the background and
+        // reports back through IJobStatusSink, which this loop is draining.
+        pendingBossTurns.Track(jobRegistry.StartJob(target, input), target);
+    }
+    catch (Exception ex)
+    {
+        state.TranscriptFor(target).Add(new TranscriptLine("home office", ex.Message, IsError: true));
+    }
 
-    state.Transcript.Add(new TranscriptLine("GC", result.Succeeded ? result.StandardOutput : result.StandardError, IsError: !result.Succeeded));
+    return true;
 }
 
-await homeOffice.DisposeAsync();
-return 0;
+// The most recent worktree belonging to this Foreman or one of its Workers.
+// Foremen themselves work in their configured directory; a worktree turns up
+// once they spawn a Worker, which is what the passive column is watching.
+static string? ResolveWorktreePath(JobRegistry jobs, string foremanName) =>
+    jobs.GetAllJobs()
+        .Where(j => j.WorktreePath is not null && DriveCommands.BelongsTo(foremanName, j.ForemanName))
+        .OrderByDescending(j => j.CreatedAt)
+        .Select(j => j.WorktreePath)
+        .FirstOrDefault();
+
+async Task RefreshPassiveAsync(string? worktreePath)
+{
+    try
+    {
+        var snapshot = worktreePath is null
+            ? null
+            : await gitInspector.InspectAsync(worktreePath, cts.Token);
+
+        await events.Writer.WriteAsync(new BossEvent.PassiveRefreshed(snapshot), cts.Token);
+    }
+    catch (OperationCanceledException)
+    {
+    }
+    catch (ChannelClosedException)
+    {
+    }
+    finally
+    {
+        Interlocked.Exchange(ref passiveRefreshInFlight, 0);
+    }
+}
+
+static async Task PumpInputAsync(ChannelReader<string> source, ChannelWriter<BossEvent> sink, CancellationToken ct)
+{
+    try
+    {
+        await foreach (var line in source.ReadAllAsync(ct))
+        {
+            await sink.WriteAsync(new BossEvent.InputLine(line), ct);
+        }
+
+        await sink.WriteAsync(new BossEvent.InputClosed(), ct);
+    }
+    catch (OperationCanceledException)
+    {
+    }
+    catch (ChannelClosedException)
+    {
+    }
+}
+
+// IJobStatusSink has been published to since it was built and read by nothing.
+// This is the read side: every transition both re-renders the dashboard and gets
+// inspected against the pending Boss-turn set.
+static async Task PumpJobStatusAsync(ChannelReader<JobRecord> source, ChannelWriter<BossEvent> sink, CancellationToken ct)
+{
+    try
+    {
+        await foreach (var record in source.ReadAllAsync(ct))
+        {
+            await sink.WriteAsync(new BossEvent.JobTransition(record), ct);
+        }
+    }
+    catch (OperationCanceledException)
+    {
+    }
+    catch (ChannelClosedException)
+    {
+    }
+}
 
 // Writes each available provider's Home Office config in that provider's own shape and
 // returns the ProviderOptions to stamp onto Foremen running it. A provider with no
@@ -336,12 +569,4 @@ static Dictionary<string, IReadOnlyDictionary<string, string>> WriteMcpWiring(
     }
 
     return byProvider;
-}
-
-static bool IsExit(string input)
-{
-    var trimmed = input.Trim();
-    return trimmed.Equals("exit", StringComparison.OrdinalIgnoreCase) ||
-           trimmed.Equals("quit", StringComparison.OrdinalIgnoreCase) ||
-           trimmed.Equals("/exit", StringComparison.OrdinalIgnoreCase);
 }
