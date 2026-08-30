@@ -48,7 +48,15 @@ public class DispatchTaskToolTests
     private static JobRegistry NewRegistry(IForemanDirectory foremen)
     {
         var factory = new LocalCliAgentFactory([new FakeCliToolProvider("fake")], new FakeCliProcessRunner());
-        return new JobRegistry(foremen, factory, new JobStatusSink(), new LiveAgentRegistry(factory), "GC");
+        return new JobRegistry(
+            foremen,
+            new FakeJobsiteDirectory(),
+            factory,
+            new JobStatusSink(),
+            new LiveAgentRegistry(factory),
+            "GC",
+            new FakeWorktreeManager(),
+            new JobRegistryRuntimeOptions(Path.Combine(Path.GetTempPath(), "cc-test-state")));
     }
 
     private static string WriteWorkorder(string vaultRoot, string jobsite, string feature, string frontmatter)

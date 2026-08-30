@@ -2,6 +2,7 @@ using ConstructionCrew.Core.Abstractions;
 using ConstructionCrew.Core.Models;
 using ConstructionCrew.Core.Runtime;
 using ConstructionCrew.HomeOffice;
+using ConstructionCrew.Tests.Fakes;
 
 namespace ConstructionCrew.Tests.HomeOfficeTests;
 
@@ -22,7 +23,15 @@ public class SharedLiveAgentRegistryTests
 
         // One registry, both consumers -- exactly how Program.cs wires it.
         var liveAgents = new LiveAgentRegistry(factory);
-        var registry = new JobRegistry(directory, factory, new JobStatusSink(), liveAgents, "GC");
+        var registry = new JobRegistry(
+            directory,
+            new FakeJobsiteDirectory(),
+            factory,
+            new JobStatusSink(),
+            liveAgents,
+            "GC",
+            new FakeWorktreeManager(),
+            new JobRegistryRuntimeOptions(Path.Combine(Path.GetTempPath(), "cc-test-state")));
 
         // A Boss turn goes straight through the shared registry...
         await liveAgents.SendAsync("GC", gcConfig, "hello", CancellationToken.None);

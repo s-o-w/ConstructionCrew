@@ -3,6 +3,7 @@
   <ItemGroup>
     <ProjectReference Include="..\ConstructionCrew.Core\ConstructionCrew.Core.csproj" />
     <ProjectReference Include="..\ConstructionCrew.Providers\ConstructionCrew.Providers.csproj" />
+    <ProjectReference Include="..\ConstructionCrew.Git\ConstructionCrew.Git.csproj" />
     <ProjectReference Include="..\ConstructionCrew.Graph\ConstructionCrew.Graph.csproj" />
     <ProjectReference Include="..\ConstructionCrew.HomeOffice\ConstructionCrew.HomeOffice.csproj" />
     <ProjectReference Include="..\ConstructionCrew.Config\ConstructionCrew.Config.csproj" />
@@ -10,6 +11,13 @@
 
   <ItemGroup>
     <PackageReference Include="Spectre.Console" Version="0.57.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Dashboard.TaskColumns / StatusBadge are internal: the task board's
+         membership rules are worth asserting directly, without making the TUI's
+         private rendering helpers part of a public API. -->
+    <InternalsVisibleTo Include="ConstructionCrew.Tests" />
   </ItemGroup>
 
   <PropertyGroup>

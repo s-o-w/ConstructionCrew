@@ -1,5 +1,6 @@
 using ConstructionCrew.Config;
 using ConstructionCrew.Core;
+using ConstructionCrew.Core.Abstractions;
 using ConstructionCrew.HomeOffice;
 using Spectre.Console;
 
@@ -11,13 +12,21 @@ namespace ConstructionCrew.App.Tui;
 ///
 /// HARD INVARIANT, never to be relaxed: this only ever edits/deletes files
 /// this tool itself generated (foremen.yaml, jobsites.yaml, a Foreman's
-/// config/instructions/<name>.md). It NEVER deletes, moves, or writes to a
-/// Foreman's working directory or a Jobsite's repo path -- those are the
-/// Boss's real repos, not this tool's to touch.
+/// config/instructions/<name>.md). It NEVER touches tracked working-tree
+/// content in a Jobsite repo, with exactly one exception:
+/// <c>git worktree remove</c>/<c>prune</c>, which only ever rewrite
+/// <c>.git/worktrees/</c> bookkeeping for worktrees ConstructionCrew itself
+/// opened. Those repos are the Boss's, not this tool's to touch.
 /// </summary>
 public static class FireWizard
 {
-    public static void Run(ForemanDirectory foremen, JobsiteDirectory jobsites, JobRegistry jobs, string repoRoot)
+    public static async Task Run(
+        ForemanDirectory foremen,
+        JobsiteDirectory jobsites,
+        JobRegistry jobs,
+        string repoRoot,
+        IWorktreeManager worktreeManager,
+        CancellationToken cancellationToken)
     {
         AnsiConsole.Write(new Rule("[bold red]fire a foreman[/]").LeftJustified());
 
@@ -82,6 +91,15 @@ public static class FireWizard
             var jobsitesYamlPath = Path.Combine(repoRoot, "config", "jobsites.yaml");
             JobsiteConfigWriter.RemoveJobsite(jobsitesYamlPath, jobsite.Name);
             jobsites.Remove(jobsite.Name);
+        }
+
+        // NEVER repoRoot -- that is ConstructionCrew's own checkout, not the
+        // jobsite's. A Foreman with no Jobsite (GC, or one never assigned one) has
+        // no worktrees to clean up: skipping the whole prune is the correct
+        // outcome there, not an error.
+        if (!string.IsNullOrWhiteSpace(jobsite?.RepoPath))
+        {
+            await worktreeManager.PruneAsync(jobsite.RepoPath, cancellationToken);
         }
 
         AnsiConsole.MarkupLine($"[bold green]{Markup.Escape(name)} is fired.[/] Config removed. The jobsite's repo was not touched.");

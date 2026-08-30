@@ -127,7 +127,7 @@ public static class Dashboard
         var gc = foremen.Find("GC");
         if (gc is not null)
         {
-            rows.Add(new Markup($"[bold]GC[/]  {StatusBadge(jobs.IsForemanBusy("GC"))}"));
+            rows.Add(new Markup($"[bold]GC[/]  {StatusBadge(jobs.IsForemanBusy("GC"), jobs.IsForemanParked("GC"))}"));
             rows.Add(new Markup($"[grey]{gc.Provider}[/]"));
             rows.Add(Text.Empty);
         }
@@ -150,7 +150,7 @@ public static class Dashboard
     {
         var jobsiteSuffix = string.IsNullOrWhiteSpace(foreman.JobsiteName) ? "" : $" @ {foreman.JobsiteName}";
         var entry = new Rows(
-            new Markup($"[bold]{Markup.Escape(foreman.Name)}[/]  {StatusBadge(jobs.IsForemanBusy(foreman.Name))}"),
+            new Markup($"[bold]{Markup.Escape(foreman.Name)}[/]  {StatusBadge(jobs.IsForemanBusy(foreman.Name), jobs.IsForemanParked(foreman.Name))}"),
             new Markup($"[grey]{Markup.Escape(foreman.Provider)}{Markup.Escape(jobsiteSuffix)}[/]"));
 
         // Every Foreman is strictly assigned to one Jobsite (except GC, handled
@@ -167,7 +167,16 @@ public static class Dashboard
         return panel;
     }
 
-    private static string StatusBadge(bool busy) => busy ? "[bold black on yellow] working [/]" : "[grey on grey19] idle [/]";
+    /// <summary>
+    /// Three states, not two. A parked Foreman is NOT busy (IsForemanBusy is false
+    /// by design -- it can still take a sitrep or a redirect) but it is not free
+    /// either: it is blocked on the Boss, and rendering it as "idle" would hide the
+    /// one thing the Boss has to act on.
+    /// </summary>
+    internal static string StatusBadge(bool busy, bool parked = false) =>
+        busy ? "[bold black on yellow] working [/]"
+        : parked ? "[bold black on magenta] parked [/]"
+        : "[grey on grey19] idle [/]";
 
     private static IRenderable BuildMain(JobRegistry jobs, DashboardState state)
     {
@@ -226,18 +235,24 @@ public static class Dashboard
         return new Rows(rows);
     }
 
-    private static IRenderable BuildTasks(JobRegistry jobs)
-    {
-        var all = jobs.GetAllJobs();
-        var doing = all.Where(j => j.Status is JobStatus.Pending or JobStatus.Running).ToList();
-        var done = all.Where(j => j.Status == JobStatus.Completed).ToList();
-        var failed = all.Where(j => j.Status == JobStatus.Failed).ToList();
+    private static IRenderable BuildTasks(JobRegistry jobs) =>
+        new Columns(TaskColumns(jobs.GetAllJobs())
+            .Select(c => BuildTaskColumn(c.Title, c.Color, c.Jobs))
+            .ToArray());
 
-        return new Columns(
-            BuildTaskColumn("doing", "yellow", doing),
-            BuildTaskColumn("done", "green", done),
-            BuildTaskColumn("failed", "red", failed));
-    }
+    /// <summary>
+    /// The task board's columns, in order. Split out from the rendering so the
+    /// membership rules (a Parked job is its own column, never "doing") can be
+    /// asserted directly.
+    /// </summary>
+    internal static IReadOnlyList<(string Title, string Color, IReadOnlyList<JobRecord> Jobs)> TaskColumns(
+        IReadOnlyCollection<JobRecord> all) =>
+    [
+        ("doing", "yellow", all.Where(j => j.Status is JobStatus.Pending or JobStatus.Running).ToList()),
+        ("parked", "magenta", all.Where(j => j.Status == JobStatus.Parked).ToList()),
+        ("done", "green", all.Where(j => j.Status == JobStatus.Completed).ToList()),
+        ("failed", "red", all.Where(j => j.Status == JobStatus.Failed).ToList()),
+    ];
 
     private static IRenderable BuildTaskColumn(string title, string color, IReadOnlyList<JobRecord> jobs)
     {

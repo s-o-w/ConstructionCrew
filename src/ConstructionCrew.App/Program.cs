@@ -4,6 +4,7 @@ using ConstructionCrew.Config;
 using ConstructionCrew.Core.Abstractions;
 using ConstructionCrew.Core.Models;
 using ConstructionCrew.Core.Runtime;
+using ConstructionCrew.Git;
 using ConstructionCrew.Graph;
 using ConstructionCrew.Providers;
 using ConstructionCrew.HomeOffice;
@@ -95,11 +96,25 @@ var runner = new CliProcessRunner();
 // foremen.yaml naming an uninstalled CLI fails with that CLI's own error rather than
 // a misleading "no provider registered for 'codex'".
 var agentFactory = new LocalCliAgentFactory(providerRegistry.Registered, runner);
+// Built before JobRegistry, not just before HomeOfficeHost.StartAsync: JobRegistry
+// needs this same instance for spawn_worker's worktree-per-Worker mechanism, and
+// HomeOfficeHost registers the very same one for the three worktree tools. One
+// instance, two consumers, reusing `runner` above.
+var worktreeManager = new WorktreeManager(runner);
 // Exactly one LiveAgentRegistry per process. The Boss loop and JobRegistry both
 // route through it, so GC never ends up with two divergent conversations.
 var liveAgents = new LiveAgentRegistry(agentFactory);
 var statusSink = new JobStatusSink();
-var jobRegistry = new JobRegistry(foremanDirectory, agentFactory, statusSink, liveAgents, settings.GcForemanName);
+var runtimeOptions = new JobRegistryRuntimeOptions(settings.StateDirectory);
+var jobRegistry = new JobRegistry(
+    foremanDirectory,
+    jobsiteDirectory,
+    agentFactory,
+    statusSink,
+    liveAgents,
+    settings.GcForemanName,
+    worktreeManager,
+    runtimeOptions);
 // Program.cs is the one place allowed to construct a cross-project
 // implementation and hand HomeOffice an already-built instance -- HomeOffice
 // has no ProjectReference to ConstructionCrew.Graph and never names VaultGraph.
@@ -108,11 +123,14 @@ var vaultOptions = new HomeOfficeVaultOptions(settings.VaultRoot);
 // Same rule: WorkorderReader lives in Config, which HomeOffice does not
 // reference. Program.cs news it; HomeOfficeHost registers the instance.
 var workorderReader = new WorkorderReader();
+// Same rule again: SitrepWriter lives in Config, and file_sitrep only ever sees
+// the ISitrepWriter interface.
+var sitrepWriter = new SitrepWriter();
 
 Directory.CreateDirectory(settings.StateDirectory);
 
 using var cts = new CancellationTokenSource();
-var homeOffice = await HomeOfficeHost.StartAsync(jobRegistry, foremanDirectory, jobsiteDirectory, vaultOptions, workorderReader, vaultGraph, settings.HomeOfficePort, cts.Token);
+var homeOffice = await HomeOfficeHost.StartAsync(jobRegistry, foremanDirectory, jobsiteDirectory, vaultOptions, workorderReader, worktreeManager, sitrepWriter, vaultGraph, settings.HomeOfficePort, cts.Token);
 
 // --debug is deliberately not surfaced in the TUI itself (the Dashboard footer
 // used to always show this and it was just screen clutter) -- it's a one-time
@@ -262,7 +280,7 @@ while (true)
     if (command.Equals("/fire", StringComparison.OrdinalIgnoreCase))
     {
         AnsiConsole.Clear();
-        FireWizard.Run(foremanDirectory, jobsiteDirectory, jobRegistry, repoRoot);
+        await FireWizard.Run(foremanDirectory, jobsiteDirectory, jobRegistry, repoRoot, worktreeManager, cts.Token);
         AnsiConsole.Markup("[grey]Press enter to continue...[/]");
         Console.ReadLine();
         state.View = TuiView.Chat;

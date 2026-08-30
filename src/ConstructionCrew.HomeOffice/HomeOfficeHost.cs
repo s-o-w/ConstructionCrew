@@ -35,6 +35,8 @@ public sealed class HomeOfficeHost : IAsyncDisposable
         IJobsiteDirectory jobsites,
         HomeOfficeVaultOptions vaultOptions,
         IWorkorderReader workorderReader,
+        IWorktreeManager worktreeManager,
+        ISitrepWriter sitrepWriter,
         IVaultGraph vaultGraph,
         int port,
         CancellationToken cancellationToken)
@@ -52,6 +54,12 @@ public sealed class HomeOfficeHost : IAsyncDisposable
         // type would force a ProjectReference to Config that this project does not
         // have, and must not gain.
         builder.Services.AddSingleton(workorderReader);
+        // Same rule again: the INSTANCE. WorktreeManager lives in
+        // ConstructionCrew.Git, which this project does not reference.
+        builder.Services.AddSingleton(worktreeManager);
+        // Same rule once more: SitrepWriter lives in Config. file_sitrep only ever
+        // sees ISitrepWriter.
+        builder.Services.AddSingleton(sitrepWriter);
         builder.Services.AddSingleton(vaultGraph);
         builder.Services.AddMcpServer()
             .WithHttpTransport()
