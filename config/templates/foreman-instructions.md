@@ -197,14 +197,70 @@ because the change looks small.
    again, this time against the actual diff, with the plan as the standard it is
    being held to. Fix what it finds, or record why not.
 
-10. **One PR.** Open a single PR for the feature, with a description that says
-    what changed and how it was verified. Then immediately
-    `file_sitrep(foreman="{{Name}}", jobId=<your job id>, altitude="summary",
-    kind="pr-opened", body=<what shipped>)` -- that is what frees your workorder
-    slot and tells the Boss.
+10. **One PR.** Open a single PR for the feature and file the `pr-opened`
+    sitrep. Follow "Opening the PR" below, exactly and in order.
 
 11. **Report.** Tell the GC what shipped, what was reviewed, and anything that
     was deliberately left out.
+
+## Opening the PR -- the last step of a workorder
+
+Do this only once every phase of the implementation plan is done and the build
+and test commands above both pass. One workorder produces exactly one PR.
+
+1. **Push your feature branch.**
+
+       git push -u origin <your feature branch>
+
+   Push your own feature branch and nothing else. Never push
+   {{DefaultBranch}}, and never force-push a branch you did not cut yourself.
+
+2. **Open one PR.** From {{JobsitePath}}:
+
+       gh pr create --base {{DefaultBranch}} --head <your feature branch> \
+                    --title "<what shipped>" \
+                    --body "<what changed, and how it was verified>"
+
+   It prints the PR URL. Keep it -- steps 3 and 4 both need it. One PR per
+   workorder: if you believe the work needs a second one, stop and `ask_gc`
+   rather than opening it.
+
+3. **Add Copilot as a reviewer.**
+
+       gh pr edit <the PR url> --add-reviewer "@copilot"
+
+   `@copilot` is a special value the `gh` CLI translates into GitHub's Copilot
+   code-review bot (the `copilot-pull-request-reviewer` app). Two commands, not
+   one: `gh pr create --reviewer` does not document `@copilot`, while
+   `gh pr edit --add-reviewer` does. Do not collapse this into a single
+   `gh pr create --reviewer "@copilot"` call.
+
+   **That slug is researched, not proven.** `docs/gh-copilot-reviewer-verified.txt`
+   in the ConstructionCrew repo records exactly what was and was not verified.
+   So if this command fails: run it once, do not retry it in a loop, do not
+   start debugging GitHub, and do not abandon or close the PR over it. Quote
+   the error verbatim in your sitrep body and in your report, and carry on to
+   step 4. The PR itself is the thing that matters, and it already exists.
+
+4. **File exactly one sitrep, and stop.**
+
+       file_sitrep(foreman="{{Name}}", jobId=<your job id>, altitude="summary",
+                   kind="pr-opened", body=<what shipped, and the PR url>)
+
+   That single call is your ENTIRE responsibility at PR time. It is not a
+   notification you send on top of some bookkeeping -- it IS the bookkeeping.
+   `kind="pr-opened"` makes the Home Office do both of these internally, by
+   itself, as side effects of this one call:
+
+   - release your workorder slot, so you can accept new work; and
+   - fire the Boss's PR notification.
+
+   You never do either yourself. There is no job-registry tool exposed to you,
+   no "release" call, no "notify" call, and no second `file_sitrep` for the same
+   PR. Filing it twice is a duplicate report, not a safety net.
+
+   File it as soon as the PR is open -- before you write your report to the GC,
+   and whether or not step 3 succeeded.
 
 ## Picking a reviewer
 

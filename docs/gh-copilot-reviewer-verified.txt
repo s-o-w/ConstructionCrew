@@ -1,0 +1,154 @@
+# STATUS: RESEARCHED, NOT CAPTURED FROM A LIVE `gh pr create` INVOCATION.
+#
+# The filename says "verified" because Phase 9 step 1 of the implementation plan
+# names that file. The content is NOT verified to that standard. Read the
+# "WHAT IS ACTUALLY VERIFIED" and "OPEN MANUAL FOLLOW-UP" sections before you
+# trust the slug for anything that costs credibility if it is wrong.
+#
+# Researched on 2026-08-30 on this machine (Linux, Arch).
+
+
+## WHY NO LIVE CAPTURE WAS DONE
+
+The project owner gave a standing instruction for this entire implementation
+run: never push a branch to `origin` and never open a PR against
+https://github.com/s-o-w/ConstructionCrew.git -- not a real one, not a draft,
+not on a throwaway branch, not one closed immediately after. `origin` is a real
+remote and `gh` is really authenticated here (two accounts: ShawnWeeklySBS,
+active; s-o-w, the repo owner).
+
+`gh pr create --dry-run` was also NOT run: its own help text says
+"Print details instead of creating the PR. May still push git changes."
+That warning is enough to put it inside the prohibition.
+
+Everything below therefore comes from read-only sources: the installed `gh`
+binary's own help text and embedded symbols, and read-only GitHub API calls.
+
+
+## WHAT IS ACTUALLY VERIFIED (live, on this machine, read-only)
+
+1. gh version
+   $ gh --version
+   gh version 2.96.0 (2026-07-02)
+
+2. `gh pr create --help` documents NO Copilot special value for `--reviewer`:
+   -r, --reviewer handle      Request reviews from people or teams by their handle
+   ...
+   $ gh pr create --reviewer monalisa,hubot  --reviewer myorg/team-name
+
+   That is the whole of what `pr create` says about reviewers. No "@copilot",
+   no bot login, nowhere in the flag help, the long description, or the
+   examples.
+
+3. `gh pr edit --help` DOES document it, explicitly, in three places:
+
+   The `--add-reviewer` and `--remove-reviewer` flags support
+   the following special value:
+   - `@copilot`: request or remove review from Copilot (not supported on
+     GitHub Enterprise Server)
+
+       --add-reviewer login      Add or re-request reviewers by their login.
+                                 Use "@copilot" to request review from Copilot.
+
+   # Request a review from GitHub Copilot
+   $ gh pr edit 23 --add-reviewer "@copilot"
+
+4. The Copilot code-review bot account exists and was resolved read-only:
+
+   $ gh api 'users/copilot-pull-request-reviewer%5Bbot%5D'
+   {
+     "login": "Copilot",
+     "id": 175728472,
+     "node_id": "BOT_kgDOCnlnWA",
+     "html_url": "https://github.com/apps/copilot-pull-request-reviewer",
+     "type": "Bot",
+     "created_at": "2024-07-16T15:38:00Z"
+   }
+
+   So: the GitHub App slug is `copilot-pull-request-reviewer`, the addressable
+   account name is `copilot-pull-request-reviewer[bot]`, and the API reports its
+   `login` as the bare string `Copilot`. (`gh api users/Copilot` itself 404s;
+   only the `[bot]`-suffixed form resolves.) `github-copilot[bot]` does not
+   exist. `copilot[bot]` (id 167198135) and `copilot-swe-agent` (id 203248971)
+   are DIFFERENT accounts -- `copilot-swe-agent` is the Copilot coding agent
+   used for issue/PR *assignment*, not code review. Do not confuse them.
+
+5. The installed binary carries a shared Copilot-reviewer translation layer:
+
+   $ strings /usr/bin/gh | grep -i copilot
+   github.com/cli/cli/v2/pkg/cmd/pr/shared.NewCopilotReviewerReplacer
+   github.com/cli/cli/v2/pkg/cmd/pr/shared.(*CopilotReplacer).ReplaceSlice
+   copilot-pull-request-reviewer
+   botReviewerLogins
+
+   i.e. gh itself translates the `@copilot` alias into the
+   `copilot-pull-request-reviewer` bot login and sends it as a *bot* reviewer
+   (`botReviewerLogins`), which is why the raw login cannot simply be passed
+   through the ordinary user-reviewer path.
+
+
+## WHAT IS NOT VERIFIED
+
+a. That `gh pr create --reviewer "@copilot"` works. The replacer lives in
+   `pkg/cmd/pr/shared` (shared between create and edit), so it plausibly does,
+   but `pr create`'s own help documents no such value and no read-only probe
+   settles it. Shell-completion probes
+   (`gh __complete pr create --reviewer ""`) returned nothing -- this repo has
+   exactly one collaborator -- so they were inconclusive, not confirming.
+
+b. That the request would SUCCEED against this repo even with correct syntax.
+   Copilot code review requires an entitled Copilot plan on the account owning
+   the repo. Read-only evidence is mildly discouraging here:
+
+   $ gh api graphql -f query='query { repository(owner:"s-o-w", name:"ConstructionCrew")
+       { suggestedActors(capabilities:[CAN_BE_ASSIGNED], first:100)
+         { nodes { login __typename } } } }'
+   -> only {"login":"s-o-w","__typename":"User"}
+
+   No `copilot-swe-agent` in that list means Copilot's agent features are not
+   currently provisioned for this repo. That is the *assignment* capability,
+   not the *review* capability (GraphQL's `RepositorySuggestedActorFilter` enum
+   only has CAN_BE_ASSIGNED and CAN_BE_AUTHOR -- there is no reviewer filter to
+   query), so it is suggestive, not conclusive.
+
+   `gh api repos/s-o-w/ConstructionCrew/collaborators` (run with the owner
+   account's token) lists only `s-o-w`. Bots do not appear there, so this
+   neither confirms nor denies anything.
+
+c. The exact error text on failure, which is what a Foreman would have to
+   recognize and report.
+
+
+## THE GUIDANCE WRITTEN INTO THE TEMPLATE, AND WHY
+
+`config/templates/foreman-instructions.md` tells the Foreman to do it in two
+steps -- create, then edit:
+
+    gh pr create --base <default-branch> --head <feature-branch> \
+                 --title "..." --body "..."
+    gh pr edit <pr-url> --add-reviewer "@copilot"
+
+The two-step form is used because step 3 above is the ONLY form documented by
+the `gh` binary actually installed here. The one-step
+`gh pr create --reviewer "@copilot"` may well work, but it is undocumented in
+2.96.0 and unverified, and a Foreman guessing wrong burns a real PR on a real
+repo. The template also tells the Foreman that a failing `--add-reviewer` is
+NOT a reason to abandon the PR or retry in a loop: note it and move on.
+
+
+## OPEN MANUAL FOLLOW-UP (project owner, one time)
+
+Next time you open a PR on this repo BY HAND, confirm all of the following and
+then replace this file with the real transcript:
+
+  1. Does `gh pr edit <url> --add-reviewer "@copilot"` succeed? Capture the
+     exact stdout/stderr.
+  2. Does the request actually land -- does Copilot appear under
+     `gh pr view <url> --json reviewRequests` -- and does a review arrive?
+  3. Does the one-step `gh pr create --reviewer "@copilot"` ALSO work? If yes,
+     collapse the template's two steps into one.
+  4. If any of it fails, capture the failure text so the template can tell a
+     Foreman what a normal failure looks like.
+
+Until that is done, treat the `@copilot` guidance in the Foreman template as
+researched-and-plausible, not proven.
