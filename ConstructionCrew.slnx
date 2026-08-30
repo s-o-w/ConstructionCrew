@@ -5,7 +5,7 @@
     <Project Path="src/ConstructionCrew.Core/ConstructionCrew.Core.csproj" />
     <Project Path="src/ConstructionCrew.Memory/ConstructionCrew.Memory.csproj" />
     <Project Path="src/ConstructionCrew.Providers/ConstructionCrew.Providers.csproj" />
-    <Project Path="src/ConstructionCrew.SiteOffice/ConstructionCrew.SiteOffice.csproj" />
+    <Project Path="src/ConstructionCrew.HomeOffice/ConstructionCrew.HomeOffice.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/ConstructionCrew.Tests/ConstructionCrew.Tests.csproj" />

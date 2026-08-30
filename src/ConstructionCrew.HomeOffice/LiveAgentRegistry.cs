@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 using ConstructionCrew.Core.Abstractions;
 using ConstructionCrew.Core.Models;
 
-namespace ConstructionCrew.SiteOffice;
+namespace ConstructionCrew.HomeOffice;
 
 /// <summary>
 /// Each named Foreman gets exactly one persistent ILocalCliAgent, created

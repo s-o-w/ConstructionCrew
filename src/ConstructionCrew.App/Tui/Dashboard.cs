@@ -1,6 +1,6 @@
 using ConstructionCrew.Config;
 using ConstructionCrew.Core.Models;
-using ConstructionCrew.SiteOffice;
+using ConstructionCrew.HomeOffice;
 using Spectre.Console;
 using Spectre.Console.Rendering;
 
@@ -62,7 +62,7 @@ public static class Dashboard
         // Boss prompt gets positioned next, so nothing after this ever needs an
         // extra line (i.e. never scrolls the pinned header out of view).
         root["footer"].Update(new Rows(
-            new Markup($"[grey]Site Office {state.SiteOfficeAddress}  --  /tasks /hire /fire /chat /help /exit[/]"),
+            new Markup("[grey]/tasks /hire /fire /chat /help /exit[/]"),
             Text.Empty));
 
         AnsiConsole.Write(root);
@@ -116,7 +116,7 @@ public static class Dashboard
     }
 
     private static IRenderable BuildHeader() =>
-        new Panel(new Markup("[bold yellow]CONSTRUCTIONCREW[/]  [grey]-- the Boss's site office[/]"))
+        new Panel(new Markup("[bold yellow]CONSTRUCTIONCREW[/]  [grey]-- the Boss's home office[/]"))
             .Border(BoxBorder.Rounded)
             .Expand();
 

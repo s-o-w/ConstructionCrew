@@ -4,25 +4,25 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
-namespace ConstructionCrew.SiteOffice;
+namespace ConstructionCrew.HomeOffice;
 
 /// <summary>
-/// Hosts the Site Office MCP server over HTTP. GC and every Foreman are
+/// Hosts the Home Office MCP server over HTTP. GC and every Foreman are
 /// independent concurrent CLI processes, not one stdio pipe each -- HTTP is
 /// what lets them all reach the same control plane at once.
 /// </summary>
-public sealed class SiteOfficeHost : IAsyncDisposable
+public sealed class HomeOfficeHost : IAsyncDisposable
 {
     private readonly WebApplication _app;
 
-    private SiteOfficeHost(WebApplication app)
+    private HomeOfficeHost(WebApplication app)
     {
         _app = app;
     }
 
     public Uri BaseAddress => new(_app.Urls.First());
 
-    public static async Task<SiteOfficeHost> StartAsync(JobRegistry jobRegistry, IForemanDirectory foremen, IJobsiteDirectory jobsites, int port, CancellationToken cancellationToken)
+    public static async Task<HomeOfficeHost> StartAsync(JobRegistry jobRegistry, IForemanDirectory foremen, IJobsiteDirectory jobsites, int port, CancellationToken cancellationToken)
     {
         var builder = WebApplication.CreateBuilder();
         builder.Logging.ClearProviders();
@@ -41,7 +41,7 @@ public sealed class SiteOfficeHost : IAsyncDisposable
 
         await app.StartAsync(cancellationToken);
 
-        return new SiteOfficeHost(app);
+        return new HomeOfficeHost(app);
     }
 
     public async ValueTask DisposeAsync()

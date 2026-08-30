@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 using ConstructionCrew.Core.Abstractions;
 using ConstructionCrew.Core.Models;
 
-namespace ConstructionCrew.SiteOffice;
+namespace ConstructionCrew.HomeOffice;
 
 /// <summary>
 /// Tracks dispatched jobs. Every Start* method returns a job id immediately;

@@ -5,7 +5,7 @@ public sealed record AppSettings(
     string JobsitesConfigPath,
     string StateDirectory,
     string GeneratedConfigDirectory,
-    int SiteOfficePort,
+    int HomeOfficePort,
     string GcForemanName)
 {
     public static AppSettings ForRepoRoot(string repoRoot) => new(
@@ -13,6 +13,6 @@ public sealed record AppSettings(
         JobsitesConfigPath: Path.Combine(repoRoot, "config", "jobsites.yaml"),
         StateDirectory: Path.Combine(repoRoot, "state"),
         GeneratedConfigDirectory: Path.Combine(repoRoot, "config", "generated"),
-        SiteOfficePort: 5199,
+        HomeOfficePort: 5199,
         GcForemanName: "GC");
 }

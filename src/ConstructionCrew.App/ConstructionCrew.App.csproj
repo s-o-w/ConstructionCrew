@@ -3,7 +3,7 @@
   <ItemGroup>
     <ProjectReference Include="..\ConstructionCrew.Core\ConstructionCrew.Core.csproj" />
     <ProjectReference Include="..\ConstructionCrew.Providers\ConstructionCrew.Providers.csproj" />
-    <ProjectReference Include="..\ConstructionCrew.SiteOffice\ConstructionCrew.SiteOffice.csproj" />
+    <ProjectReference Include="..\ConstructionCrew.HomeOffice\ConstructionCrew.HomeOffice.csproj" />
     <ProjectReference Include="..\ConstructionCrew.Memory\ConstructionCrew.Memory.csproj" />
     <ProjectReference Include="..\ConstructionCrew.Config\ConstructionCrew.Config.csproj" />
   </ItemGroup>

@@ -14,7 +14,7 @@ CLI agent process, not a hosted chat-completion endpoint, so there's no
 in-process LLM call for an agent framework to wrap function-calling around.
 The missing piece -- a shared control surface those independent CLI processes
 can all reach -- is a small MCP server ConstructionCrew hosts itself (the
-"Site Office"), wired into every hired CLI's own native MCP support.
+"Home Office"), wired into every hired CLI's own native MCP support.
 
 ## What's here today
 
@@ -33,7 +33,7 @@ can all reach -- is a small MCP server ConstructionCrew hosts itself (the
   generated instructions file. Directly tested, not just reviewed.
 - `/tasks` -- a live doing/done/failed board sourced from real job state.
 - `dispatch_task` / `spawn_worker` / `ask_foreman` / `list_foremen` /
-  `list_jobsites` / `get_job_status` -- the MCP tools the Site Office exposes.
+  `list_jobsites` / `get_job_status` -- the MCP tools the Home Office exposes.
   A Foreman is continuation-aware (the same `--continue` mechanism the GC uses
   with you) so it remembers its own prior turns and can answer a Worker's
   `ask_foreman` question coherently, not just run one-shot.
@@ -85,7 +85,7 @@ sandbox/                       # Scratch working directory (git-ignored)
 state/                         # Runtime state (git-ignored)
 src/ConstructionCrew.Core/         # Domain models + interfaces, no external deps
 src/ConstructionCrew.Providers/    # One class per CLI tool (CliWrap-based)
-src/ConstructionCrew.SiteOffice/   # The MCP control-plane server ("Site Office")
+src/ConstructionCrew.HomeOffice/   # The MCP control-plane server ("Home Office")
 src/ConstructionCrew.Memory/       # Shared-memory abstraction (MemPalace lands here later)
 src/ConstructionCrew.Config/       # YAML config loading/writing
 src/ConstructionCrew.App/          # Spectre.Console TUI + composition root

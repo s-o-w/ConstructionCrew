@@ -2,10 +2,10 @@ using ConstructionCrew.Core.Abstractions;
 using ConstructionCrew.Core.Models;
 using ConstructionCrew.Core.Runtime;
 using ConstructionCrew.Providers;
-using ConstructionCrew.SiteOffice;
+using ConstructionCrew.HomeOffice;
 using ConstructionCrew.Tests.Fakes;
 
-namespace ConstructionCrew.Tests.SiteOfficeTests;
+namespace ConstructionCrew.Tests.HomeOfficeTests;
 
 public class JobRegistryTests
 {

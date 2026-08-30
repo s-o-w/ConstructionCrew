@@ -17,5 +17,5 @@ public sealed class DashboardState
 
     public List<TranscriptLine> Transcript { get; } = new();
 
-    public required string SiteOfficeAddress { get; init; }
+    public required string HomeOfficeAddress { get; init; }
 }

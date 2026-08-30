@@ -22,7 +22,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\ConstructionCrew.Core\ConstructionCrew.Core.csproj" />
     <ProjectReference Include="..\..\src\ConstructionCrew.Providers\ConstructionCrew.Providers.csproj" />
-    <ProjectReference Include="..\..\src\ConstructionCrew.SiteOffice\ConstructionCrew.SiteOffice.csproj" />
+    <ProjectReference Include="..\..\src\ConstructionCrew.HomeOffice\ConstructionCrew.HomeOffice.csproj" />
     <ProjectReference Include="..\..\src\ConstructionCrew.Config\ConstructionCrew.Config.csproj" />
     <ProjectReference Include="..\..\src\ConstructionCrew.App\ConstructionCrew.App.csproj" />
   </ItemGroup>

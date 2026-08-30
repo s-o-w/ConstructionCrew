@@ -4,11 +4,11 @@ using ConstructionCrew.Core.Abstractions;
 using ConstructionCrew.Core.Models;
 using ConstructionCrew.Core.Runtime;
 using ConstructionCrew.Providers;
-using ConstructionCrew.SiteOffice;
+using ConstructionCrew.HomeOffice;
 using Spectre.Console;
 
 var repoRoot = RepoPaths.FindRepoRoot(AppContext.BaseDirectory);
-var settings = AppSettings.ForRepoRoot(repoRoot);
+var settings = AppSettingsLoader.Load(repoRoot, args);
 
 AnsiConsole.Write(new Rule("[bold yellow]ConstructionCrew[/]").LeftJustified());
 
@@ -55,15 +55,28 @@ var jobRegistry = new JobRegistry(foremanDirectory, agentFactory, statusSink);
 Directory.CreateDirectory(settings.StateDirectory);
 
 using var cts = new CancellationTokenSource();
-var siteOffice = await SiteOfficeHost.StartAsync(jobRegistry, foremanDirectory, jobsiteDirectory, settings.SiteOfficePort, cts.Token);
+var homeOffice = await HomeOfficeHost.StartAsync(jobRegistry, foremanDirectory, jobsiteDirectory, settings.HomeOfficePort, cts.Token);
 
-// Every Foreman needs the Site Office's MCP config to call list_foremen/dispatch_task/
+// --debug is deliberately not surfaced in the TUI itself (the Dashboard footer
+// used to always show this and it was just screen clutter) -- it's a one-time
+// plain-console line before the TUI takes over, for when a second instance
+// (e.g. built from a worktree, on an overridden port) needs to be told apart
+// from the live one.
+var isDebug = args.Contains("--debug", StringComparer.OrdinalIgnoreCase);
+if (isDebug)
+{
+    AnsiConsole.MarkupLine($"[grey]Home Office listening on {homeOffice.BaseAddress}[/]");
+    AnsiConsole.Markup("[grey]Press enter to continue...[/]");
+    Console.ReadLine();
+}
+
+// Every Foreman needs the Home Office's MCP config to call list_foremen/dispatch_task/
 // spawn_worker/ask_foreman -- not just GC. Stamp it onto everyone hired so far;
 // HireWizard does the same for anyone hired mid-session.
 string? mcpConfigPath = null;
 if (gcConfig.Provider.Equals("claude", StringComparison.OrdinalIgnoreCase))
 {
-    mcpConfigPath = McpConfigWriter.WriteClaudeCodeConfig(settings.GeneratedConfigDirectory, siteOffice.BaseAddress);
+    mcpConfigPath = McpConfigWriter.WriteClaudeCodeConfig(settings.GeneratedConfigDirectory, homeOffice.BaseAddress);
 
     foreach (var foreman in foremanDirectory.All().ToList())
     {
@@ -75,12 +88,12 @@ if (gcConfig.Provider.Equals("claude", StringComparison.OrdinalIgnoreCase))
 }
 else
 {
-    AnsiConsole.MarkupLine($"[yellow]GC provider '{gcConfig.Provider}' isn't wired to the Site Office yet -- only Claude Code's --mcp-config shape has been verified.[/]");
+    AnsiConsole.MarkupLine($"[yellow]GC provider '{gcConfig.Provider}' isn't wired to the Home Office yet -- only Claude Code's --mcp-config shape has been verified.[/]");
 }
 
 var gc = agentFactory.Create(gcConfig);
 
-var state = new DashboardState { SiteOfficeAddress = siteOffice.BaseAddress.ToString() };
+var state = new DashboardState { HomeOfficeAddress = homeOffice.BaseAddress.ToString() };
 
 while (true)
 {
@@ -163,7 +176,7 @@ while (true)
     state.Transcript.Add(new TranscriptLine("GC", result.Succeeded ? result.StandardOutput : result.StandardError, IsError: !result.Succeeded));
 }
 
-await siteOffice.DisposeAsync();
+await homeOffice.DisposeAsync();
 return 0;
 
 static bool IsExit(string input)

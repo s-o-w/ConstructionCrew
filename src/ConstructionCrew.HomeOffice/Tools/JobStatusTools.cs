@@ -3,7 +3,7 @@ using ConstructionCrew.Core.Models;
 using ModelContextProtocol;
 using ModelContextProtocol.Server;
 
-namespace ConstructionCrew.SiteOffice.Tools;
+namespace ConstructionCrew.HomeOffice.Tools;
 
 [McpServerToolType]
 public sealed class JobStatusTools
