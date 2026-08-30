@@ -18,6 +18,8 @@ public sealed class ClaudeCodeProvider : ICliToolProvider
 
     public string ProviderId => "claude";
 
+    public string ExecutableName => _executablePath;
+
     public CliInvocation BuildInvocation(CliTaskRequest request)
     {
         var args = new List<string> { "-p" };

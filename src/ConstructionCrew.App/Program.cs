@@ -45,11 +45,18 @@ catch (Exception ex)
 
 var jobsiteDirectory = new JobsiteDirectory(jobsitesSeed);
 
-ICliToolProvider[] providers = [new ClaudeCodeProvider(), new GeminiProvider()];
-var availableProviderIds = providers.Select(p => p.ProviderId).Where(id => id != "gemini").ToList(); // gemini isn't wired yet
+// Which CLIs this machine can actually hire: registered in code AND resolvable on
+// PATH. There is deliberately no "id != gemini" filter here -- GeminiProvider reports
+// IsImplemented == false itself, so it stays out even on a box where `gemini` is
+// installed. Results cache to state/tools.json; /settings re-probes.
+var providerRegistry = ProviderRegistry.Default(settings.StateDirectory);
+var availableProviderIds = providerRegistry.AvailableIds();
 
 var runner = new CliProcessRunner();
-var agentFactory = new LocalCliAgentFactory(providers, runner);
+// The factory gets every registered provider, not just the available ones, so a
+// foremen.yaml naming an uninstalled CLI fails with that CLI's own error rather than
+// a misleading "no provider registered for 'codex'".
+var agentFactory = new LocalCliAgentFactory(providerRegistry.Registered, runner);
 // Exactly one LiveAgentRegistry per process. The Boss loop and JobRegistry both
 // route through it, so GC never ends up with two divergent conversations.
 var liveAgents = new LiveAgentRegistry(agentFactory);
@@ -80,24 +87,32 @@ if (isDebug)
 }
 
 // Every Foreman needs the Home Office's MCP config to call list_foremen/dispatch_task/
-// spawn_worker/ask_foreman -- not just GC. Stamp it onto everyone hired so far;
-// HireWizard does the same for anyone hired mid-session.
-string? mcpConfigPath = null;
-if (gcConfig.Provider.Equals("claude", StringComparison.OrdinalIgnoreCase))
-{
-    mcpConfigPath = McpConfigWriter.WriteClaudeCodeConfig(settings.GeneratedConfigDirectory, homeOffice.BaseAddress);
+// spawn_worker/ask_foreman -- not just GC, and not just Claude Code. Each available
+// provider gets its own config written in its own shape, then everyone hired so far is
+// stamped with the wiring for the provider they actually run.
+var mcpOptionsByProvider = WriteMcpWiring(providerRegistry, settings.GeneratedConfigDirectory, homeOffice.BaseAddress);
 
-    foreach (var foreman in foremanDirectory.All().ToList())
+foreach (var foreman in foremanDirectory.All().ToList())
+{
+    if (!mcpOptionsByProvider.TryGetValue(foreman.Provider, out var mcpOptions))
     {
-        var merged = new Dictionary<string, string>(foreman.ProviderOptions) { ["mcpConfigPath"] = mcpConfigPath };
-        foremanDirectory.Add(foreman with { ProviderOptions = merged });
+        continue;
     }
 
-    gcConfig = foremanDirectory.Find(settings.GcForemanName)!;
+    var merged = new Dictionary<string, string>(foreman.ProviderOptions);
+    foreach (var option in mcpOptions)
+    {
+        merged[option.Key] = option.Value;
+    }
+
+    foremanDirectory.Add(foreman with { ProviderOptions = merged });
 }
-else
+
+gcConfig = foremanDirectory.Find(settings.GcForemanName)!;
+
+if (!mcpOptionsByProvider.ContainsKey(gcConfig.Provider))
 {
-    AnsiConsole.MarkupLine($"[yellow]GC provider '{gcConfig.Provider}' isn't wired to the Home Office yet -- only Claude Code's --mcp-config shape has been verified.[/]");
+    AnsiConsole.MarkupLine($"[yellow]GC's provider '{Markup.Escape(gcConfig.Provider)}' isn't reachable from the Home Office -- it's either not installed or has no verified MCP shape. Run /settings to re-probe.[/]");
 }
 
 var state = new DashboardState { HomeOfficeAddress = homeOffice.BaseAddress.ToString() };
@@ -135,9 +150,49 @@ while (true)
 
     if (command.Equals("/help", StringComparison.OrdinalIgnoreCase))
     {
-        AnsiConsole.MarkupLine("[grey]/chat  /tasks  /hire  /fire  /exit -- anything else is sent to the GC as a message.[/]");
+        AnsiConsole.MarkupLine("[grey]/chat  /tasks  /hire  /fire  /settings  /exit -- anything else is sent to the GC as a message.[/]");
         AnsiConsole.Markup("[grey]Press enter to continue...[/]");
         Console.ReadLine();
+        continue;
+    }
+
+    if (command.Equals("/settings", StringComparison.OrdinalIgnoreCase))
+    {
+        AnsiConsole.Clear();
+        AnsiConsole.Write(new Rule("[bold yellow]tool discovery[/]").LeftJustified());
+
+        // Re-probe PATH from scratch (a CLI installed since startup shows up here)
+        // and rewrite state/tools.json.
+        var probes = providerRegistry.Refresh();
+        availableProviderIds = providerRegistry.AvailableIds();
+        mcpOptionsByProvider = WriteMcpWiring(providerRegistry, settings.GeneratedConfigDirectory, homeOffice.BaseAddress);
+
+        var table = new Table().Border(TableBorder.Rounded);
+        table.AddColumn("provider");
+        table.AddColumn("status");
+        table.AddColumn("resolved");
+        table.AddColumn("home office");
+
+        foreach (var probe in probes)
+        {
+            var status = !probe.Implemented
+                ? "[grey]not implemented[/]"
+                : probe.ResolvedPath is null
+                    ? "[red]not on PATH[/]"
+                    : "[green]available[/]";
+
+            table.AddRow(
+                Markup.Escape(probe.ProviderId),
+                status,
+                Markup.Escape(probe.ResolvedPath ?? probe.ExecutableName),
+                mcpOptionsByProvider.ContainsKey(probe.ProviderId) ? "[green]wired[/]" : "[grey]-[/]");
+        }
+
+        AnsiConsole.Write(table);
+        AnsiConsole.MarkupLine($"[grey]Cached to {Markup.Escape(Path.Combine(settings.StateDirectory, "tools.json"))}.[/]");
+        AnsiConsole.Markup("[grey]Press enter to continue...[/]");
+        Console.ReadLine();
+        state.View = TuiView.Chat;
         continue;
     }
 
@@ -156,7 +211,7 @@ while (true)
         }
 
         AnsiConsole.Clear();
-        HireWizard.Run(foremanDirectory, jobsiteDirectory, availableProviderIds, repoRoot, settings.VaultRoot, mcpConfigPath);
+        HireWizard.Run(foremanDirectory, jobsiteDirectory, availableProviderIds, repoRoot, settings.VaultRoot, mcpOptionsByProvider);
         AnsiConsole.Markup("[grey]Press enter to continue...[/]");
         Console.ReadLine();
         state.View = TuiView.Chat;
@@ -197,6 +252,32 @@ while (true)
 
 await homeOffice.DisposeAsync();
 return 0;
+
+// Writes each available provider's Home Office config in that provider's own shape and
+// returns the ProviderOptions to stamp onto Foremen running it. A provider with no
+// verified MCP shape is warned about, not fatal -- it still works, it just can't call
+// Home Office tools.
+static Dictionary<string, IReadOnlyDictionary<string, string>> WriteMcpWiring(
+    ProviderRegistry registry,
+    string generatedConfigDirectory,
+    Uri homeOfficeBaseAddress)
+{
+    var byProvider = new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
+
+    foreach (var provider in registry.Available())
+    {
+        var wiring = McpConfigWriter.Write(provider.ProviderId, generatedConfigDirectory, homeOfficeBaseAddress);
+        if (wiring is null)
+        {
+            AnsiConsole.MarkupLine($"[yellow]No verified Home Office MCP shape for provider '{Markup.Escape(provider.ProviderId)}' -- its Foremen won't be able to call Home Office tools.[/]");
+            continue;
+        }
+
+        byProvider[provider.ProviderId] = wiring.ProviderOptions;
+    }
+
+    return byProvider;
+}
 
 static bool IsExit(string input)
 {

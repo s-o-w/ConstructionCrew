@@ -6,11 +6,15 @@ namespace ConstructionCrew.Tests.Fakes;
 public sealed class FakeCliToolProvider : ICliToolProvider
 {
     public string ProviderId { get; }
+    public string ExecutableName { get; }
+    public bool IsImplemented { get; }
     public List<CliTaskRequest> Requests { get; } = new();
 
-    public FakeCliToolProvider(string providerId = "fake")
+    public FakeCliToolProvider(string providerId = "fake", string? executableName = null, bool isImplemented = true)
     {
         ProviderId = providerId;
+        ExecutableName = executableName ?? providerId;
+        IsImplemented = isImplemented;
     }
 
     public CliInvocation BuildInvocation(CliTaskRequest request)

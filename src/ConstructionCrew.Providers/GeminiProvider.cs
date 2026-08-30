@@ -12,6 +12,14 @@ public sealed class GeminiProvider : ICliToolProvider
 {
     public string ProviderId => "gemini";
 
+    /// <summary>
+    /// Deliberately false. `gemini` IS on PATH on at least one dev machine, so a
+    /// pure PATH probe would happily offer it in the hire wizard and then blow up
+    /// on the first dispatch. The placeholder declares its own unreadiness; the
+    /// registry never carries a hand-written "id != gemini" filter.
+    /// </summary>
+    public bool IsImplemented => false;
+
     public CliInvocation BuildInvocation(CliTaskRequest request) =>
         throw new NotSupportedException(
             "Gemini CLI support is not implemented -- its flags have not been verified against a real install.");

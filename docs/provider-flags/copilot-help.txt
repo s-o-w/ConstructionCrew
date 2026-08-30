@@ -1,0 +1,195 @@
+# Captured on 2026-08-30T19:13:30Z from the real GitHub Copilot CLI on this machine
+# which copilot -> /home/shawn/.local/share/mise/installs/node/lts/bin/copilot
+# copilot --version -> 0.0.355
+Commit: 90c0eb793
+
+$ copilot --help
+Usage: copilot [options] [command]
+
+GitHub Copilot CLI - An AI-powered coding assistant
+
+Options:
+  --add-dir <directory>               Add a directory to the allowed list for
+                                      file access (can be used multiple times)
+  --additional-mcp-config <json>      Additional MCP servers configuration as
+                                      JSON string or file path (prefix with @)
+                                      (can be used multiple times; augments
+                                      config from ~/.copilot/mcp-config.json for
+                                      this session)
+  --agent <agent>                     Specify a custom agent to use, only in
+                                      prompt mode
+  --allow-all-paths                   Disable file path verification and allow
+                                      access to any path
+  --allow-all-tools                   Allow all tools to run automatically
+                                      without confirmation; required for
+                                      non-interactive mode (env:
+                                      COPILOT_ALLOW_ALL)
+  --allow-tool [tools...]             Allow specific tools
+  --banner                            Show the startup banner
+  --continue                          Resume the most recent session
+  --deny-tool [tools...]              Deny specific tools, takes precedence over
+                                      --allow-tool or --allow-all-tools
+  --disable-builtin-mcps              Disable all built-in MCP servers
+                                      (currently: github-mcp-server)
+  --disable-mcp-server <server-name>  Disable a specific MCP server (can be used
+                                      multiple times)
+  --disable-parallel-tools-execution  Disable parallel execution of tools (LLM
+                                      can still make parallel tool calls, but
+                                      they will be executed sequentially)
+  --disallow-temp-dir                 Prevent automatic access to the system
+                                      temporary directory
+  --enable-all-github-mcp-tools       Enable all GitHub MCP server tools instead
+                                      of the default CLI subset
+  -h, --help                          display help for command
+  --log-dir <directory>               Set log file directory (default:
+                                      ~/.copilot/logs/)
+  --log-level <level>                 Set the log level (choices: "none",
+                                      "error", "warning", "info", "debug",
+                                      "all", "default")
+  --model <model>                     Set the AI model to use (choices:
+                                      "claude-sonnet-4.5", "claude-sonnet-4",
+                                      "claude-haiku-4.5", "gpt-5")
+  --no-color                          Disable all color output
+  --no-custom-instructions            Disable loading of custom instructions
+                                      from AGENTS.md and related files
+  -p, --prompt <text>                 Execute a prompt directly without
+                                      interactive mode
+  --resume [sessionId]                Resume from a previous session (optionally
+                                      specify session ID)
+  --screen-reader                     Enable screen reader optimizations
+  --stream <mode>                     Enable or disable streaming mode (choices:
+                                      "on", "off")
+  -v, --version                       show version information
+
+Commands:
+  help [topic]                        Display help information
+
+Help Topics:
+  config       Configuration Settings
+  commands     Interactive Mode Commands
+  environment  Environment Variables
+  logging      Logging
+  permissions  Tool Permissions
+
+Examples:
+  # Start interactive mode
+  $ copilot
+
+  # Execute a prompt in non-interactive mode
+  $ copilot -p "Fix the bug in main.js" --allow-all-tools
+
+  # Start with a specific model
+  $ copilot --model gpt-5
+
+  # Resume the most recent session
+  $ copilot --continue
+
+  # Resume a previous session using session picker
+  $ copilot --resume
+
+  # Resume with auto-approval
+  $ copilot --allow-all-tools --resume
+
+  # Allow access to additional directory
+  $ copilot --add-dir /home/user/projects
+
+  # Allow multiple directories
+  $ copilot --add-dir ~/workspace --add-dir /tmp
+
+  # Disable path verification (allow access to any path)
+  $ copilot --allow-all-paths
+
+  # Allow all git commands except git push
+  $ copilot --allow-tool 'shell(git:*)' --deny-tool 'shell(git push)'
+
+  # Allow all file editing
+  $ copilot --allow-tool 'write'
+
+  # Allow all but one specific tool from MCP server with name "MyMCP"
+  $ copilot --deny-tool 'MyMCP(denied_tool)' --allow-tool 'MyMCP'
+
+
+$ copilot help config
+Configuration Settings:
+
+  `banner`: frequency of showing animated banner; defaults to "once".
+    - "always" displays it every time
+    - "never" disables it
+    - "once" displays it the first time
+
+  `beep`: whether to beep when user attention is required; defaults to `true`.
+
+  `log_level`: log level for CLI; defaults to "default". Set to "all" for debug logging.
+
+  `model`: AI model to use for Copilot CLI; can be changed with /model command or --model flag option.
+    - "claude-sonnet-4.5"
+    - "claude-sonnet-4"
+    - "claude-haiku-4.5"
+    - "gpt-5"
+
+  `parallel_tool_execution`: whether to enable parallel execution of tools; defaults to `true`.
+    - Can be disabled with --disable-parallel-tools-execution flag
+
+  `render_markdown`: whether to render markdown in the terminal; defaults to `true`.
+
+  `screen_reader`: whether to enable screen reader optimizations; defaults to `false`.
+
+  `stream`: whether to enable streaming mode; defaults to `true`.
+
+  `theme`: theme to color and stylize output; defaults to "auto".
+    - "auto" detects terminal background and decides based on luminosity
+    - "dark" uses contrasting ANSI colors for dark backgrounds
+    - "light" uses contrasting ANSI colors for light backgrounds
+
+  `trusted_folders`: list of folders where permission to read or execute files has been granted.
+
+
+$ copilot help environment
+Environment Variables:
+
+  `COLORFGBG`: fallback to detect dark / light backgrounds; uses form of "fg;bg" where each field is a number from 0-15 corresponding to ANSI colors.
+
+  `COPILOT_ALLOW_ALL`: allow all tools to run automatically without confirmation when set to "true".
+
+  `COPILOT_CUSTOM_INSTRUCTIONS_DIRS`: comma-separated list of additional directories to search for custom instructions files (in addition to git root and current working directory).
+
+  `COPILOT_MODEL`: optionally set the agent model. Allowed values are "gpt-5", "claude-sonnet-4", or "claude-sonnet-4.5" (default). Can be overridden by the --model command line option or the /model command.
+
+  `COPILOT_GITHUB_TOKEN`, `GH_TOKEN`, `GITHUB_TOKEN` (in order of precedence): an authentication token that takes precedence over previously stored credentials.
+
+  `XDG_CONFIG_HOME`: override the directory where configuration files are stored; defaults to `$HOME/.copilot`.
+
+  `XDG_STATE_HOME`: override the directory where state files are stored; defaults to `$HOME/.copilot`.
+
+$ copilot help permissions
+Tool Permissions:
+
+  Tool permissions are managed via the --allow-tool, --deny-tool, and --allow-all-tools command line parameters.
+  Denial rules always take precedence over allow rules, even --allow-all-tools.
+
+  The --allow-tool and --deny-tool parameters take a permission pattern of form kind(argument) where the argument
+  is optional and dependent on the kind. The following kinds are supported:
+
+    shell(command:*?)
+        Exactly matches a specific shell command to be run. If the command is omitted, all shell commands are allowed.
+        In most cases, this will be an exact match against the command name. To match prefixes, use the :* suffix.
+        This is particularly useful for git and gh commands, where approval is performed on a first-level subcommand
+        basis, e.g. "git push" or "gh pr create". To match all git commands, use "shell(git:*)". Wildcard matching is
+        performed on the stem of the command, so "shell(git:*)" will match "git push" but not "gitea".
+
+    write
+        Matches tools that create and modify files, except shell tool invocations. To allow all shell redirections,
+        set --allow-all-tools.
+
+    <mcp-server-name>(tool-name?)
+        Exactly matches a specific tool from a specific MCP server, or all tools from that server if omitted.
+        The server name is the name of the MCP server as configured in your environment (e.g. "MyMCP").
+        The tool name is the name of the tool as registered with the MCP server (e.g. "my_tool").
+
+  It is expected that these permissions will be extended in the very near future to support wildcard matching and other richer functionality.
+
+# --additional-mcp-config takes 'JSON string or file path (prefix with @)'.
+# The accepted JSON shape was read out of the CLI's own bundled validation
+# schema in $(npm root -g)/@github/copilot/index.js, not guessed:
+#   mcpServers: record(<name>, ...) where the name must be alphanumeric/underscore/hyphen,
+#   and a remote server is  { type: "http" | "sse", url: <string>, headers?: <map>, tools?: <list> }

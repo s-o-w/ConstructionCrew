@@ -1,5 +1,6 @@
 using ConstructionCrew.Config;
 using ConstructionCrew.Core.Models;
+using ConstructionCrew.Providers;
 using Spectre.Console;
 
 namespace ConstructionCrew.App.Tui;
@@ -19,7 +20,7 @@ public static class HireWizard
         IReadOnlyList<string> availableProviderIds,
         string repoRoot,
         string vaultRoot,
-        string? mcpConfigPath)
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> mcpOptionsByProvider)
     {
         AnsiConsole.Write(new Rule("[bold yellow]hire a foreman[/]").LeftJustified());
 
@@ -106,10 +107,15 @@ public static class HireWizard
         var instructionsFilePath = Path.Combine(instructionsDir, $"{name}.md");
         File.WriteAllText(instructionsFilePath, ComposeInstructions(name, briefing, jobsite));
 
-        var providerOptions = new Dictionary<string, string> { ["allowedTools"] = "Bash,Edit,Read,Write" };
-        if (!string.IsNullOrWhiteSpace(mcpConfigPath))
+        // Tool policy is provider-specific -- Claude Code's "Bash,Edit,Read,Write" means
+        // nothing to Copilot, and Codex has no tool allowlist at all.
+        var providerOptions = new Dictionary<string, string>(ProviderDefaults.ToolPolicy(provider));
+        if (mcpOptionsByProvider.TryGetValue(provider, out var mcpOptions))
         {
-            providerOptions["mcpConfigPath"] = mcpConfigPath;
+            foreach (var option in mcpOptions)
+            {
+                providerOptions[option.Key] = option.Value;
+            }
         }
 
         var config = new ForemanConfig(

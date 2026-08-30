@@ -62,7 +62,7 @@ public static class Dashboard
         // Boss prompt gets positioned next, so nothing after this ever needs an
         // extra line (i.e. never scrolls the pinned header out of view).
         root["footer"].Update(new Rows(
-            new Markup("[grey]/tasks /hire /fire /chat /help /exit[/]"),
+            new Markup("[grey]/tasks /hire /fire /chat /settings /help /exit[/]"),
             Text.Empty));
 
         AnsiConsole.Write(root);
