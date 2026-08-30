@@ -173,12 +173,18 @@ public class ForemanConfigWriterTests
         Directory.CreateDirectory(Path.GetDirectoryName(instructionsPath)!);
         File.WriteAllText(instructionsPath, "You are DriveRoot.");
 
+        // A real, existing directory whose name still ends in a bare colon -- keeps the
+        // YAML trailing-colon trap under test without depending on a Windows drive letter
+        // existing as a directory (which it doesn't, on Linux/macOS).
+        var workingDirectory = Path.Combine(repoRoot, "work:");
+        Directory.CreateDirectory(workingDirectory);
+
         var yamlPath = Path.GetTempFileName();
         File.WriteAllText(yamlPath, "foremen:\n");
 
         try
         {
-            var config = new ForemanConfig("DriveRoot", "claude", "c:", instructionsPath, new Dictionary<string, string>());
+            var config = new ForemanConfig("DriveRoot", "claude", workingDirectory, instructionsPath, new Dictionary<string, string>());
 
             ForemanConfigWriter.AppendForeman(yamlPath, config, repoRoot);
 
@@ -191,6 +197,7 @@ public class ForemanConfigWriterTests
         {
             File.Delete(yamlPath);
             File.Delete(instructionsPath);
+            Directory.Delete(workingDirectory);
         }
     }
 }
