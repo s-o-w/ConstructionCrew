@@ -1,0 +1,1329 @@
+@prefix data: <https://vault.weekly.dev/notes/> .
+@prefix vld: <https://github.com/The-Knowledge-Graph-Guys/vault-ld#> .
+@prefix vm: <https://vault.weekly.dev/vaultmeta#> .
+
+data:DA-Architecture a data:planning-doc ;
+    vld:path "Notes/DesignAssistant/PLANNING/DA-Architecture.md" ;
+    vm:authoredBy "Shawn" .
+
+data:DA-Architecture-DistributionTools a data:planning-doc ;
+    vld:path "Notes/DesignAssistant/PLANNING/DA-Architecture-DistributionTools.md" ;
+    vm:authoredBy "Shawn" .
+
+data:DA-Architecture-GTI a data:planning-doc ;
+    vld:path "Notes/DesignAssistant/PLANNING/DA-Architecture-GTI.md" ;
+    vm:authoredBy "Shawn" .
+
+data:DA-Architecture-Overview a data:planning-doc ;
+    vld:path "Notes/DesignAssistant/PLANNING/DA-Architecture-Overview.md" ;
+    vm:authoredBy "Shawn" .
+
+data:DA-Architecture-Reference a data:planning-doc ;
+    vld:path "Notes/DesignAssistant/PLANNING/DA-Architecture-Reference.md" ;
+    vm:authoredBy "Shawn" .
+
+data:DA-Architecture-SharedServices a data:planning-doc ;
+    vld:path "Notes/DesignAssistant/PLANNING/DA-Architecture-SharedServices.md" ;
+    vm:authoredBy "Shawn" .
+
+data:DA-Architecture-SubstationTools a data:planning-doc ;
+    vld:path "Notes/DesignAssistant/PLANNING/DA-Architecture-SubstationTools.md" ;
+    vm:authoredBy "Shawn" .
+
+data:WORK-TODO a data:planning-doc ;
+    vld:path "Notes/DesignAssistant/PLANNING/WORK-TODO.md" ;
+    vm:authoredBy "Shawn" .
+
+data:feedback_always_update_work_todo a vm:FeedbackMemory ;
+    vld:path "AI/memory/feedback_always_update_work_todo.md" .
+
+data:feedback_archive_cleanup_pdf_rule a vm:FeedbackMemory ;
+    vld:path "AI/memory/feedback_archive_cleanup_pdf_rule.md" .
+
+data:feedback_archive_not_context a vm:FeedbackMemory ;
+    vld:path "AI/memory/feedback_archive_not_context.md" .
+
+data:feedback_bsd_docs_unverified_provisional a vm:FeedbackMemory ;
+    vld:path "AI/memory/feedback_bsd_docs_unverified_provisional.md" .
+
+data:feedback_bsd_schematic_model_first_not_acade a vm:FeedbackMemory ;
+    vld:path "AI/memory/feedback_bsd_schematic_model_first_not_acade.md" .
+
+data:feedback_build_it_right a vm:FeedbackMemory ;
+    vld:path "AI/memory/feedback_build_it_right.md" .
+
+data:feedback_claude_voice_freedom_and_xinfra_research a vm:FeedbackMemory ;
+    vld:path "AI/memory/feedback_claude_voice_freedom_and_xinfra_research.md" .
+
+data:feedback_codex_output_path a vm:FeedbackMemory ;
+    vld:path "AI/memory/feedback_codex_output_path.md" .
+
+data:feedback_csharp_samples_from_sdk a vm:FeedbackMemory ;
+    vld:path "AI/memory/feedback_csharp_samples_from_sdk.md" .
+
+data:feedback_defer_to_cim_not_xinfra_parallel_schemes a vm:FeedbackMemory ;
+    vld:path "AI/memory/feedback_defer_to_cim_not_xinfra_parallel_schemes.md" .
+
+data:feedback_deletion_ok_for_ungraphed_new_content a vm:FeedbackMemory ;
+    vld:path "AI/memory/feedback_deletion_ok_for_ungraphed_new_content.md" .
+
+data:feedback_external_no_internal_doc_credits a vm:FeedbackMemory ;
+    vld:path "AI/memory/feedback_external_no_internal_doc_credits.md" .
+
+data:feedback_flag_confluence_candidates a vm:FeedbackMemory ;
+    vld:path "AI/memory/feedback_flag_confluence_candidates.md" .
+
+data:feedback_folder_stub_index_pattern a vm:FeedbackMemory ;
+    vld:path "AI/memory/feedback_folder_stub_index_pattern.md" .
+
+data:feedback_home_md_navigation_only a vm:FeedbackMemory ;
+    vld:path "AI/memory/feedback_home_md_navigation_only.md" .
+
+data:feedback_iec61850_not_conventional_pandc a vm:FeedbackMemory ;
+    vld:path "AI/memory/feedback_iec61850_not_conventional_pandc.md" .
+
+data:feedback_implementation_plan_style a vm:FeedbackMemory ;
+    vld:path "AI/memory/feedback_implementation_plan_style.md" .
+
+data:feedback_jsonld_ids_as_guids a vm:FeedbackMemory ;
+    vld:path "AI/memory/feedback_jsonld_ids_as_guids.md" .
+
+data:feedback_linkedin_own_voice_register a vm:FeedbackMemory ;
+    vld:path "AI/memory/feedback_linkedin_own_voice_register.md" .
+
+data:feedback_linkedin_workflow a vm:FeedbackMemory ;
+    vld:path "AI/memory/feedback_linkedin_workflow.md" .
+
+data:feedback_myvoice_emdash a vm:FeedbackMemory ;
+    vld:path "AI/memory/feedback_myvoice_emdash.md" .
+
+data:feedback_myvoice_spoken_register a vm:FeedbackMemory ;
+    vld:path "AI/memory/feedback_myvoice_spoken_register.md" .
+
+data:feedback_pin_audience_before_drafting a vm:FeedbackMemory ;
+    vld:path "AI/memory/feedback_pin_audience_before_drafting.md" .
+
+data:feedback_reconcile_ask_first a vm:FeedbackMemory ;
+    vld:path "AI/memory/feedback_reconcile_ask_first.md" .
+
+data:feedback_tennet_source_of_truth a vm:FeedbackMemory ;
+    vld:path "AI/memory/feedback_tennet_source_of_truth.md" .
+
+data:feedback_vault_pointers_not_snapshots a vm:FeedbackMemory ;
+    vld:path "AI/memory/feedback_vault_pointers_not_snapshots.md" .
+
+data:feedback_vault_structure a vm:FeedbackMemory ;
+    vld:path "AI/memory/feedback_vault_structure.md" .
+
+data:feedback_verify_before_blaming_tooling a vm:FeedbackMemory ;
+    vld:path "AI/memory/feedback_verify_before_blaming_tooling.md" .
+
+data:feedback_verify_links_before_writing a vm:FeedbackMemory ;
+    vld:path "AI/memory/feedback_verify_links_before_writing.md" .
+
+data:feedback_voice_rewrites a vm:FeedbackMemory ;
+    vld:path "AI/memory/feedback_voice_rewrites.md" .
+
+data:feedback_voice_scope a vm:FeedbackMemory ;
+    vld:path "AI/memory/feedback_voice_scope.md" .
+
+data:feedback_weekly_log_workflow a vm:FeedbackMemory ;
+    vld:path "AI/memory/feedback_weekly_log_workflow.md" .
+
+data:feedback_writing_style a vm:FeedbackMemory ;
+    vld:path "AI/memory/feedback_writing_style.md" .
+
+data:feedback_xinfra_doc_audiences a vm:FeedbackMemory ;
+    vld:path "AI/memory/feedback_xinfra_doc_audiences.md" .
+
+data:feedback_xinfra_planning_vs_topic_folder a vm:FeedbackMemory ;
+    vld:path "AI/memory/feedback_xinfra_planning_vs_topic_folder.md" .
+
+data:feedback_xinfra_platform_sif_naming a vm:FeedbackMemory ;
+    vld:path "AI/memory/feedback_xinfra_platform_sif_naming.md" .
+
+data:project_arch_process_ownership a vm:ProjectMemory ;
+    vld:path "AI/memory/project_arch_process_ownership.md" .
+
+data:project_aud_p4a_xinfra_investigation a vm:ProjectMemory ;
+    vld:path "AI/memory/project_aud_p4a_xinfra_investigation.md" .
+
+data:project_bsd_data_model_anatomy a vm:ProjectMemory ;
+    vld:path "AI/memory/project_bsd_data_model_anatomy.md" .
+
+data:project_bsd_native_integration_branch_state a vm:ProjectMemory ;
+    vld:path "AI/memory/project_bsd_native_integration_branch_state.md" .
+
+data:project_bsd_schematic_adr_corpus a vm:ProjectMemory ;
+    vld:path "AI/memory/project_bsd_schematic_adr_corpus.md" .
+
+data:project_bsd_schematic_backlog_alignment_gap a vm:ProjectMemory ;
+    vld:path "AI/memory/project_bsd_schematic_backlog_alignment_gap.md" .
+
+data:project_bsd_schematic_chunk_placement_finding a vm:ProjectMemory ;
+    vld:path "AI/memory/project_bsd_schematic_chunk_placement_finding.md" .
+
+data:project_bsd_schematic_code_state a vm:ProjectMemory ;
+    vld:path "AI/memory/project_bsd_schematic_code_state.md" .
+
+data:project_bsd_schematic_confluence_distillation a vm:ProjectMemory ;
+    vld:path "AI/memory/project_bsd_schematic_confluence_distillation.md" .
+
+data:project_bsd_schematic_demo_readiness a vm:ProjectMemory ;
+    vld:path "AI/memory/project_bsd_schematic_demo_readiness.md" .
+
+data:project_bsd_schematic_new_horse_same_cart a vm:ProjectMemory ;
+    vld:path "AI/memory/project_bsd_schematic_new_horse_same_cart.md" .
+
+data:project_bsd_schematic_no_wiring_model a vm:ProjectMemory ;
+    vld:path "AI/memory/project_bsd_schematic_no_wiring_model.md" .
+
+data:project_bsd_schematic_sidecar_not_native_xinfra a vm:ProjectMemory ;
+    vld:path "AI/memory/project_bsd_schematic_sidecar_not_native_xinfra.md" .
+
+data:project_bsd_unified_substation_model_connect_at_model_time a vm:ProjectMemory ;
+    vld:path "AI/memory/project_bsd_unified_substation_model_connect_at_model_time.md" .
+
+data:project_bsd_xinfra_integration_position a vm:ProjectMemory ;
+    vld:path "AI/memory/project_bsd_xinfra_integration_position.md" .
+
+data:project_design_assistant_architecture a vm:ProjectMemory ;
+    vld:path "AI/memory/project_design_assistant_architecture.md" .
+
+data:project_enverus_one_ai_platform a vm:ProjectMemory ;
+    vld:path "AI/memory/project_enverus_one_ai_platform.md" .
+
+data:project_epc_design_milestones a vm:ProjectMemory ;
+    vld:path "AI/memory/project_epc_design_milestones.md" .
+
+data:project_github_enterprise_admin a vm:ProjectMemory ;
+    vld:path "AI/memory/project_github_enterprise_admin.md" .
+
+data:project_local_agent_runner a vm:ProjectMemory ;
+    vld:path "AI/memory/project_local_agent_runner.md" .
+
+data:project_sbs_primary_end_users a vm:ProjectMemory ;
+    vld:path "AI/memory/project_sbs_primary_end_users.md" .
+
+data:project_sbs_product_portfolio a vm:ProjectMemory ;
+    vld:path "AI/memory/project_sbs_product_portfolio.md" .
+
+data:project_sbs_sif_tool_gated_model a vm:ProjectMemory ;
+    vld:path "AI/memory/project_sbs_sif_tool_gated_model.md" .
+
+data:project_sbs_uds_platform_xinfra_role a vm:ProjectMemory ;
+    vld:path "AI/memory/project_sbs_uds_platform_xinfra_role.md" .
+
+data:project_sds_bsd_xinfra_integration_review a vm:ProjectMemory ;
+    vld:path "AI/memory/project_sds_bsd_xinfra_integration_review.md" .
+
+data:project_shawn_principal_architect_role a vm:ProjectMemory ;
+    vld:path "AI/memory/project_shawn_principal_architect_role.md" .
+
+data:project_shawn_substation_design_tools_architect a vm:ProjectMemory ;
+    vld:path "AI/memory/project_shawn_substation_design_tools_architect.md" .
+
+data:project_simple_design_generation a vm:ProjectMemory ;
+    vld:path "AI/memory/project_simple_design_generation.md" .
+
+data:project_team_second_brain_guide a vm:ProjectMemory ;
+    vld:path "AI/memory/project_team_second_brain_guide.md" .
+
+data:project_teams_platform a vm:ProjectMemory ;
+    vld:path "AI/memory/project_teams_platform.md" .
+
+data:project_tennet_bim_model_hub_and_p4a_poc a vm:ProjectMemory ;
+    vld:path "AI/memory/project_tennet_bim_model_hub_and_p4a_poc.md" .
+
+data:project_tennet_bkl_asbuilt_package a vm:ProjectMemory ;
+    vld:path "AI/memory/project_tennet_bkl_asbuilt_package.md" .
+
+data:project_tennet_data_delivery_contents a vm:ProjectMemory ;
+    vld:path "AI/memory/project_tennet_data_delivery_contents.md" .
+
+data:project_tennet_enrichment_routes a vm:ProjectMemory ;
+    vld:path "AI/memory/project_tennet_enrichment_routes.md" .
+
+data:project_tennet_join_nameplate_confirmed a vm:ProjectMemory ;
+    vld:path "AI/memory/project_tennet_join_nameplate_confirmed.md" .
+
+data:project_tennet_p4a_conversion_team a vm:ProjectMemory ;
+    vld:path "AI/memory/project_tennet_p4a_conversion_team.md" .
+
+data:project_tennet_poc3_ask a vm:ProjectMemory ;
+    vld:path "AI/memory/project_tennet_poc3_ask.md" .
+
+data:project_tennet_poc_not_delivery a vm:ProjectMemory ;
+    vld:path "AI/memory/project_tennet_poc_not_delivery.md" .
+
+data:project_tennet_sap_ido_data_quality a vm:ProjectMemory ;
+    vld:path "AI/memory/project_tennet_sap_ido_data_quality.md" .
+
+data:project_tennet_sif_demo_data a vm:ProjectMemory ;
+    vld:path "AI/memory/project_tennet_sif_demo_data.md" .
+
+data:project_utility_vs_epc_artifact_ownership a vm:ProjectMemory ;
+    vld:path "AI/memory/project_utility_vs_epc_artifact_ownership.md" .
+
+data:project_vault_knowledge_graph_plan a vm:ProjectMemory ;
+    vld:path "AI/memory/project_vault_knowledge_graph_plan.md" .
+
+data:project_vault_ld_scope a vm:ProjectMemory ;
+    vld:path "AI/memory/project_vault_ld_scope.md" .
+
+data:project_vault_structure a vm:ProjectMemory ;
+    vld:path "AI/memory/project_vault_structure.md" .
+
+data:project_xinfra a vm:ProjectMemory ;
+    vld:path "AI/memory/project_xinfra.md" .
+
+data:project_xinfra_aggregation_pipeline_paths a vm:ProjectMemory ;
+    vld:path "AI/memory/project_xinfra_aggregation_pipeline_paths.md" .
+
+data:project_xinfra_bentley_competitive a vm:ProjectMemory ;
+    vld:path "AI/memory/project_xinfra_bentley_competitive.md" .
+
+data:project_xinfra_catalog_tier_is_federated a vm:ProjectMemory ;
+    vld:path "AI/memory/project_xinfra_catalog_tier_is_federated.md" .
+
+data:project_xinfra_cim_conformance_defects a vm:ProjectMemory ;
+    vld:path "AI/memory/project_xinfra_cim_conformance_defects.md" .
+
+data:project_xinfra_composite_equipment_pattern a vm:ProjectMemory ;
+    vld:path "AI/memory/project_xinfra_composite_equipment_pattern.md" .
+
+data:project_xinfra_conversion_ml_tiers a vm:ProjectMemory ;
+    vld:path "AI/memory/project_xinfra_conversion_ml_tiers.md" .
+
+data:project_xinfra_cu_keymark_canonical_anchor a vm:ProjectMemory ;
+    vld:path "AI/memory/project_xinfra_cu_keymark_canonical_anchor.md" .
+
+data:project_xinfra_domain_values_core_vs_app a vm:ProjectMemory ;
+    vld:path "AI/memory/project_xinfra_domain_values_core_vs_app.md" .
+
+data:project_xinfra_enrichment_ux_moat a vm:ProjectMemory ;
+    vld:path "AI/memory/project_xinfra_enrichment_ux_moat.md" .
+
+data:project_xinfra_feasibility_calcs_platform a vm:ProjectMemory ;
+    vld:path "AI/memory/project_xinfra_feasibility_calcs_platform.md" .
+
+data:project_xinfra_github_project a vm:ProjectMemory ;
+    vld:path "AI/memory/project_xinfra_github_project.md" .
+
+data:project_xinfra_graphdb_inference a vm:ProjectMemory ;
+    vld:path "AI/memory/project_xinfra_graphdb_inference.md" .
+
+data:project_xinfra_history_workflow a vm:ProjectMemory ;
+    vld:path "AI/memory/project_xinfra_history_workflow.md" .
+
+data:project_xinfra_ifc_conversion_architecture a vm:ProjectMemory ;
+    vld:path "AI/memory/project_xinfra_ifc_conversion_architecture.md" .
+
+data:project_xinfra_inline_equipment_records a vm:ProjectMemory ;
+    vld:path "AI/memory/project_xinfra_inline_equipment_records.md" .
+
+data:project_xinfra_innersource_repo_split a vm:ProjectMemory ;
+    vld:path "AI/memory/project_xinfra_innersource_repo_split.md" .
+
+data:project_xinfra_integration_maturity a vm:ProjectMemory ;
+    vld:path "AI/memory/project_xinfra_integration_maturity.md" .
+
+data:project_xinfra_intrapreneurial_pitch a vm:ProjectMemory ;
+    vld:path "AI/memory/project_xinfra_intrapreneurial_pitch.md" .
+
+data:project_xinfra_keystone_design_handoff a vm:ProjectMemory ;
+    vld:path "AI/memory/project_xinfra_keystone_design_handoff.md" .
+
+data:project_xinfra_lifecycle_scope a vm:ProjectMemory ;
+    vld:path "AI/memory/project_xinfra_lifecycle_scope.md" .
+
+data:project_xinfra_milestone_validation_wedge a vm:ProjectMemory ;
+    vld:path "AI/memory/project_xinfra_milestone_validation_wedge.md" .
+
+data:project_xinfra_named_graph_granularity_model a vm:ProjectMemory ;
+    vld:path "AI/memory/project_xinfra_named_graph_granularity_model.md" .
+
+data:project_xinfra_named_graph_support a vm:ProjectMemory ;
+    vld:path "AI/memory/project_xinfra_named_graph_support.md" .
+
+data:project_xinfra_pandc_generic_refinement_theory a vm:ProjectMemory ;
+    vld:path "AI/memory/project_xinfra_pandc_generic_refinement_theory.md" .
+
+data:project_xinfra_pandc_revit_architecture a vm:ProjectMemory ;
+    vld:path "AI/memory/project_xinfra_pandc_revit_architecture.md" .
+
+data:project_xinfra_pandc_saas_feasibility a vm:ProjectMemory ;
+    vld:path "AI/memory/project_xinfra_pandc_saas_feasibility.md" .
+
+data:project_xinfra_persistence_and_merge_position a vm:ProjectMemory ;
+    vld:path "AI/memory/project_xinfra_persistence_and_merge_position.md" .
+
+data:project_xinfra_prerelease_concession_stance a vm:ProjectMemory ;
+    vld:path "AI/memory/project_xinfra_prerelease_concession_stance.md" .
+
+data:project_xinfra_release_status a vm:ProjectMemory ;
+    vld:path "AI/memory/project_xinfra_release_status.md" .
+
+data:project_xinfra_repo_shacl a vm:ProjectMemory ;
+    vld:path "AI/memory/project_xinfra_repo_shacl.md" .
+
+data:project_xinfra_schematic_prereq_items a vm:ReferenceMemory ;
+    vld:path "AI/memory/project_xinfra_schematic_prereq_items.md" .
+
+data:project_xinfra_shape_editor_poc a vm:ProjectMemory ;
+    vld:path "AI/memory/project_xinfra_shape_editor_poc.md" .
+
+data:project_xinfra_sif_pandc_coverage a vm:ProjectMemory ;
+    vld:path "AI/memory/project_xinfra_sif_pandc_coverage.md" .
+
+data:project_xinfra_strategic_positioning a vm:ProjectMemory ;
+    vld:path "AI/memory/project_xinfra_strategic_positioning.md" .
+
+data:project_xinfra_substation_first_frame a vm:ProjectMemory ;
+    vld:path "AI/memory/project_xinfra_substation_first_frame.md" .
+
+data:project_xinfra_tennet_bkk_floc_structure a vm:ProjectMemory ;
+    vld:path "AI/memory/project_xinfra_tennet_bkk_floc_structure.md" .
+
+data:project_xinfra_tennet_breukelen_ifc_baseline a vm:ProjectMemory ;
+    vld:path "AI/memory/project_xinfra_tennet_breukelen_ifc_baseline.md" .
+
+data:project_xinfra_tennet_data_pset_convention a vm:ProjectMemory ;
+    vld:path "AI/memory/project_xinfra_tennet_data_pset_convention.md" .
+
+data:project_xinfra_tennet_ido_cado a vm:ProjectMemory ;
+    vld:path "AI/memory/project_xinfra_tennet_ido_cado.md" .
+
+data:project_xinfra_tennet_ifc_strategic a vm:ProjectMemory ;
+    vld:path "AI/memory/project_xinfra_tennet_ifc_strategic.md" .
+
+data:project_xinfra_tennet_scope_expansion a vm:ProjectMemory ;
+    vld:path "AI/memory/project_xinfra_tennet_scope_expansion.md" .
+
+data:project_xinfra_tennet_system_name_dead_end a vm:ProjectMemory ;
+    vld:path "AI/memory/project_xinfra_tennet_system_name_dead_end.md" .
+
+data:project_xinfra_vision_history a vm:ProjectMemory ;
+    vld:path "AI/memory/project_xinfra_vision_history.md" .
+
+data:reference_acade_cim_mapping a vm:ReferenceMemory ;
+    vld:path "AI/memory/reference_acade_cim_mapping.md" .
+
+data:reference_anthropic_m365_connector a vm:ReferenceMemory ;
+    vld:path "AI/memory/reference_anthropic_m365_connector.md" .
+
+data:reference_arch_process_confluence_page a vm:ReferenceMemory ;
+    vld:path "AI/memory/reference_arch_process_confluence_page.md" .
+
+data:reference_ask_xinfra_skill a vm:ReferenceMemory ;
+    vld:path "AI/memory/reference_ask_xinfra_skill.md" .
+
+data:reference_atlassian_plugin_confluence_write a vm:ReferenceMemory ;
+    vld:path "AI/memory/reference_atlassian_plugin_confluence_write.md" .
+
+data:reference_cim_community_prior_art a vm:ReferenceMemory ;
+    vld:path "AI/memory/reference_cim_community_prior_art.md" .
+
+data:reference_cimug_linkedin_review_channel a vm:ReferenceMemory ;
+    vld:path "AI/memory/reference_cimug_linkedin_review_channel.md" .
+
+data:reference_codex_bash_tool_sandbox_restriction a vm:ReferenceMemory ;
+    vld:path "AI/memory/reference_codex_bash_tool_sandbox_restriction.md" .
+
+data:reference_codex_review_vs_exec a vm:ReferenceMemory ;
+    vld:path "AI/memory/reference_codex_review_vs_exec.md" .
+
+data:reference_codex_windows a vm:ReferenceMemory ;
+    vld:path "AI/memory/reference_codex_windows.md" .
+
+data:reference_confluence_create_page_spaceid a vm:ReferenceMemory ;
+    vld:path "AI/memory/reference_confluence_create_page_spaceid.md" .
+
+data:reference_dotTC57 a vm:ReferenceMemory ;
+    vld:path "AI/memory/reference_dotTC57.md" .
+
+data:reference_enverus_one_evaluation_limits a vm:ReferenceMemory ;
+    vld:path "AI/memory/reference_enverus_one_evaluation_limits.md" .
+
+data:reference_graphify_open_source a vm:ReferenceMemory ;
+    vld:path "AI/memory/reference_graphify_open_source.md" .
+
+data:reference_idp_formerly_zeb a vm:ReferenceMemory ;
+    vld:path "AI/memory/reference_idp_formerly_zeb.md" .
+
+data:reference_knowbe4_course_list_location a vm:ReferenceMemory ;
+    vld:path "AI/memory/reference_knowbe4_course_list_location.md" .
+
+data:reference_powershell_amsi_dropper_heuristic a vm:ReferenceMemory ;
+    vld:path "AI/memory/reference_powershell_amsi_dropper_heuristic.md" .
+
+data:reference_revit_ifc_linked_files_export_flattening a vm:ReferenceMemory ;
+    vld:path "AI/memory/reference_revit_ifc_linked_files_export_flattening.md" .
+
+data:reference_sbs_tool_ecosystem a vm:ReferenceMemory ;
+    vld:path "AI/memory/reference_sbs_tool_ecosystem.md" .
+
+data:reference_sds_bsd_build_conventions a vm:ReferenceMemory ;
+    vld:path "AI/memory/reference_sds_bsd_build_conventions.md" .
+
+data:reference_sif_serialization_shape a vm:ReferenceMemory ;
+    vld:path "AI/memory/reference_sif_serialization_shape.md" .
+
+data:reference_slide_deck_generation a vm:ReferenceMemory ;
+    vld:path "AI/memory/reference_slide_deck_generation.md" .
+
+data:reference_southern_internal_systems a vm:ReferenceMemory ;
+    vld:path "AI/memory/reference_southern_internal_systems.md" .
+
+data:reference_teams_transcript_organizer_only a vm:ReferenceMemory ;
+    vld:path "AI/memory/reference_teams_transcript_organizer_only.md" .
+
+data:reference_tennet_bim_boek_rds_ps a vm:ReferenceMemory ;
+    vld:path "AI/memory/reference_tennet_bim_boek_rds_ps.md" .
+
+data:reference_udh_tool a vm:ReferenceMemory ;
+    vld:path "AI/memory/reference_udh_tool.md" .
+
+data:reference_vault_sync_setup a vm:ReferenceMemory ;
+    vld:path "AI/memory/reference_vault_sync_setup.md" .
+
+data:reference_webchat_local_run_sandbox a vm:ReferenceMemory ;
+    vld:path "AI/memory/reference_webchat_local_run_sandbox.md" .
+
+data:reference_xinfra_builds_on_linux a vm:ReferenceMemory ;
+    vld:path "AI/memory/reference_xinfra_builds_on_linux.md" .
+
+data:reference_xinfra_confluence_space a vm:ReferenceMemory ;
+    vld:path "AI/memory/reference_xinfra_confluence_space.md" .
+
+data:reference_xinfra_ontology_namespaces a vm:ReferenceMemory ;
+    vld:path "AI/memory/reference_xinfra_ontology_namespaces.md" .
+
+data:reference_xinfra_sales_docs_inventory a vm:ReferenceMemory ;
+    vld:path "AI/memory/reference_xinfra_sales_docs_inventory.md" .
+
+<https://vault.weekly.dev/notes/urn:uuid:0541eadc-a824-46a9-9121-9872a872c803> a vm:MOC ;
+    vld:path "Notes/MOC-Electrical-Domain.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Evergreen .
+
+<https://vault.weekly.dev/notes/urn:uuid:079247b2-b9d0-40b1-b271-343f31561164> a vm:SessionNote ;
+    vld:path "AI/SessionNotes/2026-07-30-cim-design-phase-deck-and-verification.md" ;
+    vm:audience vm:Informative ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:11225767-2e88-485a-82b5-093a1070676b> .
+
+<https://vault.weekly.dev/notes/urn:uuid:0ae9e2a0-ac88-4b9d-9e7f-a04afb9a28d7> a vm:Home ;
+    vld:path "HOME.md" ;
+    vm:audience vm:Informative ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working .
+
+<https://vault.weekly.dev/notes/urn:uuid:116c68e2-30da-4400-8335-d1d92409b959> a vm:StatusDoc ;
+    vld:path "Notes/ZEB-Standards/Status.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:699799d0-4ac8-4745-a5f2-236cb059be40> .
+
+<https://vault.weekly.dev/notes/urn:uuid:18819ab9-2f7b-4f0f-a498-af1a6afcf9f1> a vm:PermanentNote ;
+    vld:path "Notes/Bank-Modeling-Physical-vs-Virtual.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Evergreen ;
+    vm:references <https://vault.weekly.dev/notes/urn:uuid:6bc1bcda-4687-4b3f-a6ed-ab9cdc41bda4>,
+        <https://vault.weekly.dev/notes/urn:uuid:869e1719-6af0-4c90-b5e6-d3c9cab2703d>,
+        <https://vault.weekly.dev/notes/urn:uuid:d526da71-5339-4166-9855-8cba5cf5e2c6> ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:11225767-2e88-485a-82b5-093a1070676b> .
+
+<https://vault.weekly.dev/notes/urn:uuid:18fa21a7-4656-40f6-9310-91389efec3d4> a vm:StrategyDoc ;
+    vld:path "Personal/DigitalTransformationManifesto.md" ;
+    vm:audience vm:Restricted ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working .
+
+<https://vault.weekly.dev/notes/urn:uuid:1c6ef6b7-a7b1-49f7-b096-361e3fa2a717> a vm:StrategyDoc ;
+    vld:path "Notes/SBSAssistantInPortal/Architecture.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:1661dd79-0e0f-43b9-954f-d9af9aebd565> .
+
+<https://vault.weekly.dev/notes/urn:uuid:1f45671e-ebf4-427e-a0d8-46bdce55fc7f> a vm:StandingContext ;
+    vld:path "AI/Context/jason-direction.md" ;
+    vm:audience vm:Informative ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working .
+
+<https://vault.weekly.dev/notes/urn:uuid:1fa8dba1-d5a7-4718-ad2a-c75dd8af37a1> a vm:StrategyDoc ;
+    vld:path "Notes/DesignAssistant/Vision.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:6cd7a9dd-b9f3-4e3d-b5fd-60b0b67991f0> .
+
+<https://vault.weekly.dev/notes/urn:uuid:216f4099-1658-43ea-8d23-039350225249> a vm:StatusDoc ;
+    vld:path "Notes/SBSAssistantInPortal/Status.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:1661dd79-0e0f-43b9-954f-d9af9aebd565> .
+
+<https://vault.weekly.dev/notes/urn:uuid:22d95ced-b146-48de-90dd-56930ddfe264> a vm:StatusDoc ;
+    vld:path "Notes/XINFRA/Status.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:11225767-2e88-485a-82b5-093a1070676b> .
+
+<https://vault.weekly.dev/notes/urn:uuid:2383e5d0-a0d1-4590-b9f3-9a4c61ae016a> a vm:StrategyDoc ;
+    vld:path "Notes/SBSAssistantInPortal/Vision.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:1661dd79-0e0f-43b9-954f-d9af9aebd565> .
+
+<https://vault.weekly.dev/notes/urn:uuid:25365824-9385-44b7-8208-3ecf0fdd69b5> a vm:StrategyDoc ;
+    vld:path "Notes/XINFRA/PandC-SaaS-Feasibility.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:11225767-2e88-485a-82b5-093a1070676b> .
+
+<https://vault.weekly.dev/notes/urn:uuid:2586bdca-3020-45cd-bd86-2e709b264172> a vm:PermanentNote ;
+    vld:path "Notes/SDK-Native-Integration.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Evergreen ;
+    vm:references <https://vault.weekly.dev/notes/urn:uuid:796b74f4-56e5-4484-8f9d-33a04b35b76d>,
+        <https://vault.weekly.dev/notes/urn:uuid:86aff9f4-7ba8-4f5a-ab62-14aed239694f>,
+        <https://vault.weekly.dev/notes/urn:uuid:8abc8486-9356-4614-98a7-92fc1e8acb37>,
+        <https://vault.weekly.dev/notes/urn:uuid:ba7e479f-94a2-4787-84d4-242a43989a29>,
+        <https://vault.weekly.dev/notes/urn:uuid:e8361b43-9bed-4b23-83c2-80fa0978f2a8> ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:11225767-2e88-485a-82b5-093a1070676b> .
+
+<https://vault.weekly.dev/notes/urn:uuid:2a9c92f8-690d-4c75-87ff-d3cc80f371e4> a vm:StandingContext ;
+    vld:path "AI/Context/current-okrs.md" ;
+    vm:audience vm:Informative ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:okr vm:Deliver-with-Predictability,
+        vm:Expand-Market-Reach,
+        vm:Make-Trust-Engineered .
+
+<https://vault.weekly.dev/notes/urn:uuid:2b4f0808-c431-4a52-a916-4e5b431c58f0> a vm:MOC ;
+    vld:path "Notes/External-Comms.md" ;
+    vm:audience vm:External ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working .
+
+<https://vault.weekly.dev/notes/urn:uuid:2b960f12-bc18-4a7e-8877-e739555ca6ca> a vm:StatusDoc ;
+    vld:path "Notes/TenneT/Status.md" ;
+    vm:audience vm:ClientConfidential ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:04206ce4-56e6-4939-91d2-3c0308741f22>,
+        <https://vault.weekly.dev/notes/urn:uuid:11225767-2e88-485a-82b5-093a1070676b> .
+
+<https://vault.weekly.dev/notes/urn:uuid:32f9a905-33f7-4f06-965f-76e3c1c802cf> a vm:StrategyDoc ;
+    vld:path "Notes/Whitepaper-Born-as-Data-Draft.md" ;
+    vm:audience vm:External ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:11225767-2e88-485a-82b5-093a1070676b> .
+
+<https://vault.weekly.dev/notes/urn:uuid:338e3d11-4d1b-4f56-8a96-6bdaae292643> a vm:StrategyDoc ;
+    vld:path "Notes/SimpleDesignGeneration/Architecture.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:65b55a5c-3eb6-48ab-b5b8-96b3054d7db6> .
+
+<https://vault.weekly.dev/notes/urn:uuid:339c62c2-14e1-4f35-af60-4d5e100dad62> a vm:StrategyDoc ;
+    vld:path "Notes/SDS-BSD/Schematic/ACADE-UX-Analysis.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:843ea48c-86ea-4e86-bbd7-1dce964cbd83> .
+
+<https://vault.weekly.dev/notes/urn:uuid:37e17bb3-caa0-4205-abfd-5f8b43869cd7> a vm:MOC ;
+    vld:path "Notes/OKR-Overview.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:okr vm:Deliver-with-Predictability,
+        vm:Expand-Market-Reach,
+        vm:Make-Trust-Engineered .
+
+<https://vault.weekly.dev/notes/urn:uuid:3c34b2c3-cf39-4d0e-9725-3d962ea0b81d> a vm:StrategyDoc ;
+    vld:path "Notes/AI_ArchitectureProcess/Architecture.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:85174ee7-86ae-4542-92f3-0e2aae8f7b3f> .
+
+<https://vault.weekly.dev/notes/urn:uuid:3eaf6e9a-0634-4009-bc81-bca914568d0c> a vm:StrategyDoc ;
+    vld:path "Notes/TenneT/Roadmap-and-Opportunities.md" ;
+    vm:audience vm:ClientConfidential ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:04206ce4-56e6-4939-91d2-3c0308741f22>,
+        <https://vault.weekly.dev/notes/urn:uuid:11225767-2e88-485a-82b5-093a1070676b> .
+
+<https://vault.weekly.dev/notes/urn:uuid:40bef7d4-815f-4aec-9bd4-5446ab58e2ab> a vm:StrategyDoc ;
+    vld:path "Notes/XINFRA/Architecture.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:11225767-2e88-485a-82b5-093a1070676b> .
+
+<https://vault.weekly.dev/notes/urn:uuid:40c460d8-0589-43e1-a356-e951405cba1c> a vm:StrategyDoc ;
+    vld:path "Notes/SecureCodingTraining/Roadmap-and-Opportunities.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:77b12e56-b180-45c7-a1ab-91ab07582891> .
+
+<https://vault.weekly.dev/notes/urn:uuid:42a8cd9c-5dcf-4cb2-b369-ff7e4ab72d77> a vm:SessionNote ;
+    vld:path "AI/SessionNotes/2026-07-28-xinfra-innersource-verification-and-github-project.md" ;
+    vm:audience vm:Informative ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:11225767-2e88-485a-82b5-093a1070676b> .
+
+<https://vault.weekly.dev/notes/urn:uuid:477d3bfc-6126-4fc5-af15-38217c614858> a vm:StrategyDoc ;
+    vld:path "Notes/DesignAssistant/Roadmap-and-Opportunities.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:6cd7a9dd-b9f3-4e3d-b5fd-60b0b67991f0> .
+
+<https://vault.weekly.dev/notes/urn:uuid:51529edb-0e70-4207-a10f-0dd1a1f41f6c> a vm:MOC ;
+    vld:path "Notes/Talks.md" ;
+    vm:audience vm:External ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working .
+
+<https://vault.weekly.dev/notes/urn:uuid:518aa5b6-01eb-4f6c-8ae6-e99836890243> a vm:StrategyDoc ;
+    vld:path "Notes/ZEB-Standards/Architecture.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:699799d0-4ac8-4745-a5f2-236cb059be40> .
+
+<https://vault.weekly.dev/notes/urn:uuid:5851e904-d228-4d2b-89ee-d66e6c504824> a vm:StrategyDoc ;
+    vld:path "Notes/ZEB-Standards/Vision.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:699799d0-4ac8-4745-a5f2-236cb059be40> .
+
+<https://vault.weekly.dev/notes/urn:uuid:5be77a74-fc73-494f-ac8b-adbed0ffe10d> a vm:StrategyDoc ;
+    vld:path "Notes/SDS-BSD/Schematic/Gap-Coverage-Audit.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:11225767-2e88-485a-82b5-093a1070676b>,
+        <https://vault.weekly.dev/notes/urn:uuid:843ea48c-86ea-4e86-bbd7-1dce964cbd83> .
+
+<https://vault.weekly.dev/notes/urn:uuid:621569ca-9f01-403a-ac0c-80eafb148b25> a vm:StrategyDoc ;
+    vld:path "Notes/SBSAssistantInPortal/Roadmap-and-Opportunities.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:1661dd79-0e0f-43b9-954f-d9af9aebd565> .
+
+<https://vault.weekly.dev/notes/urn:uuid:63569b0e-68eb-4045-b64b-2a6b5f11be99> a vm:StatusDoc ;
+    vld:path "Notes/SecureCodingTraining/Status.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:77b12e56-b180-45c7-a1ab-91ab07582891> .
+
+<https://vault.weekly.dev/notes/urn:uuid:63cab7a1-e3e4-4dd8-a311-cbc47dd103ec> a vm:StrategyDoc ;
+    vld:path "Notes/AI_ArchitectureProcess/Vision.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:85174ee7-86ae-4542-92f3-0e2aae8f7b3f> .
+
+<https://vault.weekly.dev/notes/urn:uuid:6468c3b8-3ad5-4a0b-9621-b7139e7f11fc> a vm:PermanentNote ;
+    vld:path "Notes/Design-Milestone-Progression.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Evergreen ;
+    vm:references <https://vault.weekly.dev/notes/urn:uuid:883c973b-ceb2-4ef1-ab44-4b174033623a>,
+        <https://vault.weekly.dev/notes/urn:uuid:8abc8486-9356-4614-98a7-92fc1e8acb37>,
+        <https://vault.weekly.dev/notes/urn:uuid:e8361b43-9bed-4b23-83c2-80fa0978f2a8> ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:11225767-2e88-485a-82b5-093a1070676b> .
+
+<https://vault.weekly.dev/notes/urn:uuid:666ef276-e6b1-422f-89f9-ab9a8ed06995> a vm:StandingContext ;
+    vld:path "AI/Context/ShawnWeekly-Profile-Draft.md" ;
+    vm:audience vm:Informative ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working .
+
+<https://vault.weekly.dev/notes/urn:uuid:67274f6d-bf8d-4233-89a1-df31e081fed1> a vm:ExternalComms ;
+    vld:path "Notes/2026-08-04-substation-as-data.md" ;
+    vm:audience vm:External ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:11225767-2e88-485a-82b5-093a1070676b> .
+
+<https://vault.weekly.dev/notes/urn:uuid:693c5610-ebbf-4250-a68a-f3a62b726bde> a vm:StrategyDoc ;
+    vld:path "Notes/XINFRA/XINFRA-Architecture-Position-CIM-Lens.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:11225767-2e88-485a-82b5-093a1070676b> .
+
+<https://vault.weekly.dev/notes/urn:uuid:6a404a90-0e7b-4634-89ad-6c4be6fe107a> a vm:StrategyDoc ;
+    vld:path "Notes/SDS-BSD/Schematic/Schematic.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:11225767-2e88-485a-82b5-093a1070676b>,
+        <https://vault.weekly.dev/notes/urn:uuid:843ea48c-86ea-4e86-bbd7-1dce964cbd83> .
+
+<https://vault.weekly.dev/notes/urn:uuid:6b275307-a2ed-4edc-9e6c-628d13fdb534> a vm:SessionNote ;
+    vld:path "AI/SessionNotes/2026-08-03-pandc-revit-schematic-architecture.md" ;
+    vm:audience vm:Informative ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:11225767-2e88-485a-82b5-093a1070676b>,
+        <https://vault.weekly.dev/notes/urn:uuid:843ea48c-86ea-4e86-bbd7-1dce964cbd83> .
+
+<https://vault.weekly.dev/notes/urn:uuid:6c69cd31-3cde-4eea-b392-793305279304> a vm:ExternalComms ;
+    vld:path "Notes/2026-08-06-graph-grounded-ai.md" ;
+    vm:audience vm:External ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:11225767-2e88-485a-82b5-093a1070676b> .
+
+<https://vault.weekly.dev/notes/urn:uuid:70e85c29-8755-434b-9fcd-359fe88e436a> a vm:OneOnOneNotes ;
+    vld:path "Notes/Jason1on1s.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working .
+
+<https://vault.weekly.dev/notes/urn:uuid:710333b8-babb-4121-8908-ea9a58ebd03e> a vm:StatusDoc ;
+    vld:path "Notes/AI_ArchitectureProcess/Status.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:85174ee7-86ae-4542-92f3-0e2aae8f7b3f> .
+
+<https://vault.weekly.dev/notes/urn:uuid:77e78640-2566-4756-93c1-ba46b14946c4> a vm:ExternalComms ;
+    vld:path "Notes/CIM-Design-Phase-Talk.md" ;
+    vm:audience vm:External ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:11225767-2e88-485a-82b5-093a1070676b> .
+
+<https://vault.weekly.dev/notes/urn:uuid:7976803d-ad87-4b57-9d52-e8ebc8d4e460> a vm:PermanentNote ;
+    vld:path "Notes/Triple-Store-Selection.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Evergreen ;
+    vm:references <https://vault.weekly.dev/notes/urn:uuid:869e1719-6af0-4c90-b5e6-d3c9cab2703d>,
+        <https://vault.weekly.dev/notes/urn:uuid:8abc8486-9356-4614-98a7-92fc1e8acb37>,
+        <https://vault.weekly.dev/notes/urn:uuid:e8361b43-9bed-4b23-83c2-80fa0978f2a8> ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:11225767-2e88-485a-82b5-093a1070676b> .
+
+<https://vault.weekly.dev/notes/urn:uuid:7b130f3f-0d2c-476c-b31e-b9e79cbae230> a vm:SessionNote ;
+    vld:path "AI/SessionNotes/2026-08-07-pandc-generic-refinement-theory.md" ;
+    vm:audience vm:Informative ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:11225767-2e88-485a-82b5-093a1070676b>,
+        <https://vault.weekly.dev/notes/urn:uuid:843ea48c-86ea-4e86-bbd7-1dce964cbd83> .
+
+<https://vault.weekly.dev/notes/urn:uuid:7c782f13-f5d4-476d-9556-7b1b01ed1446> a vm:StandingContext ;
+    vld:path "AI/Context/TenneT-context.md" ;
+    vm:audience vm:Informative ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:04206ce4-56e6-4939-91d2-3c0308741f22>,
+        <https://vault.weekly.dev/notes/urn:uuid:11225767-2e88-485a-82b5-093a1070676b> .
+
+<https://vault.weekly.dev/notes/urn:uuid:7d72bb80-1cc2-4135-940c-6771d6386da1> a data:planning-doc ;
+    vld:path "VAULT-META/VAULT-KNOWLEDGE-GRAPH-PLAN.md" .
+
+<https://vault.weekly.dev/notes/urn:uuid:80cb78c6-283b-4206-9761-259073989c85> a vm:SessionNote ;
+    vld:path "AI/SessionNotes/2026-08-12-xinfra-confluence-buildout-and-board-items.md" ;
+    vm:audience vm:Informative ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:11225767-2e88-485a-82b5-093a1070676b> .
+
+<https://vault.weekly.dev/notes/urn:uuid:81b67c5f-b7e3-47c2-bb1f-44e36d615271> a vm:StrategyDoc ;
+    vld:path "Notes/SimpleDesignGeneration/Roadmap-and-Opportunities.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:65b55a5c-3eb6-48ab-b5b8-96b3054d7db6> .
+
+<https://vault.weekly.dev/notes/urn:uuid:848b5f49-8ef6-4abf-af85-02a9df912124> a vm:SessionNote ;
+    vld:path "AI/SessionNotes/2026-07-27-BSD-XINFRA-PR-Remediation-Planning.md" ;
+    vm:audience vm:Informative ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:11225767-2e88-485a-82b5-093a1070676b>,
+        <https://vault.weekly.dev/notes/urn:uuid:843ea48c-86ea-4e86-bbd7-1dce964cbd83> .
+
+<https://vault.weekly.dev/notes/urn:uuid:85a7ec8f-7167-4719-b861-53205086852c> a vm:PermanentNote ;
+    vld:path "Notes/SIF-Canonical-Content-and-Lens-Architecture.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Evergreen ;
+    vm:references <https://vault.weekly.dev/notes/urn:uuid:d92a9eed-b6b5-4ebf-927c-78ff93014e6d> ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:11225767-2e88-485a-82b5-093a1070676b> .
+
+<https://vault.weekly.dev/notes/urn:uuid:88796dd8-e145-4673-8074-b13a2012ec98> a vm:PlanningDoc ;
+    vld:path "Personal/XINFRA-Compensation-Prep.md" ;
+    vm:audience vm:Restricted ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working .
+
+<https://vault.weekly.dev/notes/urn:uuid:8a128cdd-62a8-4f45-8acc-22e65e12e5ee> a vm:StrategyDoc ;
+    vld:path "Notes/SDS-BSD/Roadmap-and-Opportunities.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:11225767-2e88-485a-82b5-093a1070676b>,
+        <https://vault.weekly.dev/notes/urn:uuid:843ea48c-86ea-4e86-bbd7-1dce964cbd83> .
+
+<https://vault.weekly.dev/notes/urn:uuid:8b6ac226-fdbc-4e35-a05f-6cb32e60ab31> a vm:StrategyDoc ;
+    vld:path "Notes/XINFRA/Vision.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:11225767-2e88-485a-82b5-093a1070676b> .
+
+<https://vault.weekly.dev/notes/urn:uuid:8f61b6aa-49f4-4b51-9a24-11b05ef669d0> a vm:StrategyDoc ;
+    vld:path "Notes/TenneT/Vision.md" ;
+    vm:audience vm:ClientConfidential ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:04206ce4-56e6-4939-91d2-3c0308741f22>,
+        <https://vault.weekly.dev/notes/urn:uuid:11225767-2e88-485a-82b5-093a1070676b> .
+
+<https://vault.weekly.dev/notes/urn:uuid:9129ed9f-20a5-47aa-9250-a0c24b020842> a vm:StrategyDoc ;
+    vld:path "Notes/SecureCodingTraining/Vision.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:77b12e56-b180-45c7-a1ab-91ab07582891> .
+
+<https://vault.weekly.dev/notes/urn:uuid:95958919-65dd-4ce1-ab8d-49987dd04d37> a vm:StrategyDoc ;
+    vld:path "Notes/SDS-BSD/Schematic/Architecture-Today.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:11225767-2e88-485a-82b5-093a1070676b>,
+        <https://vault.weekly.dev/notes/urn:uuid:843ea48c-86ea-4e86-bbd7-1dce964cbd83> .
+
+<https://vault.weekly.dev/notes/urn:uuid:985e676c-3dbd-400f-9173-35199f9d2bbe> a vm:StrategyDoc ;
+    vld:path "Notes/SecureCodingTraining/Architecture.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:77b12e56-b180-45c7-a1ab-91ab07582891> .
+
+<https://vault.weekly.dev/notes/urn:uuid:9a04ef85-b5a4-4435-a156-a1d06f52391c> a vm:StrategyDoc ;
+    vld:path "Notes/XINFRA/PandC-SaaS-V1-BuildPlan.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:11225767-2e88-485a-82b5-093a1070676b> .
+
+<https://vault.weekly.dev/notes/urn:uuid:9e7d4306-44e3-49ec-889a-6e14a5d1cb01> a vm:StrategyDoc ;
+    vld:path "Notes/SDS-BSD/Architecture.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:11225767-2e88-485a-82b5-093a1070676b>,
+        <https://vault.weekly.dev/notes/urn:uuid:843ea48c-86ea-4e86-bbd7-1dce964cbd83> .
+
+<https://vault.weekly.dev/notes/urn:uuid:9efa4d68-25b9-4267-a33a-edf834bee0eb> a data:planning-doc ;
+    vld:path "VAULT-META/VAULT-GRAPH-BUILD-PLAN.md" .
+
+<https://vault.weekly.dev/notes/urn:uuid:a08c439a-9b3e-4e57-b14a-91d0cad2e43f> a vm:StatusDoc ;
+    vld:path "Notes/DesignAssistant/Status.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:6cd7a9dd-b9f3-4e3d-b5fd-60b0b67991f0> .
+
+<https://vault.weekly.dev/notes/urn:uuid:a5f02b6f-527c-4502-8266-0701028e0a28> a vm:StrategyDoc ;
+    vld:path "Notes/AI_ArchitectureProcess/Roadmap-and-Opportunities.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:85174ee7-86ae-4542-92f3-0e2aae8f7b3f> .
+
+<https://vault.weekly.dev/notes/urn:uuid:ab73f54b-09be-4206-9a78-0ed8ac01759e> a vm:ExternalComms ;
+    vld:path "Notes/2026-05-SIF-Series.md" ;
+    vm:audience vm:External ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:11225767-2e88-485a-82b5-093a1070676b> .
+
+<https://vault.weekly.dev/notes/urn:uuid:b033c930-d697-4489-b48b-b29cd0ea24c9> a vm:PermanentNote ;
+    vld:path "Notes/Facts-Only-Presentations.md" ;
+    vm:authoredBy "Shawn" ;
+    vm:references data:feedback_presentations_facts_only,
+        data:feedback_team_docs_what_not_why .
+
+<https://vault.weekly.dev/notes/urn:uuid:b5fb61ed-d681-4735-87ef-0d324e496c73> a vm:StrategyDoc ;
+    vld:path "Notes/SDS-BSD/Vision.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:11225767-2e88-485a-82b5-093a1070676b>,
+        <https://vault.weekly.dev/notes/urn:uuid:843ea48c-86ea-4e86-bbd7-1dce964cbd83> .
+
+<https://vault.weekly.dev/notes/urn:uuid:ba93b140-d8d1-4034-ae2b-fc83dc956dd6> a vm:StatusDoc ;
+    vld:path "Notes/SimpleDesignGeneration/Status.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:65b55a5c-3eb6-48ab-b5b8-96b3054d7db6> .
+
+<https://vault.weekly.dev/notes/urn:uuid:bd8f6878-d773-40dd-93f1-46b67fb70605> a vm:StrategyDoc ;
+    vld:path "Notes/XINFRA/PandC-Revit-Architecture.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:11225767-2e88-485a-82b5-093a1070676b> .
+
+<https://vault.weekly.dev/notes/urn:uuid:be9d1975-c105-4792-95fe-03e129407f7b> a vm:StatusDoc ;
+    vld:path "Notes/SDS-BSD/Status.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:11225767-2e88-485a-82b5-093a1070676b>,
+        <https://vault.weekly.dev/notes/urn:uuid:843ea48c-86ea-4e86-bbd7-1dce964cbd83> .
+
+<https://vault.weekly.dev/notes/urn:uuid:c3d08c74-09d2-4fe4-b650-5d827d70676e> a vm:StrategyDoc ;
+    vld:path "Notes/SimpleDesignGeneration/Vision.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:65b55a5c-3eb6-48ab-b5b8-96b3054d7db6> .
+
+<https://vault.weekly.dev/notes/urn:uuid:cc408545-8007-4ae3-a523-ba69ccebe365> a vm:StrategyDoc ;
+    vld:path "Notes/XINFRA/Roadmap-and-Opportunities.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:11225767-2e88-485a-82b5-093a1070676b> .
+
+<https://vault.weekly.dev/notes/urn:uuid:d3f9a8c6-c8e7-4c72-abd6-9ebf16b30ceb> a vm:StrategyDoc ;
+    vld:path "Notes/ZEB-Standards/Roadmap-and-Opportunities.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:699799d0-4ac8-4745-a5f2-236cb059be40> .
+
+<https://vault.weekly.dev/notes/urn:uuid:d74c84a9-a729-4151-9252-441aa42608a1> a vm:Guide ;
+    vld:path "VAULT-META/SECOND-BRAIN-SETUP.md" ;
+    vm:audience vm:Restricted ;
+    vm:maturity vm:Working .
+
+<https://vault.weekly.dev/notes/urn:uuid:dd32ce27-5a66-4843-b3cb-edfadafc41e9> a vm:MOC,
+        vm:Project ;
+    vld:path "Notes/VaultSecondBrain.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:repoPath "C:\\Users\\shawn.weekly\\PROJECTS\\VaultSecondBrain" .
+
+<https://vault.weekly.dev/notes/urn:uuid:e26c2161-d565-4f23-86ba-84f8c533f0d7> a vm:Guide ;
+    vld:path "Notes/TEAM-SECOND-BRAIN-GUIDE.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working .
+
+<https://vault.weekly.dev/notes/urn:uuid:edbb54c1-4326-4a4f-917e-cff6899b3d45> a vm:SessionNote ;
+    vld:path "AI/SessionNotes/2026-08-05-xinfra-intrapreneurial-case-and-dottc57.md" ;
+    vm:audience vm:Informative ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:11225767-2e88-485a-82b5-093a1070676b> .
+
+<https://vault.weekly.dev/notes/urn:uuid:ef59e747-57dc-48b2-9794-dcad06022fa2> a vm:MOC,
+        vm:Project ;
+    vld:path "Notes/vault-ld.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:repoPath "C:\\Users\\shawn.weekly\\PROJECTS\\vault-ld" .
+
+<https://vault.weekly.dev/notes/urn:uuid:efda70af-8fcb-4bc0-b5cd-da1461e515b0> a vm:StrategyDoc ;
+    vld:path "Notes/TenneT/Architecture.md" ;
+    vm:audience vm:ClientConfidential ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:04206ce4-56e6-4939-91d2-3c0308741f22>,
+        <https://vault.weekly.dev/notes/urn:uuid:11225767-2e88-485a-82b5-093a1070676b> .
+
+<https://vault.weekly.dev/notes/urn:uuid:f3c86ee9-4dbe-4bc7-9f3c-838be21df9a1> a vm:ExternalComms ;
+    vld:path "Notes/2026-05-19-path-to-xinfra.md" ;
+    vm:audience vm:External ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:11225767-2e88-485a-82b5-093a1070676b> .
+
+<https://vault.weekly.dev/notes/urn:uuid:f43f0896-7cb3-4f0c-8b23-42c89c58792f> a vm:StrategyDoc ;
+    vld:path "Notes/DesignAssistant/Architecture.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:6cd7a9dd-b9f3-4e3d-b5fd-60b0b67991f0> .
+
+<https://vault.weekly.dev/notes/urn:uuid:f8a2f7af-d5cf-456f-a354-808e9f369737> a vm:StrategyDoc ;
+    vld:path "Notes/SDS-BSD/Schematic/Current-Status.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:843ea48c-86ea-4e86-bbd7-1dce964cbd83> .
+
+<https://vault.weekly.dev/notes/urn:uuid:f9f45739-f2b4-4e0d-ac5a-39ec797a70e6> a vm:MOC ;
+    vld:path "Notes/TEAM-GUIDES.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working .
+
+<https://vault.weekly.dev/notes/urn:uuid:fba8f7bc-db47-4eef-88d6-f49a073781f1> a vm:StrategyDoc ;
+    vld:path "Notes/SDS-BSD/Schematic/Demo-Readiness-Priorities.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:11225767-2e88-485a-82b5-093a1070676b>,
+        <https://vault.weekly.dev/notes/urn:uuid:843ea48c-86ea-4e86-bbd7-1dce964cbd83> .
+
+<https://vault.weekly.dev/notes/urn:uuid:fdc627ba-3c6f-4a0c-a8e0-cf0de98843bf> a vm:StrategyDoc ;
+    vld:path "Notes/SDS-BSD/Schematic/Target-Architecture.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:11225767-2e88-485a-82b5-093a1070676b>,
+        <https://vault.weekly.dev/notes/urn:uuid:843ea48c-86ea-4e86-bbd7-1dce964cbd83> .
+
+data:user_android_termux_setup a vm:UserMemory ;
+    vld:path "AI/memory/user_android_termux_setup.md" .
+
+data:user_civil_surveyor_origin a vm:UserMemory ;
+    vld:path "AI/memory/user_civil_surveyor_origin.md" .
+
+data:user_dottc57_cimbology_origins a vm:UserMemory ;
+    vld:path "AI/memory/user_dottc57_cimbology_origins.md" .
+
+data:user_post_military_path a vm:UserMemory ;
+    vld:path "AI/memory/user_post_military_path.md" .
+
+data:user_shawn_control_room_vision a vm:UserMemory ;
+    vld:path "AI/memory/user_shawn_control_room_vision.md" .
+
+data:user_shawn_weekly a vm:UserMemory ;
+    vld:path "AI/memory/user_shawn_weekly.md" .
+
+data:user_southern_company_entry a vm:UserMemory ;
+    vld:path "AI/memory/user_southern_company_entry.md" .
+
+data:user_southern_to_sbs_transition a vm:UserMemory ;
+    vld:path "AI/memory/user_southern_to_sbs_transition.md" .
+
+<https://vault.weekly.dev/notes/urn:uuid:d92a9eed-b6b5-4ebf-927c-78ff93014e6d> a vm:StandingContext ;
+    vld:path "AI/Context/XINFRA-context.md" ;
+    vm:audience vm:Informative ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Working ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:11225767-2e88-485a-82b5-093a1070676b> .
+
+<https://vault.weekly.dev/notes/urn:uuid:6bc1bcda-4687-4b3f-a6ed-ab9cdc41bda4> a vm:PermanentNote ;
+    vld:path "Notes/Bus-Configurations.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Evergreen ;
+    vm:references <https://vault.weekly.dev/notes/urn:uuid:d526da71-5339-4166-9855-8cba5cf5e2c6>,
+        <https://vault.weekly.dev/notes/urn:uuid:e8361b43-9bed-4b23-83c2-80fa0978f2a8> ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:11225767-2e88-485a-82b5-093a1070676b> .
+
+<https://vault.weekly.dev/notes/urn:uuid:796b74f4-56e5-4484-8f9d-33a04b35b76d> a vm:PermanentNote ;
+    vld:path "Notes/BSD-Round-Trip-Pattern.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Evergreen ;
+    vm:references <https://vault.weekly.dev/notes/urn:uuid:86aff9f4-7ba8-4f5a-ab62-14aed239694f>,
+        <https://vault.weekly.dev/notes/urn:uuid:8abc8486-9356-4614-98a7-92fc1e8acb37>,
+        <https://vault.weekly.dev/notes/urn:uuid:ba7e479f-94a2-4787-84d4-242a43989a29> ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:11225767-2e88-485a-82b5-093a1070676b>,
+        <https://vault.weekly.dev/notes/urn:uuid:843ea48c-86ea-4e86-bbd7-1dce964cbd83> .
+
+<https://vault.weekly.dev/notes/urn:uuid:ba7e479f-94a2-4787-84d4-242a43989a29> a vm:PermanentNote ;
+    vld:path "Notes/BSD-Type-Mapping.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Evergreen ;
+    vm:references <https://vault.weekly.dev/notes/urn:uuid:796b74f4-56e5-4484-8f9d-33a04b35b76d>,
+        <https://vault.weekly.dev/notes/urn:uuid:869e1719-6af0-4c90-b5e6-d3c9cab2703d>,
+        <https://vault.weekly.dev/notes/urn:uuid:86aff9f4-7ba8-4f5a-ab62-14aed239694f>,
+        <https://vault.weekly.dev/notes/urn:uuid:8abc8486-9356-4614-98a7-92fc1e8acb37> ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:11225767-2e88-485a-82b5-093a1070676b>,
+        <https://vault.weekly.dev/notes/urn:uuid:843ea48c-86ea-4e86-bbd7-1dce964cbd83> .
+
+<https://vault.weekly.dev/notes/urn:uuid:1661dd79-0e0f-43b9-954f-d9af9aebd565> a vm:MOC,
+        vm:Project ;
+    vld:path "Notes/SBSAssistantInPortal/SBSAssistantInPortal.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:clarizenCode "T-153053" ;
+    vm:maturity vm:Working ;
+    vm:partOfPillar vm:Expand-Market-Reach ;
+    vm:repoPath "C:\\Users\\shawn.weekly\\PROJECTS\\sbs-assistant-agent" .
+
+<https://vault.weekly.dev/notes/urn:uuid:65b55a5c-3eb6-48ab-b5b8-96b3054d7db6> a vm:MOC,
+        vm:Project ;
+    vld:path "Notes/SimpleDesignGeneration/SimpleDesignGeneration.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:clarizenCode "T-153053" ;
+    vm:maturity vm:Working ;
+    vm:partOfPillar vm:Expand-Market-Reach .
+
+<https://vault.weekly.dev/notes/urn:uuid:699799d0-4ac8-4745-a5f2-236cb059be40> a vm:MOC,
+        vm:Project ;
+    vld:path "Notes/ZEB-Standards/ZEB-Standards.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:clarizenCode "T-153053" ;
+    vm:maturity vm:Working ;
+    vm:partOfPillar vm:Expand-Market-Reach ;
+    vm:repoPath "C:\\Users\\shawn.weekly\\PROJECTS\\ZEB_Standards" .
+
+<https://vault.weekly.dev/notes/urn:uuid:6cd7a9dd-b9f3-4e3d-b5fd-60b0b67991f0> a vm:MOC,
+        vm:Project ;
+    vld:path "Notes/DesignAssistant/DesignAssistant.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:clarizenCode "T-153053" ;
+    vm:maturity vm:Working ;
+    vm:partOfPillar vm:Expand-Market-Reach .
+
+<https://vault.weekly.dev/notes/urn:uuid:77b12e56-b180-45c7-a1ab-91ab07582891> a vm:MOC,
+        vm:Project ;
+    vld:path "Notes/SecureCodingTraining/SecureCodingTraining.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:clarizenCode "T-153099" ;
+    vm:maturity vm:Working ;
+    vm:partOfPillar vm:Make-Trust-Engineered .
+
+<https://vault.weekly.dev/notes/urn:uuid:85174ee7-86ae-4542-92f3-0e2aae8f7b3f> a vm:MOC,
+        vm:Project ;
+    vld:path "Notes/AI_ArchitectureProcess/AI_ArchitectureProcess.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:clarizenCode "T-153099" ;
+    vm:maturity vm:Working ;
+    vm:partOfPillar vm:Deliver-with-Predictability,
+        vm:Make-Trust-Engineered .
+
+<https://vault.weekly.dev/notes/urn:uuid:86aff9f4-7ba8-4f5a-ab62-14aed239694f> a vm:PermanentNote ;
+    vld:path "Notes/Lens-Authoring-Pattern.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Evergreen ;
+    vm:references <https://vault.weekly.dev/notes/urn:uuid:869e1719-6af0-4c90-b5e6-d3c9cab2703d>,
+        <https://vault.weekly.dev/notes/urn:uuid:8abc8486-9356-4614-98a7-92fc1e8acb37>,
+        <https://vault.weekly.dev/notes/urn:uuid:ba7e479f-94a2-4787-84d4-242a43989a29>,
+        <https://vault.weekly.dev/notes/urn:uuid:d526da71-5339-4166-9855-8cba5cf5e2c6> ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:11225767-2e88-485a-82b5-093a1070676b> .
+
+<https://vault.weekly.dev/notes/urn:uuid:04206ce4-56e6-4939-91d2-3c0308741f22> a vm:MOC,
+        vm:Project ;
+    vld:path "Notes/TenneT/TenneT.md" ;
+    vm:audience vm:ClientConfidential ;
+    vm:authoredBy "Shawn" ;
+    vm:clarizenCode "T-153097" ;
+    vm:maturity vm:Working ;
+    vm:partOfPillar vm:Expand-Market-Reach .
+
+<https://vault.weekly.dev/notes/urn:uuid:883c973b-ceb2-4ef1-ab44-4b174033623a> a vm:PermanentNote ;
+    vld:path "Notes/XINFRA-vs-SIF-Naming.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Evergreen ;
+    vm:references <https://vault.weekly.dev/notes/urn:uuid:869e1719-6af0-4c90-b5e6-d3c9cab2703d>,
+        <https://vault.weekly.dev/notes/urn:uuid:8abc8486-9356-4614-98a7-92fc1e8acb37>,
+        <https://vault.weekly.dev/notes/urn:uuid:e8361b43-9bed-4b23-83c2-80fa0978f2a8> ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:11225767-2e88-485a-82b5-093a1070676b> .
+
+<https://vault.weekly.dev/notes/urn:uuid:d526da71-5339-4166-9855-8cba5cf5e2c6> a vm:PermanentNote ;
+    vld:path "Notes/Electrical-Model-Primer.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Evergreen ;
+    vm:references <https://vault.weekly.dev/notes/urn:uuid:6bc1bcda-4687-4b3f-a6ed-ab9cdc41bda4>,
+        <https://vault.weekly.dev/notes/urn:uuid:869e1719-6af0-4c90-b5e6-d3c9cab2703d>,
+        <https://vault.weekly.dev/notes/urn:uuid:883c973b-ceb2-4ef1-ab44-4b174033623a>,
+        <https://vault.weekly.dev/notes/urn:uuid:8abc8486-9356-4614-98a7-92fc1e8acb37> ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:11225767-2e88-485a-82b5-093a1070676b> .
+
+<https://vault.weekly.dev/notes/urn:uuid:e8361b43-9bed-4b23-83c2-80fa0978f2a8> a vm:PermanentNote ;
+    vld:path "Notes/Electrical-Platform-Thesis.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Evergreen ;
+    vm:references <https://vault.weekly.dev/notes/urn:uuid:869e1719-6af0-4c90-b5e6-d3c9cab2703d>,
+        <https://vault.weekly.dev/notes/urn:uuid:883c973b-ceb2-4ef1-ab44-4b174033623a>,
+        <https://vault.weekly.dev/notes/urn:uuid:8abc8486-9356-4614-98a7-92fc1e8acb37>,
+        <https://vault.weekly.dev/notes/urn:uuid:d526da71-5339-4166-9855-8cba5cf5e2c6> ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:11225767-2e88-485a-82b5-093a1070676b> .
+
+<https://vault.weekly.dev/notes/urn:uuid:869e1719-6af0-4c90-b5e6-d3c9cab2703d> a vm:PermanentNote ;
+    vld:path "Notes/IEC-CIM-Model.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Evergreen ;
+    vm:references <https://vault.weekly.dev/notes/urn:uuid:883c973b-ceb2-4ef1-ab44-4b174033623a>,
+        <https://vault.weekly.dev/notes/urn:uuid:8abc8486-9356-4614-98a7-92fc1e8acb37>,
+        <https://vault.weekly.dev/notes/urn:uuid:d526da71-5339-4166-9855-8cba5cf5e2c6>,
+        <https://vault.weekly.dev/notes/urn:uuid:e8361b43-9bed-4b23-83c2-80fa0978f2a8> ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:11225767-2e88-485a-82b5-093a1070676b> .
+
+<https://vault.weekly.dev/notes/urn:uuid:8abc8486-9356-4614-98a7-92fc1e8acb37> a vm:PermanentNote ;
+    vld:path "Notes/Schema-Catalog-Instance-Pattern.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:maturity vm:Evergreen ;
+    vm:references <https://vault.weekly.dev/notes/urn:uuid:869e1719-6af0-4c90-b5e6-d3c9cab2703d>,
+        <https://vault.weekly.dev/notes/urn:uuid:86aff9f4-7ba8-4f5a-ab62-14aed239694f>,
+        <https://vault.weekly.dev/notes/urn:uuid:883c973b-ceb2-4ef1-ab44-4b174033623a>,
+        <https://vault.weekly.dev/notes/urn:uuid:d526da71-5339-4166-9855-8cba5cf5e2c6> ;
+    vm:touchesProject <https://vault.weekly.dev/notes/urn:uuid:11225767-2e88-485a-82b5-093a1070676b> .
+
+<https://vault.weekly.dev/notes/urn:uuid:843ea48c-86ea-4e86-bbd7-1dce964cbd83> a vm:MOC,
+        vm:Project ;
+    vld:path "Notes/SDS-BSD/SDS-BSD.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:clarizenCode "T-153097" ;
+    vm:maturity vm:Working ;
+    vm:partOfPillar vm:Expand-Market-Reach ;
+    vm:repoPath "C:\\Users\\shawn.weekly\\PROJECTS\\sds-bsd" .
+
+<https://vault.weekly.dev/notes/urn:uuid:11225767-2e88-485a-82b5-093a1070676b> a vm:MOC,
+        vm:Project ;
+    vld:path "Notes/XINFRA/XINFRA.md" ;
+    vm:audience vm:InternalComms ;
+    vm:authoredBy "Shawn" ;
+    vm:clarizenCode "T-153097" ;
+    vm:maturity vm:Working ;
+    vm:partOfPillar vm:Expand-Market-Reach ;
+    vm:repoPath "C:\\Users\\shawn.weekly\\PROJECTS\\XINFRA" .
+

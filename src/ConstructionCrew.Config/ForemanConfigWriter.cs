@@ -12,21 +12,46 @@ namespace ConstructionCrew.Config;
 /// </summary>
 public static class ForemanConfigWriter
 {
-    public static void AppendForeman(string path, ForemanConfig config, string repoRoot)
+    public static void AppendForeman(string path, ForemanConfig config, string repoRoot, string? vaultRoot)
     {
-        var workingDirectory = CollapseRepoRoot(config.WorkingDirectory, repoRoot);
-        var instructionsFilePath = CollapseRepoRoot(config.InstructionsFilePath, repoRoot);
+        var workingDirectory = CollapseRoots(config.WorkingDirectory, vaultRoot, repoRoot);
+        var instructionsFilePath = CollapseRoots(config.InstructionsFilePath, vaultRoot, repoRoot);
 
         var block = new StringBuilder();
         block.AppendLine();
         block.AppendLine($"  - name: {Quote(config.Name)}");
+        block.AppendLine($"    role: {config.Role}");
         block.AppendLine($"    provider: {Quote(config.Provider)}");
         block.AppendLine($"    workingDirectory: {Quote(workingDirectory)}");
         block.AppendLine($"    instructionsFilePath: {Quote(instructionsFilePath)}");
 
+        if (!string.IsNullOrWhiteSpace(config.DisplayName))
+        {
+            block.AppendLine($"    displayName: {Quote(config.DisplayName)}");
+        }
+
         if (!string.IsNullOrWhiteSpace(config.JobsiteName))
         {
             block.AppendLine($"    jobsiteName: {Quote(config.JobsiteName)}");
+        }
+
+        if (config.AddDirs is { Count: > 0 })
+        {
+            block.AppendLine("    addDirs:");
+            foreach (var dir in config.AddDirs)
+            {
+                block.AppendLine($"      - {Quote(CollapseRoots(dir, vaultRoot, repoRoot))}");
+            }
+        }
+
+        if (config.VaultFolders is { Count: > 0 })
+        {
+            block.AppendLine("    vaultFolders:");
+            foreach (var folder in config.VaultFolders)
+            {
+                // Vault-relative by definition -- no root collapsing to do.
+                block.AppendLine($"      - {Quote(folder)}");
+            }
         }
 
         if (config.ProviderOptions.Count > 0)
@@ -51,6 +76,23 @@ public static class ForemanConfigWriter
     /// it. Callers (the /fire flow) must never pass anything else to delete.
     /// </summary>
     public static bool RemoveForeman(string path, string name) => YamlListEditor.RemoveEntry(path, "foremen", name);
+
+    /// <summary>
+    /// Vault prefix first, then repo prefix -- the safe ordering if the two
+    /// roots were ever nested (a Vault inside the repo, or the reverse).
+    /// </summary>
+    private static string CollapseRoots(string absolutePath, string? vaultRoot, string repoRoot) =>
+        IsUnderVaultRoot(absolutePath, vaultRoot)
+            ? CollapseVaultRoot(absolutePath, vaultRoot)
+            : CollapseRepoRoot(absolutePath, repoRoot);
+
+    private static bool IsUnderVaultRoot(string absolutePath, string? vaultRoot) =>
+        !string.IsNullOrWhiteSpace(vaultRoot) && absolutePath.StartsWith(vaultRoot, PathComparison.ForPathPrefix);
+
+    internal static string CollapseVaultRoot(string absolutePath, string? vaultRoot) =>
+        IsUnderVaultRoot(absolutePath, vaultRoot)
+            ? "${vaultRoot}" + absolutePath[vaultRoot!.Length..].Replace('\\', '/')
+            : absolutePath;
 
     private static string CollapseRepoRoot(string absolutePath, string repoRoot) =>
         absolutePath.StartsWith(repoRoot, PathComparison.ForPathPrefix)

@@ -9,7 +9,7 @@ public class ForemanDirectoryTests
     public void Add_MakesForemanFindableAndListed()
     {
         var directory = new ForemanDirectory([]);
-        var config = new ForemanConfig("Backend", "claude", "dir", "instructions.md", new Dictionary<string, string>());
+        var config = new ForemanConfig("Backend", CrewRole.Foreman, "claude", "dir", "instructions.md", new Dictionary<string, string>());
 
         directory.Add(config);
 
@@ -20,7 +20,7 @@ public class ForemanDirectoryTests
     [Fact]
     public void Remove_KnownName_RemovesIt_ReturnsTrue()
     {
-        var config = new ForemanConfig("Backend", "claude", "dir", "instructions.md", new Dictionary<string, string>());
+        var config = new ForemanConfig("Backend", CrewRole.Foreman, "claude", "dir", "instructions.md", new Dictionary<string, string>());
         var directory = new ForemanDirectory([config]);
 
         var removed = directory.Remove("Backend");
@@ -42,8 +42,8 @@ public class ForemanDirectoryTests
     public void Add_SameNameTwice_Upserts()
     {
         var directory = new ForemanDirectory([]);
-        directory.Add(new ForemanConfig("Backend", "claude", "dir1", "a.md", new Dictionary<string, string>()));
-        directory.Add(new ForemanConfig("Backend", "codex", "dir2", "b.md", new Dictionary<string, string>()));
+        directory.Add(new ForemanConfig("Backend", CrewRole.Foreman, "claude", "dir1", "a.md", new Dictionary<string, string>()));
+        directory.Add(new ForemanConfig("Backend", CrewRole.Foreman, "codex", "dir2", "b.md", new Dictionary<string, string>()));
 
         Assert.Single(directory.All());
         Assert.Equal("codex", directory.Find("Backend")!.Provider);

@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <PackageReference Include="CliWrap" Version="3.10.5" />
+    <PackageReference Include="dotNetRDF" Version="3.5.2" />
     <PackageReference Include="coverlet.collector" Version="6.0.4" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="xunit" Version="2.9.3" />
@@ -20,8 +21,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The Python-generated ground truth the .NET port is diffed against. -->
+    <None Include="Fixtures\**\*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\ConstructionCrew.Core\ConstructionCrew.Core.csproj" />
     <ProjectReference Include="..\..\src\ConstructionCrew.Providers\ConstructionCrew.Providers.csproj" />
+    <ProjectReference Include="..\..\src\ConstructionCrew.Graph\ConstructionCrew.Graph.csproj" />
     <ProjectReference Include="..\..\src\ConstructionCrew.HomeOffice\ConstructionCrew.HomeOffice.csproj" />
     <ProjectReference Include="..\..\src\ConstructionCrew.Config\ConstructionCrew.Config.csproj" />
     <ProjectReference Include="..\..\src\ConstructionCrew.App\ConstructionCrew.App.csproj" />

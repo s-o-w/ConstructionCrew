@@ -22,14 +22,15 @@ public class ForemanConfigWriterTests
         {
             var config = new ForemanConfig(
                 "Backend",
+                CrewRole.Foreman,
                 "claude",
                 workingDirectory,
                 instructionsPath,
                 new Dictionary<string, string> { ["allowedTools"] = "Bash,Edit,Read,Write" });
 
-            ForemanConfigWriter.AppendForeman(yamlPath, config, repoRoot);
+            ForemanConfigWriter.AppendForeman(yamlPath, config, repoRoot, null);
 
-            var reloaded = new ForemanConfigLoader().LoadFromFile(yamlPath, repoRoot);
+            var reloaded = new ForemanConfigLoader().LoadFromFile(yamlPath, repoRoot, null, "GC");
 
             Assert.Single(reloaded);
             var backend = reloaded[0];
@@ -76,6 +77,7 @@ public class ForemanConfigWriterTests
         {
             var config = new ForemanConfig(
                 "fred",
+                CrewRole.Foreman,
                 "claude",
                 workingDirectory,
                 instructionsPath,
@@ -85,9 +87,9 @@ public class ForemanConfigWriterTests
                     ["mcpConfigPath"] = mcpConfigPath,
                 });
 
-            ForemanConfigWriter.AppendForeman(yamlPath, config, repoRoot);
+            ForemanConfigWriter.AppendForeman(yamlPath, config, repoRoot, null);
 
-            var reloaded = new ForemanConfigLoader().LoadFromFile(yamlPath, repoRoot);
+            var reloaded = new ForemanConfigLoader().LoadFromFile(yamlPath, repoRoot, null, "GC");
 
             Assert.Single(reloaded);
             Assert.Equal(mcpConfigPath, reloaded[0].ProviderOptions["mcpConfigPath"]);
@@ -118,15 +120,15 @@ public class ForemanConfigWriterTests
 
         try
         {
-            ForemanConfigWriter.AppendForeman(yamlPath, new ForemanConfig("Alpha", "claude", dirA, instructionsA, new Dictionary<string, string>()), repoRoot);
-            ForemanConfigWriter.AppendForeman(yamlPath, new ForemanConfig("Beta", "claude", dirB, instructionsB, new Dictionary<string, string>()), repoRoot);
+            ForemanConfigWriter.AppendForeman(yamlPath, new ForemanConfig("Alpha", CrewRole.Foreman, "claude", dirA, instructionsA, new Dictionary<string, string>()), repoRoot, null);
+            ForemanConfigWriter.AppendForeman(yamlPath, new ForemanConfig("Beta", CrewRole.Foreman, "claude", dirB, instructionsB, new Dictionary<string, string>()), repoRoot, null);
 
             var removed = ForemanConfigWriter.RemoveForeman(yamlPath, "Alpha");
 
             Assert.True(removed);
             Assert.Contains("# a header comment", File.ReadAllText(yamlPath));
 
-            var reloaded = new ForemanConfigLoader().LoadFromFile(yamlPath, repoRoot);
+            var reloaded = new ForemanConfigLoader().LoadFromFile(yamlPath, repoRoot, null, "GC");
             Assert.Single(reloaded);
             Assert.Equal("Beta", reloaded[0].Name);
         }
@@ -184,11 +186,11 @@ public class ForemanConfigWriterTests
 
         try
         {
-            var config = new ForemanConfig("DriveRoot", "claude", workingDirectory, instructionsPath, new Dictionary<string, string>());
+            var config = new ForemanConfig("DriveRoot", CrewRole.Foreman, "claude", workingDirectory, instructionsPath, new Dictionary<string, string>());
 
-            ForemanConfigWriter.AppendForeman(yamlPath, config, repoRoot);
+            ForemanConfigWriter.AppendForeman(yamlPath, config, repoRoot, null);
 
-            var reloaded = new ForemanConfigLoader().LoadFromFile(yamlPath, repoRoot);
+            var reloaded = new ForemanConfigLoader().LoadFromFile(yamlPath, repoRoot, null, "GC");
 
             Assert.Single(reloaded);
             Assert.Equal("DriveRoot", reloaded[0].Name);

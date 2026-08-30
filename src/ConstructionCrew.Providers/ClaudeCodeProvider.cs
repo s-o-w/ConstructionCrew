@@ -38,10 +38,24 @@ public sealed class ClaudeCodeProvider : ICliToolProvider
             args.Add("--dangerously-skip-permissions");
         }
 
+        // addDir stays supported as a single-value providerOptions escape hatch;
+        // AddDirs is the typed list (a Vault root plus this repo, for GC) and
+        // emits one --add-dir per entry.
         if (request.ProviderOptions.TryGetValue("addDir", out var addDir) && !string.IsNullOrWhiteSpace(addDir))
         {
             args.Add("--add-dir");
             args.Add(addDir);
+        }
+
+        foreach (var dir in request.AddDirs ?? [])
+        {
+            if (string.IsNullOrWhiteSpace(dir))
+            {
+                continue;
+            }
+
+            args.Add("--add-dir");
+            args.Add(dir);
         }
 
         if (request.ProviderOptions.TryGetValue("mcpConfigPath", out var mcpConfigPath) && !string.IsNullOrWhiteSpace(mcpConfigPath))

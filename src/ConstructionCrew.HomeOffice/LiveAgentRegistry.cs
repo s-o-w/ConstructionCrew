@@ -26,13 +26,24 @@ public sealed class LiveAgentRegistry
         _agentFactory = agentFactory;
     }
 
-    public async Task<CliRunResult> SendAsync(string name, ForemanConfig config, string message, CancellationToken cancellationToken)
+    /// <summary>
+    /// <paramref name="onStarted"/> fires the moment this turn actually gets the
+    /// per-name semaphore -- i.e. "the agent's dispatch began: instructions
+    /// composed, about to invoke its CLI process." That is an approximation of
+    /// OS process start, not the spawn itself: LocalCliAgent still composes the
+    /// prompt and builds the invocation after this point, before CliProcessRunner
+    /// ever calls Cli.Wrap(...).ExecuteBufferedAsync(...). Threading the callback
+    /// deeper would mean changing ICliProcessRunner's contract for a gap that is
+    /// milliseconds on a continuing turn and one file read on a first turn.
+    /// </summary>
+    public async Task<CliRunResult> SendAsync(string name, ForemanConfig config, string message, CancellationToken cancellationToken, Action? onStarted = null)
     {
         var entry = _live.GetOrAdd(name, _ => (_agentFactory.Create(config), new SemaphoreSlim(1, 1)));
 
         await entry.Lock.WaitAsync(cancellationToken);
         try
         {
+            onStarted?.Invoke();
             return await entry.Agent.SendAsync(message, cancellationToken);
         }
         finally

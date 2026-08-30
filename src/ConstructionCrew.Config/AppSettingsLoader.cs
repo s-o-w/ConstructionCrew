@@ -20,6 +20,7 @@ public static class AppSettingsLoader
     {
         ["--home-office-port"] = "HomeOffice:Port",
         ["--port"] = "HomeOffice:Port",
+        ["--vault-root"] = "Vault:Root",
     };
 
     // Microsoft.Extensions.Configuration.CommandLine expects every "--switch" to
@@ -43,7 +44,14 @@ public static class AppSettingsLoader
             .Build();
 
         var port = config.GetValue<int?>("HomeOffice:Port") ?? defaults.HomeOfficePort;
+        var vaultRoot = config.GetValue<string?>("Vault:Root") ?? defaults.VaultRoot;
+        var notificationsCommand = config.GetValue<string?>("Notifications:Command") ?? defaults.NotificationsCommand;
 
-        return defaults with { HomeOfficePort = port };
+        return defaults with
+        {
+            HomeOfficePort = port,
+            VaultRoot = string.IsNullOrWhiteSpace(vaultRoot) ? null : vaultRoot,
+            NotificationsCommand = string.IsNullOrWhiteSpace(notificationsCommand) ? null : notificationsCommand,
+        };
     }
 }

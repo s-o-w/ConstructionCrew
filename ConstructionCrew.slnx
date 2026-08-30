@@ -3,8 +3,8 @@
     <Project Path="src/ConstructionCrew.App/ConstructionCrew.App.csproj" />
     <Project Path="src/ConstructionCrew.Config/ConstructionCrew.Config.csproj" />
     <Project Path="src/ConstructionCrew.Core/ConstructionCrew.Core.csproj" />
-    <Project Path="src/ConstructionCrew.Memory/ConstructionCrew.Memory.csproj" />
     <Project Path="src/ConstructionCrew.Providers/ConstructionCrew.Providers.csproj" />
+    <Project Path="src/ConstructionCrew.Graph/ConstructionCrew.Graph.csproj" />
     <Project Path="src/ConstructionCrew.HomeOffice/ConstructionCrew.HomeOffice.csproj" />
   </Folder>
   <Folder Name="/tests/">

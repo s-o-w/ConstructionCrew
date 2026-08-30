@@ -22,7 +22,21 @@ public sealed class HomeOfficeHost : IAsyncDisposable
 
     public Uri BaseAddress => new(_app.Urls.First());
 
-    public static async Task<HomeOfficeHost> StartAsync(JobRegistry jobRegistry, IForemanDirectory foremen, IJobsiteDirectory jobsites, int port, CancellationToken cancellationToken)
+    /// <summary>
+    /// <paramref name="vaultGraph"/> is always the last parameter before
+    /// <paramref name="port"/>; every later feature's parameter inserts ahead of
+    /// it. Cross-project implementations arrive already constructed (Program.cs
+    /// is the only place allowed to new them) and are registered as instances,
+    /// never as types -- HomeOffice references only Core.
+    /// </summary>
+    public static async Task<HomeOfficeHost> StartAsync(
+        JobRegistry jobRegistry,
+        IForemanDirectory foremen,
+        IJobsiteDirectory jobsites,
+        HomeOfficeVaultOptions vaultOptions,
+        IVaultGraph vaultGraph,
+        int port,
+        CancellationToken cancellationToken)
     {
         var builder = WebApplication.CreateBuilder();
         builder.Logging.ClearProviders();
@@ -32,6 +46,8 @@ public sealed class HomeOfficeHost : IAsyncDisposable
         builder.Services.AddSingleton(jobRegistry);
         builder.Services.AddSingleton(foremen);
         builder.Services.AddSingleton(jobsites);
+        builder.Services.AddSingleton(vaultOptions);
+        builder.Services.AddSingleton(vaultGraph);
         builder.Services.AddMcpServer()
             .WithHttpTransport()
             .WithToolsFromAssembly();

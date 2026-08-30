@@ -1,0 +1,199 @@
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix vm: <https://vault.weekly.dev/vaultmeta#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+vm:ClientConfidential a skos:Concept ;
+    skos:definition "Client-supplied or client-specific under engagement terms. TenneT's documents and data are the working example." ;
+    skos:prefLabel "Client Confidential" ;
+    skos:topConceptOf vm:InformationClassification .
+
+vm:Deliver-with-Predictability a skos:Concept ;
+    skos:definition "2026 OKR pillar 2. Standardize how the engineering team works: architecture reviews, agentic dev, AI tooling, so delivery is predictable at scale." ;
+    skos:prefLabel "Deliver with Predictability and Scale" ;
+    skos:topConceptOf vm:OKRPillars .
+
+vm:Evergreen a skos:Concept ;
+    skos:definition "A durable, atomic concept expected to stay true and to change rarely. The permanent notes and the one surviving MOC carry this maturity." ;
+    skos:prefLabel "Evergreen" ;
+    skos:topConceptOf vm:NoteMaturity .
+
+vm:Expand-Market-Reach a skos:Concept ;
+    skos:definition "2026 OKR pillar 1. Transform SBS from tool-native silos into a data-first platform company. XINFRA is the primary initiative." ;
+    skos:prefLabel "Expand Market Reach through AI" ;
+    skos:topConceptOf vm:OKRPillars .
+
+vm:External a skos:Concept ;
+    skos:definition "Cleared to leave SBS as-is. LinkedIn posts, talks, whitepaper drafts that have already been through a sanitization pass." ;
+    skos:prefLabel "External" ;
+    skos:topConceptOf vm:InformationClassification .
+
+vm:ExternalComms a owl:Class ;
+    rdfs:label "External Comms" ;
+    rdfs:comment "Content drafted for an audience outside SBS, a LinkedIn post, a talk, a whitepaper draft. Distinguished from internal strategy docs by audience, not just by class." .
+
+vm:FeedbackMemory a owl:Class ;
+    rdfs:label "Feedback Memory" ;
+    rdfs:comment "A memory recording a behavioral correction or a validated approach, with a Why and a How to apply line. Matches AI/memory/'s existing feedback_*.md prefix." ;
+    rdfs:subClassOf vm:MemoryNote .
+
+vm:Fleeting a skos:Concept ;
+    skos:definition "New inbound triage, not yet worked. Where new capture lands in Notes/ now that INBOX/ does not carry forward." ;
+    skos:prefLabel "Fleeting" ;
+    skos:topConceptOf vm:NoteMaturity .
+
+vm:Guide a owl:Class ;
+    rdfs:label "Guide" ;
+    rdfs:comment "A setup or meta guide explaining how to use the vault or a related tool, such as the second-brain setup guide or a team-facing onboarding doc." .
+
+vm:Home a owl:Class ;
+    rdfs:label "Home" ;
+    rdfs:comment "The single vault entry point, HOME.md. Navigation only, no status, no dates." .
+
+vm:Informative a skos:Concept ;
+    skos:definition "Vault-only working material, no distribution intent. The default for internal strategy and planning content." ;
+    skos:prefLabel "Informative" ;
+    skos:topConceptOf vm:InformationClassification .
+
+vm:InternalComms a skos:Concept ;
+    skos:definition "SBS-internal, shareable inside the company but not published externally. Team guides, most strategy docs." ;
+    skos:prefLabel "Internal Comms" ;
+    skos:topConceptOf vm:InformationClassification .
+
+vm:MOC a owl:Class ;
+    rdfs:label "MOC" ;
+    rdfs:comment "A hand-curated map-of-content note providing human navigation across a domain that a touchesProject query can't fully replace. Most former MOCs retired in favor of the graph; MOC-Electrical-Domain is the one that survived." .
+
+vm:Make-Trust-Engineered a skos:Concept ;
+    skos:definition "2026 OKR pillar 3. Embed security and compliance into the dev process, not on top of it." ;
+    skos:prefLabel "Make Trust an Engineered Property" ;
+    skos:topConceptOf vm:OKRPillars .
+
+vm:OneOnOneNotes a owl:Class ;
+    rdfs:label "One on One Notes" ;
+    rdfs:comment "A running log of one-on-one meeting notes with a specific person, such as Jason1on1s.md. First live instance as of this migration." .
+
+vm:PermanentNote a owl:Class ;
+    rdfs:label "Permanent Note" ;
+    rdfs:comment "An atomic, evergreen concept note living flat in Notes/. One concept per file, named for the concept, not the project." .
+
+vm:PlanningDoc a owl:Class ;
+    rdfs:label "Planning Doc" ;
+    rdfs:comment "An executable implementation plan, either an agent-executable feature plan under Plans/<PROJECT>/<FEATURE>/ (excluded from the graph, see VAULT-KNOWLEDGE-GRAPH-PLAN) or a root-level plan like this ontology's own build plan." .
+
+vm:ProjectMemory a owl:Class ;
+    rdfs:label "Project Memory" ;
+    rdfs:comment "A memory recording an ongoing project fact, decision, or state. Matches AI/memory/'s existing project_*.md prefix." ;
+    rdfs:subClassOf vm:MemoryNote .
+
+vm:ReferenceMemory a owl:Class ;
+    rdfs:label "Reference Memory" ;
+    rdfs:comment "A memory recording a pointer to an external system or resource. Matches AI/memory/'s existing reference_*.md prefix." ;
+    rdfs:subClassOf vm:MemoryNote .
+
+vm:Restricted a skos:Concept ;
+    skos:definition "Personal, or otherwise not for any work audience. Everything under Personal/." ;
+    skos:prefLabel "Restricted" ;
+    skos:topConceptOf vm:InformationClassification .
+
+vm:SessionNote a owl:Class ;
+    rdfs:label "Session Note" ;
+    rdfs:comment "A tight, timesheet-format record of one work session, under AI/SessionNotes/, organized by Clarizen code. Timesheet reconstruction is the primary use." .
+
+vm:StandingContext a owl:Class ;
+    rdfs:label "Standing Context" ;
+    rdfs:comment "A note under AI/Context/ that a session loads silently when the task touches its subject. Short by design, written for AI session loading rather than as a human map." .
+
+vm:StatusDoc a owl:Class ;
+    rdfs:label "StatusDoc" ;
+    rdfs:comment "A project's current-state snapshot — active work, recently completed, blockers, next up. Distinct from StrategyDoc (Vision/Architecture/Roadmap-and-Opportunities), which is forward-looking and slow-changing; StatusDoc is meant to be overwritten often, not accumulated." .
+
+vm:StrategyDoc a owl:Class ;
+    rdfs:label "Strategy Doc" ;
+    rdfs:comment "A vision, architecture, or roadmap document for a project, typically one of the Vision/Architecture/Roadmap-and-Opportunities trio under Notes/<Project>/." .
+
+vm:Superseded a skos:Concept ;
+    skos:definition "Content a newer note has replaced. Stays reachable in the graph but excluded from default queries and default context loading. Per D7, this eventually does the job the old ARCHIVE/ folder did, once the mechanism is proven; no note carries this value yet." ;
+    skos:prefLabel "Superseded" ;
+    skos:topConceptOf vm:NoteMaturity .
+
+vm:UserMemory a owl:Class ;
+    rdfs:label "User Memory" ;
+    rdfs:comment "A memory recording a biographical or role fact about Shawn. Matches AI/memory/'s existing user_*.md prefix." ;
+    rdfs:subClassOf vm:MemoryNote .
+
+vm:VaultMeta a owl:Ontology ;
+    rdfs:label "VaultMeta" ;
+    rdfs:comment "The vault's own ontology, defining note kinds, project instances, and the classification properties that replace folder position as the carrier of OKR pillar, project touch, audience, and maturity." .
+
+vm:Working a skos:Concept ;
+    skos:definition "Actively maintained, current. The default maturity for a strategy doc, standing context file, or project node." ;
+    skos:prefLabel "Working" ;
+    skos:topConceptOf vm:NoteMaturity .
+
+vm:audience a owl:ObjectProperty ;
+    rdfs:label "audience" ;
+    rdfs:comment "The information-classification concept this note carries, external-safe, internal comms, client confidential, vault-only informative, or restricted. Answers \"is this safe to share, and with whom.\"" ;
+    rdfs:range vm:InformationClassification .
+
+vm:authoredBy a owl:DatatypeProperty ;
+    rdfs:label "authored by" ;
+    rdfs:comment "Which role/persona actually wrote this note - GC, a named Foreman, a Worker, or the Boss directly. Free-text identifier (\"GC\", \"Foreman:<Jobsite>\", \"Worker:<Jobsite>/worker-<id>\", \"Boss\"), not a linked concept, since these are agent instances rather than a fixed taxonomy." ;
+    rdfs:range xsd:string .
+
+vm:clarizenCode a owl:DatatypeProperty ;
+    rdfs:label "clarizen code" ;
+    rdfs:comment "Which Clarizen task code(s) cover a project's work, so timesheet reconstruction can query the graph instead of re-deriving the mapping from CLAUDE.md each time." ;
+    rdfs:range xsd:string .
+
+vm:maturity a owl:ObjectProperty ;
+    rdfs:label "maturity" ;
+    rdfs:comment "Where a note sits on the fleeting-to-evergreen scale, split off from type so a note maturing is a one-line frontmatter edit, not a file move. Superseded is the maturity value that eventually does ARCHIVE's job, per D7." ;
+    rdfs:range vm:NoteMaturity .
+
+vm:okr a owl:ObjectProperty ;
+    rdfs:label "okr" ;
+    rdfs:comment "Which OKR pillar(s) a note serves, used only on notes with no single project to inherit pillar membership through, such as the OKR overview and current-okrs.md. Every project-scoped note gets its pillar through touchesProject and the project's own partOfPillar instead." ;
+    rdfs:range vm:OKRPillars .
+
+vm:partOfPillar a owl:ObjectProperty ;
+    rdfs:label "part of pillar" ;
+    rdfs:comment "Which OKR pillar(s) a Project belongs to. Asserted once on the project instance rather than repeated on every note that touches it, so a project changing pillar is a one-line edit." ;
+    rdfs:range vm:OKRPillars .
+
+vm:references a owl:ObjectProperty ;
+    rdfs:label "references" ;
+    rdfs:comment "A relationship a note's body summarizes or draws on but never expresses as an inline wiki link. Hand-picked, not a mirror of every wiki link in the body; the 1,400-plus inline wiki links already carry the ordinary edges." ;
+    rdfs:range owl:Thing .
+
+vm:repoPath a owl:DatatypeProperty ;
+    rdfs:label "repo path" ;
+    rdfs:comment "The local filesystem path to a project's code repository, so which repo backs a doc's project is a graph query instead of a hand-maintained list in CLAUDE.md or a skill's own README." ;
+    rdfs:range xsd:string .
+
+vm:touchesProject a owl:ObjectProperty ;
+    rdfs:label "touches project" ;
+    rdfs:comment "Which project(s) a note is relevant to, independent of where the note physically sits. Multi-valued so a note can touch more than one project, such as TenneT docs touching both TenneT and XINFRA." ;
+    rdfs:range vm:Project .
+
+vm:Project a owl:Class ;
+    rdfs:label "Project" ;
+    rdfs:comment "A named project or engagement (XINFRA, TenneT, SDS-BSD, and the rest). Carries partOfPillar, repoPath, and clarizenCode, and is the object every touchesProject edge points at." .
+
+vm:MemoryNote a owl:Class ;
+    rdfs:label "Memory Note" ;
+    rdfs:comment "The parent class for the auto-memory system under AI/memory/. Four subclasses carry the memory system's own existing type vocabulary (project, feedback, reference, user) into the graph without changing that vocabulary." .
+
+vm:NoteMaturity a skos:ConceptScheme ;
+    rdfs:label "Note Maturity" ;
+    rdfs:comment "Where a note sits on the fleeting-to-evergreen scale. Split off from type so maturing a note is a frontmatter edit, not a file move." .
+
+vm:OKRPillars a skos:ConceptScheme ;
+    rdfs:label "OKR Pillars" ;
+    rdfs:comment "The three 2026 OKR pillars. File names match the WORK/OKRs/ folder names this migration replaced, character for character." .
+
+vm:InformationClassification a skos:ConceptScheme ;
+    rdfs:label "Information Classification" ;
+    rdfs:comment "The audience/sensitivity axis, answering who a note is safe to share with. Orthogonal to note kind and to project touch." .
+

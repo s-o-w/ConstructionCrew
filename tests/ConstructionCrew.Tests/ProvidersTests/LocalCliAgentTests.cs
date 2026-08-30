@@ -15,7 +15,7 @@ public class LocalCliAgentTests
 
         try
         {
-            var config = new ForemanConfig("Test", "fake", Path.GetTempPath(), instructionsPath, new Dictionary<string, string>());
+            var config = new ForemanConfig("Test", CrewRole.Foreman, "fake", Path.GetTempPath(), instructionsPath, new Dictionary<string, string>());
             var provider = new FakeCliToolProvider();
             var runner = new FakeCliProcessRunner();
             var agent = new LocalCliAgent(config, provider, runner);
@@ -41,7 +41,7 @@ public class LocalCliAgentTests
 
         try
         {
-            var config = new ForemanConfig("Test", "fake", Path.GetTempPath(), instructionsPath, new Dictionary<string, string>());
+            var config = new ForemanConfig("Test", CrewRole.Foreman, "fake", Path.GetTempPath(), instructionsPath, new Dictionary<string, string>());
             var provider = new FakeCliToolProvider();
             var runner = new FakeCliProcessRunner();
             var agent = new LocalCliAgent(config, provider, runner);
@@ -62,7 +62,7 @@ public class LocalCliAgentTests
     [Fact]
     public async Task MissingInstructionsFile_FallsBackToRawMessage()
     {
-        var config = new ForemanConfig("Test", "fake", Path.GetTempPath(), Path.Combine(Path.GetTempPath(), "does-not-exist.md"), new Dictionary<string, string>());
+        var config = new ForemanConfig("Test", CrewRole.Foreman, "fake", Path.GetTempPath(), Path.Combine(Path.GetTempPath(), "does-not-exist.md"), new Dictionary<string, string>());
         var provider = new FakeCliToolProvider();
         var runner = new FakeCliProcessRunner();
         var agent = new LocalCliAgent(config, provider, runner);

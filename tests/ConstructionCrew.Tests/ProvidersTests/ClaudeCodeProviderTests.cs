@@ -30,6 +30,28 @@ public class ClaudeCodeProviderTests
     }
 
     [Fact]
+    public void BuildInvocation_EmitsOneAddDirPerEntry_AllAheadOfTheTerminator()
+    {
+        // GC's cwd is the Vault; ConstructionCrew's own repo (and anything else
+        // it needs to read) arrives as its own --add-dir. One flag per entry --
+        // Claude Code has no multi-value form that survives the "--" terminator.
+        var provider = new ClaudeCodeProvider();
+        var request = new CliTaskRequest(
+            "do the thing",
+            "/vault",
+            new Dictionary<string, string>(),
+            AddDirs: ["/repo", "/other"]);
+
+        var invocation = provider.BuildInvocation(request);
+        var args = invocation.Arguments.ToList();
+
+        Assert.Equal(2, args.Count(a => a == "--add-dir"));
+        Assert.Equal("/repo", args[args.IndexOf("--add-dir") + 1]);
+        Assert.Equal("/other", args[args.LastIndexOf("--add-dir") + 1]);
+        Assert.True(args.LastIndexOf("--add-dir") < args.IndexOf("--"), "Every --add-dir must precede the \"--\" terminator.");
+    }
+
+    [Fact]
     public void BuildInvocation_NoOptionalFlags_StillTerminatesBeforePrompt()
     {
         var provider = new ClaudeCodeProvider();

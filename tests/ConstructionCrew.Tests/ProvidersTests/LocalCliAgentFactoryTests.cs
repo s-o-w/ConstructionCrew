@@ -11,7 +11,7 @@ public class LocalCliAgentFactoryTests
     public void Create_UnknownProvider_Throws()
     {
         var factory = new LocalCliAgentFactory([new FakeCliToolProvider("claude")], new FakeCliProcessRunner());
-        var config = new ForemanConfig("Test", "codex", "dir", "instructions.md", new Dictionary<string, string>());
+        var config = new ForemanConfig("Test", CrewRole.Foreman, "codex", "dir", "instructions.md", new Dictionary<string, string>());
 
         var ex = Assert.Throws<InvalidOperationException>(() => factory.Create(config));
         Assert.Contains("codex", ex.Message);
@@ -22,7 +22,7 @@ public class LocalCliAgentFactoryTests
     public void Create_KnownProvider_ReturnsAgentNamedForForeman()
     {
         var factory = new LocalCliAgentFactory([new FakeCliToolProvider("claude")], new FakeCliProcessRunner());
-        var config = new ForemanConfig("Frontend", "claude", "dir", "instructions.md", new Dictionary<string, string>());
+        var config = new ForemanConfig("Frontend", CrewRole.Foreman, "claude", "dir", "instructions.md", new Dictionary<string, string>());
 
         var agent = factory.Create(config);
 

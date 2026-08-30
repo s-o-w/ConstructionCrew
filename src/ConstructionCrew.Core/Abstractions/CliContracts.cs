@@ -9,7 +9,8 @@ public sealed record CliTaskRequest(
     string Prompt,
     string WorkingDirectory,
     IReadOnlyDictionary<string, string> ProviderOptions,
-    bool ContinuePreviousConversation = false);
+    bool ContinuePreviousConversation = false,
+    IReadOnlyList<string>? AddDirs = null);
 
 /// <summary>
 /// A provider's answer to "how do I actually run this": an executable plus argv.
@@ -20,8 +21,20 @@ public sealed record CliInvocation(
     IReadOnlyList<string> Arguments,
     string WorkingDirectory);
 
+/// <summary>
+/// Token/cost accounting for one CLI turn. Stays null for any provider whose
+/// usage output has not been verified against a real run -- same discipline as
+/// GeminiProvider's deliberate throw.
+/// </summary>
+public sealed record CliUsage(
+    long? InputTokens,
+    long? OutputTokens,
+    decimal? CostUsd,
+    string? RawJson);
+
 public sealed record CliRunResult(
     bool Succeeded,
     string StandardOutput,
     string StandardError,
-    int ExitCode);
+    int ExitCode,
+    CliUsage? Usage = null);

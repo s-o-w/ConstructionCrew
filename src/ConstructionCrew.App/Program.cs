@@ -3,6 +3,7 @@ using ConstructionCrew.Config;
 using ConstructionCrew.Core.Abstractions;
 using ConstructionCrew.Core.Models;
 using ConstructionCrew.Core.Runtime;
+using ConstructionCrew.Graph;
 using ConstructionCrew.Providers;
 using ConstructionCrew.HomeOffice;
 using Spectre.Console;
@@ -15,7 +16,7 @@ AnsiConsole.Write(new Rule("[bold yellow]ConstructionCrew[/]").LeftJustified());
 IReadOnlyList<ForemanConfig> foremenSeed;
 try
 {
-    foremenSeed = new ForemanConfigLoader().LoadFromFile(settings.ForemenConfigPath, repoRoot);
+    foremenSeed = new ForemanConfigLoader().LoadFromFile(settings.ForemenConfigPath, repoRoot, settings.VaultRoot, settings.GcForemanName);
 }
 catch (Exception ex)
 {
@@ -49,13 +50,21 @@ var availableProviderIds = providers.Select(p => p.ProviderId).Where(id => id !=
 
 var runner = new CliProcessRunner();
 var agentFactory = new LocalCliAgentFactory(providers, runner);
+// Exactly one LiveAgentRegistry per process. The Boss loop and JobRegistry both
+// route through it, so GC never ends up with two divergent conversations.
+var liveAgents = new LiveAgentRegistry(agentFactory);
 var statusSink = new JobStatusSink();
-var jobRegistry = new JobRegistry(foremanDirectory, agentFactory, statusSink);
+var jobRegistry = new JobRegistry(foremanDirectory, agentFactory, statusSink, liveAgents, settings.GcForemanName);
+// Program.cs is the one place allowed to construct a cross-project
+// implementation and hand HomeOffice an already-built instance -- HomeOffice
+// has no ProjectReference to ConstructionCrew.Graph and never names VaultGraph.
+var vaultGraph = new VaultGraph();
+var vaultOptions = new HomeOfficeVaultOptions(settings.VaultRoot);
 
 Directory.CreateDirectory(settings.StateDirectory);
 
 using var cts = new CancellationTokenSource();
-var homeOffice = await HomeOfficeHost.StartAsync(jobRegistry, foremanDirectory, jobsiteDirectory, settings.HomeOfficePort, cts.Token);
+var homeOffice = await HomeOfficeHost.StartAsync(jobRegistry, foremanDirectory, jobsiteDirectory, vaultOptions, vaultGraph, settings.HomeOfficePort, cts.Token);
 
 // --debug is deliberately not surfaced in the TUI itself (the Dashboard footer
 // used to always show this and it was just screen clutter) -- it's a one-time
@@ -90,8 +99,6 @@ else
 {
     AnsiConsole.MarkupLine($"[yellow]GC provider '{gcConfig.Provider}' isn't wired to the Home Office yet -- only Claude Code's --mcp-config shape has been verified.[/]");
 }
-
-var gc = agentFactory.Create(gcConfig);
 
 var state = new DashboardState { HomeOfficeAddress = homeOffice.BaseAddress.ToString() };
 
@@ -136,8 +143,20 @@ while (true)
 
     if (command.Equals("/hire", StringComparison.OrdinalIgnoreCase))
     {
+        // Scoped to /hire, not app startup: before Phase 3's FirstRunWizard exists,
+        // VaultRoot is only ever set by hand, and a startup-level gate would make
+        // the app unusable standalone. Phase 3 makes this a pure backstop.
+        if (string.IsNullOrWhiteSpace(settings.VaultRoot) || !Directory.Exists(settings.VaultRoot))
+        {
+            AnsiConsole.MarkupLine("[yellow]No Vault is configured -- run first-run setup (or set --vault-root) before hiring a Foreman.[/]");
+            AnsiConsole.Markup("[grey]Press enter to continue...[/]");
+            Console.ReadLine();
+            state.View = TuiView.Chat;
+            continue;
+        }
+
         AnsiConsole.Clear();
-        HireWizard.Run(foremanDirectory, jobsiteDirectory, availableProviderIds, repoRoot, mcpConfigPath);
+        HireWizard.Run(foremanDirectory, jobsiteDirectory, availableProviderIds, repoRoot, settings.VaultRoot, mcpConfigPath);
         AnsiConsole.Markup("[grey]Press enter to continue...[/]");
         Console.ReadLine();
         state.View = TuiView.Chat;
@@ -170,7 +189,7 @@ while (true)
         .Spinner(Spinner.Known.Dots)
         .StartAsync("GC is thinking...", async _ =>
         {
-            result = await gc.SendAsync(input, cts.Token);
+            result = await liveAgents.SendAsync(settings.GcForemanName, gcConfig, input, cts.Token);
         });
 
     state.Transcript.Add(new TranscriptLine("GC", result.Succeeded ? result.StandardOutput : result.StandardError, IsError: !result.Succeeded));

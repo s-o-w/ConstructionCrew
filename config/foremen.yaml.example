@@ -3,22 +3,48 @@
 # something to ship or commit).
 #
 # "GC" is a reserved name: whichever entry is named GC plays the General
-# Contractor role the Boss talks to directly. Add Foremen via the /hire
+# Contractor role the Boss talks to directly. That entry must also carry
+# `role: GC`; every other entry is `role: Foreman`. Add Foremen via the /hire
 # wizard once the app is running -- it appends real entries here for you,
 # writes their instructions file, and (if you give it one) creates their
 # Jobsite in jobsites.yaml. Hand-editing this file directly also works.
 #
-# ${repoRoot} expands to this repo's root at load time, so this file stays
-# portable if the repo is cloned somewhere else.
+# ${repoRoot} expands to this repo's root at load time and ${vaultRoot} to the
+# configured Vault root (appsettings.json's Vault:Root, or --vault-root), so
+# this file stays portable if either moves.
+#
+# GC's workingDirectory is the VAULT, not this repo: a CLI auto-loads the
+# CLAUDE.md/AGENTS.md sitting in its own working directory, and GC only
+# inherits the Vault's authoring conventions if the Vault is its cwd. This
+# repo comes along as an addDirs entry instead.
 #
 # providerOptions.allowedTools is an explicit allow-list (Claude Code's
 # --allowedTools), not a blanket permission bypass -- keep it narrow and
-# scoped to what each role actually needs.
+# scoped to what each role actually needs. Under `claude -p`, an allow-list
+# that omits the Home Office MCP tools silently denies every dispatch.
 
 foremen:
   - name: GC
+    role: GC
     provider: claude
-    workingDirectory: ${repoRoot}
+    workingDirectory: ${vaultRoot}
     instructionsFilePath: ${repoRoot}/config/instructions/GC.md
+    addDirs:
+      - ${repoRoot}
     providerOptions:
-      allowedTools: "Read"
+      allowedTools: "Read,Glob,Grep,mcp__home_office__list_foremen,mcp__home_office__list_jobsites,mcp__home_office__dispatch_task,mcp__home_office__spawn_worker,mcp__home_office__ask_foreman,mcp__home_office__get_job_status,mcp__home_office__build_graph,mcp__home_office__query_graph"
+
+  # An example Foreman, for reference -- /hire writes entries in this shape.
+  # - name: Frontend
+  #   role: Foreman
+  #   provider: claude
+  #   workingDirectory: /home/you/Projects/frontend
+  #   instructionsFilePath: ${repoRoot}/config/instructions/Frontend.md
+  #   jobsiteName: frontend
+  #   addDirs:
+  #     - ${vaultRoot}
+  #   vaultFolders:
+  #     - Notes/frontend
+  #     - Plans/frontend
+  #   providerOptions:
+  #     allowedTools: "Bash,Edit,Read,Write"

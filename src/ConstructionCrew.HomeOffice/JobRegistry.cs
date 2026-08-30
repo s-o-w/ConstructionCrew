@@ -17,13 +17,27 @@ public sealed class JobRegistry
     private readonly ILocalCliAgentFactory _agentFactory;
     private readonly IJobStatusSink _statusSink;
 
-    public JobRegistry(IForemanDirectory foremen, ILocalCliAgentFactory agentFactory, IJobStatusSink statusSink)
+    /// <summary>
+    /// <paramref name="liveAgents"/> is injected, never self-constructed: exactly
+    /// one LiveAgentRegistry exists per process, shared with the Boss loop, or GC
+    /// ends up with two divergent conversations.
+    /// </summary>
+    public JobRegistry(
+        IForemanDirectory foremen,
+        ILocalCliAgentFactory agentFactory,
+        IJobStatusSink statusSink,
+        LiveAgentRegistry liveAgents,
+        string gcForemanName)
     {
         _foremen = foremen;
         _agentFactory = agentFactory;
         _statusSink = statusSink;
-        _liveAgents = new LiveAgentRegistry(agentFactory);
+        _liveAgents = liveAgents;
+        GcForemanName = gcForemanName;
     }
+
+    /// <summary>The reserved name GC is hired under. Phase 7's AskGc resolves GC's own config through it.</summary>
+    public string GcForemanName { get; }
 
     /// <summary>GC (or another Foreman) dispatching to a named, hired Foreman. Continuation-aware.</summary>
     public string StartJob(string foremanName, string task)
@@ -64,7 +78,11 @@ public sealed class JobRegistry
 
     public IReadOnlyCollection<JobRecord> GetAllJobs() => _jobs.Values.OrderBy(j => j.CreatedAt).ToList();
 
-    /// <summary>True if the named Foreman has a job running directly, or any worker job it spawned is running.</summary>
+    /// <summary>
+    /// True if the named Foreman has a job running directly, or any worker job it
+    /// spawned is running. Parked is deliberately NOT busy -- a parked Foreman is
+    /// waiting on the Boss and can still take a sitrep or a redirect.
+    /// </summary>
     public bool IsForemanBusy(string foremanName) =>
         _jobs.Values.Any(j => j.Status is JobStatus.Pending or JobStatus.Running &&
                                (j.ForemanName.Equals(foremanName, StringComparison.OrdinalIgnoreCase) ||
@@ -109,7 +127,12 @@ public sealed class JobRegistry
         }
     }
 
-    private void Transition(string jobId, JobStatus status, string? summary)
+    /// <summary>
+    /// <paramref name="startedAt"/> only ever lands on a transition into Running --
+    /// it is the "agent dispatch began" stamp actual-hours accounting is built on,
+    /// and re-stamping it on a later transition would erase the queue-time signal.
+    /// </summary>
+    private void Transition(string jobId, JobStatus status, string? summary, DateTimeOffset? startedAt = null)
     {
         if (!_jobs.TryGetValue(jobId, out var current))
         {
@@ -121,6 +144,7 @@ public sealed class JobRegistry
             Status = status,
             Summary = summary ?? current.Summary,
             CompletedAt = status is JobStatus.Completed or JobStatus.Failed ? DateTimeOffset.UtcNow : current.CompletedAt,
+            StartedAt = status is JobStatus.Running ? startedAt ?? current.StartedAt : current.StartedAt,
         };
 
         _jobs[jobId] = updated;

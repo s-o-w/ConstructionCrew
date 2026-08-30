@@ -18,6 +18,7 @@ public static class HireWizard
         JobsiteDirectory jobsites,
         IReadOnlyList<string> availableProviderIds,
         string repoRoot,
+        string vaultRoot,
         string? mcpConfigPath)
     {
         AnsiConsole.Write(new Rule("[bold yellow]hire a foreman[/]").LeftJustified());
@@ -113,14 +114,20 @@ public static class HireWizard
 
         var config = new ForemanConfig(
             name,
+            CrewRole.Foreman,
             provider,
             jobsite.RepoPath,
             instructionsFilePath,
             providerOptions,
-            jobsite.Name);
+            jobsite.Name,
+            DisplayName: null,
+            // Every Foreman gets the Vault on --add-dir: its cwd is its Jobsite
+            // repo, so the Vault is otherwise unreachable for reads or sitreps.
+            // VaultFolders derivation is Phase 3, not here.
+            AddDirs: [vaultRoot]);
 
         var foremenYamlPath = Path.Combine(repoRoot, "config", "foremen.yaml");
-        ForemanConfigWriter.AppendForeman(foremenYamlPath, config, repoRoot);
+        ForemanConfigWriter.AppendForeman(foremenYamlPath, config, repoRoot, vaultRoot);
         foremen.Add(config);
 
         AnsiConsole.MarkupLine($"[bold green]{Markup.Escape(name)} is hired[/] for jobsite '{Markup.Escape(jobsite.Name)}'. Saved to config/foremen.yaml.");

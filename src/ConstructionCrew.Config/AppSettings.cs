@@ -6,7 +6,9 @@ public sealed record AppSettings(
     string StateDirectory,
     string GeneratedConfigDirectory,
     int HomeOfficePort,
-    string GcForemanName)
+    string GcForemanName,
+    string? VaultRoot = null,
+    string? NotificationsCommand = null)
 {
     public static AppSettings ForRepoRoot(string repoRoot) => new(
         ForemenConfigPath: Path.Combine(repoRoot, "config", "foremen.yaml"),

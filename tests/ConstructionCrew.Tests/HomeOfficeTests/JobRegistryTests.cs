@@ -24,12 +24,12 @@ public class JobRegistryTests
     [Fact]
     public async Task StartJob_ReturnsImmediately_AndPublishesPendingThenCompleted()
     {
-        var config = new ForemanConfig("Frontend", "fake", "dir", "instructions.md", new Dictionary<string, string>());
+        var config = new ForemanConfig("Frontend", CrewRole.Foreman, "fake", "dir", "instructions.md", new Dictionary<string, string>());
         var directory = new FakeForemanDirectory(config);
         var runner = new FakeCliProcessRunner { NextResult = new CliRunResult(true, "done", "", 0) };
         var factory = new LocalCliAgentFactory([new FakeCliToolProvider("fake")], runner);
         var sink = new JobStatusSink();
-        var registry = new JobRegistry(directory, factory, sink);
+        var registry = new JobRegistry(directory, factory, sink, new LiveAgentRegistry(factory), "GC");
 
         var jobId = registry.StartJob("Frontend", "build the thing");
 
@@ -56,7 +56,9 @@ public class JobRegistryTests
         var registry = new JobRegistry(
             new FakeForemanDirectory(),
             new LocalCliAgentFactory([new FakeCliToolProvider("fake")], new FakeCliProcessRunner()),
-            new JobStatusSink());
+            new JobStatusSink(),
+            new LiveAgentRegistry(new LocalCliAgentFactory([new FakeCliToolProvider("fake")], new FakeCliProcessRunner())),
+            "GC");
 
         var ex = Assert.Throws<InvalidOperationException>(() => registry.StartJob("Nope", "task"));
         Assert.Contains("Nope", ex.Message);
@@ -65,12 +67,12 @@ public class JobRegistryTests
     [Fact]
     public async Task IsForemanBusy_TrueWhileRunning_FalseOnceComplete()
     {
-        var config = new ForemanConfig("Frontend", "fake", "dir", "instructions.md", new Dictionary<string, string>());
+        var config = new ForemanConfig("Frontend", CrewRole.Foreman, "fake", "dir", "instructions.md", new Dictionary<string, string>());
         var directory = new FakeForemanDirectory(config);
         var runner = new FakeCliProcessRunner { NextResult = new CliRunResult(true, "done", "", 0) };
         var factory = new LocalCliAgentFactory([new FakeCliToolProvider("fake")], runner);
         var sink = new JobStatusSink();
-        var registry = new JobRegistry(directory, factory, sink);
+        var registry = new JobRegistry(directory, factory, sink, new LiveAgentRegistry(factory), "GC");
 
         Assert.False(registry.IsForemanBusy("Frontend"));
 
@@ -89,10 +91,10 @@ public class JobRegistryTests
     [Fact]
     public void GetAllJobs_ReturnsEveryStartedJob()
     {
-        var config = new ForemanConfig("Frontend", "fake", "dir", "instructions.md", new Dictionary<string, string>());
+        var config = new ForemanConfig("Frontend", CrewRole.Foreman, "fake", "dir", "instructions.md", new Dictionary<string, string>());
         var directory = new FakeForemanDirectory(config);
         var factory = new LocalCliAgentFactory([new FakeCliToolProvider("fake")], new FakeCliProcessRunner());
-        var registry = new JobRegistry(directory, factory, new JobStatusSink());
+        var registry = new JobRegistry(directory, factory, new JobStatusSink(), new LiveAgentRegistry(factory), "GC");
 
         registry.StartJob("Frontend", "task one");
         registry.StartJob("Frontend", "task two");
@@ -103,12 +105,12 @@ public class JobRegistryTests
     [Fact]
     public async Task StartWorkerJob_RunsUnderParentName_LabeledAsWorker()
     {
-        var parent = new ForemanConfig("Frontend", "fake", "dir", "instructions.md", new Dictionary<string, string>());
+        var parent = new ForemanConfig("Frontend", CrewRole.Foreman, "fake", "dir", "instructions.md", new Dictionary<string, string>());
         var directory = new FakeForemanDirectory(parent);
         var runner = new FakeCliProcessRunner { NextResult = new CliRunResult(true, "worker done", "", 0) };
         var factory = new LocalCliAgentFactory([new FakeCliToolProvider("fake")], runner);
         var sink = new JobStatusSink();
-        var registry = new JobRegistry(directory, factory, sink);
+        var registry = new JobRegistry(directory, factory, sink, new LiveAgentRegistry(factory), "GC");
 
         var jobId = registry.StartWorkerJob("Frontend", "do a small thing", engineOverride: null);
 
@@ -127,11 +129,11 @@ public class JobRegistryTests
     [Fact]
     public async Task ForgetLiveAgent_ThenDispatchAgain_StartsAFreshConversation()
     {
-        var config = new ForemanConfig("Frontend", "fake", "dir", "instructions.md", new Dictionary<string, string>());
+        var config = new ForemanConfig("Frontend", CrewRole.Foreman, "fake", "dir", "instructions.md", new Dictionary<string, string>());
         var directory = new FakeForemanDirectory(config);
         var provider = new FakeCliToolProvider("fake");
         var factory = new LocalCliAgentFactory([provider], new FakeCliProcessRunner());
-        var registry = new JobRegistry(directory, factory, new JobStatusSink());
+        var registry = new JobRegistry(directory, factory, new JobStatusSink(), new LiveAgentRegistry(factory), "GC");
 
         await registry.AskForeman("Frontend", "first", CancellationToken.None);
         registry.ForgetLiveAgent("Frontend");
@@ -148,7 +150,9 @@ public class JobRegistryTests
         var registry = new JobRegistry(
             new FakeForemanDirectory(),
             new LocalCliAgentFactory([new FakeCliToolProvider("fake")], new FakeCliProcessRunner()),
-            new JobStatusSink());
+            new JobStatusSink(),
+            new LiveAgentRegistry(new LocalCliAgentFactory([new FakeCliToolProvider("fake")], new FakeCliProcessRunner())),
+            "GC");
 
         Assert.Throws<InvalidOperationException>(() => registry.StartWorkerJob("Nope", "task", null));
     }
@@ -156,12 +160,12 @@ public class JobRegistryTests
     [Fact]
     public async Task AskForeman_ReturnsForemansAnswer()
     {
-        var config = new ForemanConfig("Frontend", "fake", "dir", "instructions.md", new Dictionary<string, string>());
+        var config = new ForemanConfig("Frontend", CrewRole.Foreman, "fake", "dir", "instructions.md", new Dictionary<string, string>());
         var directory = new FakeForemanDirectory(config);
         var provider = new FakeCliToolProvider("fake");
         var runner = new FakeCliProcessRunner { NextResult = new CliRunResult(true, "42", "", 0) };
         var factory = new LocalCliAgentFactory([provider], runner);
-        var registry = new JobRegistry(directory, factory, new JobStatusSink());
+        var registry = new JobRegistry(directory, factory, new JobStatusSink(), new LiveAgentRegistry(factory), "GC");
 
         var answer = await registry.AskForeman("Frontend", "what is the answer?", CancellationToken.None);
 
@@ -176,7 +180,9 @@ public class JobRegistryTests
         var registry = new JobRegistry(
             new FakeForemanDirectory(),
             new LocalCliAgentFactory([new FakeCliToolProvider("fake")], new FakeCliProcessRunner()),
-            new JobStatusSink());
+            new JobStatusSink(),
+            new LiveAgentRegistry(new LocalCliAgentFactory([new FakeCliToolProvider("fake")], new FakeCliProcessRunner())),
+            "GC");
 
         Assert.Null(registry.GetJob("does-not-exist"));
     }

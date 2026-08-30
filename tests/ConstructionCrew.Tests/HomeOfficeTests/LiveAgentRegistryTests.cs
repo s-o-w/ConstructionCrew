@@ -14,7 +14,7 @@ public class LiveAgentRegistryTests
         var provider = new FakeCliToolProvider("fake");
         var factory = new LocalCliAgentFactory([provider], new FakeCliProcessRunner());
         var registry = new LiveAgentRegistry(factory);
-        var config = new ForemanConfig("Frontend", "fake", "dir", "instructions.md", new Dictionary<string, string>());
+        var config = new ForemanConfig("Frontend", CrewRole.Foreman, "fake", "dir", "instructions.md", new Dictionary<string, string>());
 
         await registry.SendAsync("Frontend", config, "first", CancellationToken.None);
         await registry.SendAsync("Frontend", config, "second", CancellationToken.None);
@@ -52,7 +52,7 @@ public class LiveAgentRegistryTests
 
         var factory = new LocalCliAgentFactory([new FakeCliToolProvider("fake")], runner);
         var registry = new LiveAgentRegistry(factory);
-        var config = new ForemanConfig("Frontend", "fake", "dir", "instructions.md", new Dictionary<string, string>());
+        var config = new ForemanConfig("Frontend", CrewRole.Foreman, "fake", "dir", "instructions.md", new Dictionary<string, string>());
 
         await Task.WhenAll(
             registry.SendAsync("Frontend", config, "one", CancellationToken.None),
@@ -69,7 +69,7 @@ public class LiveAgentRegistryTests
         var provider = new FakeCliToolProvider("fake");
         var factory = new LocalCliAgentFactory([provider], new FakeCliProcessRunner());
         var registry = new LiveAgentRegistry(factory);
-        var config = new ForemanConfig("Frontend", "fake", "dir", "instructions.md", new Dictionary<string, string>());
+        var config = new ForemanConfig("Frontend", CrewRole.Foreman, "fake", "dir", "instructions.md", new Dictionary<string, string>());
 
         await registry.SendAsync("Frontend", config, "first", CancellationToken.None);
         registry.Remove("Frontend");

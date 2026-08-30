@@ -33,7 +33,8 @@ public sealed class LocalCliAgent : ILocalCliAgent
             Prompt: prompt,
             WorkingDirectory: _config.WorkingDirectory,
             ProviderOptions: _config.ProviderOptions,
-            ContinuePreviousConversation: _hasSentFirstMessage);
+            ContinuePreviousConversation: _hasSentFirstMessage,
+            AddDirs: _config.AddDirs);
 
         var invocation = _provider.BuildInvocation(request);
         var result = await _runner.RunAsync(invocation, cancellationToken);
