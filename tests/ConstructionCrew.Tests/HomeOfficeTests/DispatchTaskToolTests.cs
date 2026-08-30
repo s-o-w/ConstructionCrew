@@ -45,9 +45,14 @@ public class DispatchTaskToolTests
     private static ForemanConfig Foreman(string name, string? jobsiteName) =>
         new(name, CrewRole.Foreman, "fake", "dir", "instructions.md", new Dictionary<string, string>(), JobsiteName: jobsiteName);
 
+    /// <summary>
+    /// The dispatched job hangs on purpose: a claim assertion has to run while the
+    /// job is still in flight, because completion consumes the job's
+    /// ActiveWorkorder and clears the Foreman's slot.
+    /// </summary>
     private static JobRegistry NewRegistry(IForemanDirectory foremen)
     {
-        var factory = new LocalCliAgentFactory([new FakeCliToolProvider("fake")], new FakeCliProcessRunner());
+        var factory = new LocalCliAgentFactory([new FakeCliToolProvider("fake")], new HangingCliProcessRunner());
         return new JobRegistry(
             foremen,
             new FakeJobsiteDirectory(),
@@ -56,7 +61,11 @@ public class DispatchTaskToolTests
             new LiveAgentRegistry(factory),
             "GC",
             new FakeWorktreeManager(),
-            new JobRegistryRuntimeOptions(Path.Combine(Path.GetTempPath(), "cc-test-state")));
+            new JobRegistryRuntimeOptions(Path.Combine(Path.GetTempPath(), "cc-test-state")),
+            new FakeCliProcessRunner(),
+            new HomeOfficeNotificationOptions(null),
+            new FakeRunLogWriter(),
+            new FakeJobsLogWriter());
     }
 
     private static string WriteWorkorder(string vaultRoot, string jobsite, string feature, string frontmatter)

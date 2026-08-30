@@ -36,6 +36,10 @@ public sealed class JobRegistry
     private readonly IJobStatusSink _statusSink;
     private readonly IWorktreeManager _worktreeManager;
     private readonly JobRegistryRuntimeOptions _runtimeOptions;
+    private readonly ICliProcessRunner _cliProcessRunner;
+    private readonly HomeOfficeNotificationOptions _notificationOptions;
+    private readonly IRunLogWriter _runLogWriter;
+    private readonly IJobsLogWriter _jobsLogWriter;
 
     /// <summary>
     /// A TimeSpan cannot be a compile-time default parameter value, so the
@@ -44,9 +48,10 @@ public sealed class JobRegistry
     private static readonly TimeSpan DefaultAskGcTimeout = TimeSpan.FromMinutes(5);
 
     /// <summary>
-    /// Every (jobId, foreman) NotifyPrOpened was called with. Phase 10 replaces the
-    /// body with the NotificationsCommand hook; the record stays, because that is
-    /// what makes "notified exactly once" testable without an extra seam.
+    /// Every (jobId, foreman) NotifyPrOpened was called with. Kept alongside the
+    /// real NotificationsCommand hook, because it is what makes "notified exactly
+    /// once" testable from a caller (FileSitrepTool) that has no view of the
+    /// notification command at all.
     /// </summary>
     private readonly ConcurrentQueue<(string JobId, string ForemanName)> _prOpenedNotifications = new();
 
@@ -61,6 +66,14 @@ public sealed class JobRegistry
     /// composition root builds LiveAgentRegistry from) even though every dispatch
     /// path now routes through LiveAgentRegistry: its position anchors the
     /// parameter order later phases append to.
+    ///
+    /// <paramref name="cliProcessRunner"/> is the same CliProcessRunner instance
+    /// the composition root already built for agentFactory and WorktreeManager --
+    /// reused for the NotificationsCommand shell-out, never a second
+    /// process-spawning seam. <paramref name="runLogWriter"/> and
+    /// <paramref name="jobsLogWriter"/> are plain-constructed by Program.cs (both
+    /// live in Config, which this project does not reference) and only ever seen
+    /// here through their Core interfaces.
     /// </summary>
     public JobRegistry(
         IForemanDirectory foremen,
@@ -70,7 +83,11 @@ public sealed class JobRegistry
         LiveAgentRegistry liveAgents,
         string gcForemanName,
         IWorktreeManager worktreeManager,
-        JobRegistryRuntimeOptions runtimeOptions)
+        JobRegistryRuntimeOptions runtimeOptions,
+        ICliProcessRunner cliProcessRunner,
+        HomeOfficeNotificationOptions notificationOptions,
+        IRunLogWriter runLogWriter,
+        IJobsLogWriter jobsLogWriter)
     {
         _foremen = foremen;
         _jobsiteDirectory = jobsiteDirectory;
@@ -80,6 +97,10 @@ public sealed class JobRegistry
         GcForemanName = gcForemanName;
         _worktreeManager = worktreeManager;
         _runtimeOptions = runtimeOptions;
+        _cliProcessRunner = cliProcessRunner;
+        _notificationOptions = notificationOptions;
+        _runLogWriter = runLogWriter;
+        _jobsLogWriter = jobsLogWriter;
     }
 
     /// <summary>The reserved name GC is hired under. Phase 7's AskGc resolves GC's own config through it.</summary>
@@ -245,12 +266,64 @@ public sealed class JobRegistry
     }
 
     /// <summary>
-    /// Phase 10 fills this in (it shells the configured NotificationsCommand). It
-    /// exists now because file_sitrep's pr-opened path calls it, and the call site
-    /// is what Phase 7 is specifying. Recording the call is the whole body for now.
+    /// Raises the "a PR is open" notification for a job -- called by
+    /// FileSitrepTool's pr-opened branch, immediately after ReleaseWorkorder(jobId).
+    /// The PR itself is opened by the Foreman shelling `gh`, which C# never
+    /// observes, so this sitrep is the only way the Home Office learns of it.
+    ///
+    /// Fires the configured NotificationsCommand with {event} = "pr-opened", and is
+    /// a no-op (no process spawned) when no command is configured.
     /// </summary>
-    public void NotifyPrOpened(string jobId, string foremanName) =>
+    public void NotifyPrOpened(string jobId, string foremanName)
+    {
         _prOpenedNotifications.Enqueue((jobId, foremanName));
+        FireNotification("pr-opened", jobId, foremanName);
+    }
+
+    /// <summary>
+    /// Substitutes {event}/{jobId}/{foreman} into the Boss's NotificationsCommand
+    /// template and shells it, fire-and-forget, through the same ICliProcessRunner
+    /// every other process spawn goes through.
+    ///
+    /// Everything about this is best-effort and disposable. A null or empty command
+    /// spawns nothing at all (checked synchronously, before any task is started);
+    /// a broken command can neither block nor fail the transition that triggered
+    /// it. The catch inside the task body is deliberately terminal -- it calls
+    /// nothing further, so there is no statement left inside it that could throw
+    /// on a thread-pool thread with no one to catch it.
+    /// </summary>
+    private void FireNotification(string eventName, string jobId, string foremanName)
+    {
+        var template = _notificationOptions.NotificationsCommand;
+        if (string.IsNullOrWhiteSpace(template))
+        {
+            return;
+        }
+
+        var command = template
+            .Replace("{event}", eventName, StringComparison.Ordinal)
+            .Replace("{jobId}", jobId, StringComparison.Ordinal)
+            .Replace("{foreman}", foremanName, StringComparison.Ordinal);
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                // Environment.CurrentDirectory: this is a housekeeping command
+                // (notify-send and friends), not one that needs to run inside a
+                // Jobsite repo or the Vault -- and CliInvocation.WorkingDirectory
+                // is non-nullable.
+                await _cliProcessRunner.RunAsync(
+                    new CliInvocation("/bin/sh", ["-c", command], Environment.CurrentDirectory),
+                    CancellationToken.None);
+            }
+            catch
+            {
+                // Deliberately empty, and deliberately terminal: a notification is
+                // never worth surfacing an unobserved task exception for.
+            }
+        });
+    }
 
     /// <summary>Every pr-opened notification raised so far. See <see cref="NotifyPrOpened"/>.</summary>
     internal IReadOnlyList<(string JobId, string ForemanName)> PrOpenedNotifications =>
@@ -435,7 +508,8 @@ public sealed class JobRegistry
             Transition(
                 jobId,
                 result.Succeeded ? JobStatus.Completed : JobStatus.Failed,
-                result.Succeeded ? result.StandardOutput : result.StandardError);
+                result.Succeeded ? result.StandardOutput : result.StandardError,
+                usage: result.Usage);
         }
         catch (Exception ex)
         {
@@ -469,8 +543,18 @@ public sealed class JobRegistry
     /// <paramref name="startedAt"/> only ever lands on a transition into Running --
     /// it is the "agent dispatch began" stamp actual-hours accounting is built on,
     /// and re-stamping it on a later transition would erase the queue-time signal.
+    /// <paramref name="usage"/> arrives with the finished run's own result and is
+    /// never cleared by a later transition that has none of its own.
+    ///
+    /// This method's ONLY job is to update _jobs[jobId] and publish it. Every
+    /// side-effect write below it (the run log, state/jobs.jsonl, the notification
+    /// shell-out) is best-effort and disposable, isolated behind TryRunSideEffect:
+    /// RunJobAsync wraps the whole run-and-transition sequence in one try whose
+    /// catch re-invokes Transition(..., Failed, ...) for ANY exception, so an
+    /// unguarded I/O failure in here would misreport a completed job as failed.
     /// </summary>
-    private void Transition(string jobId, JobStatus status, string? summary, DateTimeOffset? startedAt = null)
+    private void Transition(
+        string jobId, JobStatus status, string? summary, DateTimeOffset? startedAt = null, CliUsage? usage = null)
     {
         if (!_jobs.TryGetValue(jobId, out var current))
         {
@@ -483,9 +567,74 @@ public sealed class JobRegistry
             Summary = summary ?? current.Summary,
             CompletedAt = status is JobStatus.Completed or JobStatus.Failed ? DateTimeOffset.UtcNow : current.CompletedAt,
             StartedAt = status is JobStatus.Running ? startedAt ?? current.StartedAt : current.StartedAt,
+            Usage = usage ?? current.Usage,
         };
 
         _jobs[jobId] = updated;
         _statusSink.Publish(updated);
+
+        if (status is JobStatus.Completed or JobStatus.Failed)
+        {
+            // _jobWorkorders, NOT _workorderSlots: a pr-opened release freed the
+            // Foreman long ago, and this job still has to know what it was working
+            // on. An ad-hoc dispatch has no entry here and logs nothing.
+            if (_jobWorkorders.TryGetValue(jobId, out var workorder))
+            {
+                try
+                {
+                    TryRunSideEffect(() => _runLogWriter.Append(workorder.PlansFolder, updated), "RunLogWriter.Append");
+                }
+                finally
+                {
+                    _jobWorkorders.TryRemove(jobId, out _);
+                }
+            }
+
+            // Safety net for a job that finished without ever filing a pr-opened
+            // sitrep. Conditional and atomic, through the same helper
+            // ReleaseWorkorder uses -- a check-then-remove here would reintroduce
+            // the identical stale-release race from the other direction.
+            TryClearSlotIfOwnedBy(updated.ForemanName, jobId);
+        }
+
+        // Into Parked from anywhere else. A re-park of an already-parked job is not
+        // a transition and raises nothing.
+        if (status is JobStatus.Parked && current.Status is not JobStatus.Parked)
+        {
+            TryRunSideEffect(() => FireNotification("parked", jobId, updated.ForemanName), "parked notification");
+        }
+
+        TryRunSideEffect(() => _jobsLogWriter.Append(updated), "state/jobs.jsonl append");
+    }
+
+    /// <summary>
+    /// Runs one of Transition's side-effect writes, swallowing anything it throws.
+    ///
+    /// The two-level try/catch is what makes this airtight rather than just
+    /// relocated: the inner catch can only ever execute one statement,
+    /// Console.Error.WriteLine, and that statement is itself guarded by a catch
+    /// with an empty body. There is no remaining statement inside this method
+    /// capable of throwing past it, so RunJobAsync's outer catch can never be
+    /// triggered by any side-effect write Transition performs, however badly it
+    /// fails.
+    /// </summary>
+    private static void TryRunSideEffect(Action sideEffect, string label)
+    {
+        try
+        {
+            sideEffect();
+        }
+        catch (Exception ex)
+        {
+            try
+            {
+                Console.Error.WriteLine($"ConstructionCrew: {label} failed: {ex.Message}");
+            }
+            catch
+            {
+                // Even reporting the failure must never propagate -- this is the last line of
+                // defense inside Transition. Deliberately empty: there is nothing left to safely do.
+            }
+        }
     }
 }

@@ -61,4 +61,108 @@ public class ClaudeCodeProviderTests
 
         Assert.Equal(["-p", "--", "hello"], invocation.Arguments);
     }
+
+    /// <summary>
+    /// A real `claude -p --output-format json` result envelope, captured from the
+    /// CLI's documented output shape -- not invented. `usage` counts every
+    /// input-side bucket separately; a cached turn reports almost all of its input
+    /// under cache_read_input_tokens.
+    /// </summary>
+    private const string JsonResultSample = """
+        {"type":"result","subtype":"success","is_error":false,"duration_ms":6421,
+         "duration_api_ms":6002,"num_turns":1,"result":"All 239 tests pass.",
+         "session_id":"6f0d1e0e-1b7a-4c33-9a24-2f2c1f5f1a10","total_cost_usd":0.0731,
+         "usage":{"input_tokens":12,"cache_creation_input_tokens":4210,
+                  "cache_read_input_tokens":18332,"output_tokens":516}}
+        """;
+
+    [Fact]
+    public void BuildInvocation_OutputFormatJson_EmitsTheFlagAheadOfTheTerminator()
+    {
+        var provider = new ClaudeCodeProvider();
+        var request = new CliTaskRequest(
+            "hello", "/work", new Dictionary<string, string> { ["outputFormat"] = "json" });
+
+        var args = provider.BuildInvocation(request).Arguments.ToList();
+
+        var flagIndex = args.IndexOf("--output-format");
+        Assert.True(flagIndex >= 0, "Expected --output-format json when opted in.");
+        Assert.Equal("json", args[flagIndex + 1]);
+        Assert.True(flagIndex < args.IndexOf("--"), "--output-format must precede the \"--\" terminator.");
+    }
+
+    /// <summary>Opt-in, not default: an ordinary Foreman's invocation is untouched.</summary>
+    [Fact]
+    public void BuildInvocation_WithoutTheOption_NeverAsksForJson()
+    {
+        var provider = new ClaudeCodeProvider();
+        var request = new CliTaskRequest("hello", "/work", new Dictionary<string, string>());
+
+        Assert.DoesNotContain("--output-format", provider.BuildInvocation(request).Arguments);
+    }
+
+    [Fact]
+    public void PostProcess_JsonRun_FillsUsageAndUnwrapsTheAnswerText()
+    {
+        var provider = new ClaudeCodeProvider();
+        var request = new CliTaskRequest(
+            "hello", "/work", new Dictionary<string, string> { ["outputFormat"] = "json" });
+
+        var processed = provider.PostProcess(request, new CliRunResult(true, JsonResultSample, "", 0));
+
+        Assert.Equal("All 239 tests pass.", processed.StandardOutput);
+        Assert.NotNull(processed.Usage);
+        // Every input-side bucket summed: 12 + 4210 + 18332.
+        Assert.Equal(22554, processed.Usage!.InputTokens);
+        Assert.Equal(516, processed.Usage.OutputTokens);
+        Assert.Equal(0.0731m, processed.Usage.CostUsd);
+        Assert.Equal(JsonResultSample, processed.Usage.RawJson);
+        // The run's own outcome is untouched by accounting.
+        Assert.True(processed.Succeeded);
+        Assert.Equal(0, processed.ExitCode);
+    }
+
+    /// <summary>Without the opt-in there is no envelope to read, so nothing is parsed and Usage stays null.</summary>
+    [Fact]
+    public void PostProcess_WithoutTheOption_LeavesTheResultExactlyAsItCame()
+    {
+        var provider = new ClaudeCodeProvider();
+        var request = new CliTaskRequest("hello", "/work", new Dictionary<string, string>());
+        var result = new CliRunResult(true, JsonResultSample, "", 0);
+
+        Assert.Same(result, provider.PostProcess(request, result));
+    }
+
+    /// <summary>A crashed CLI dumps text, not JSON. Accounting is best-effort; the turn's result is not.</summary>
+    [Fact]
+    public void PostProcess_JsonRunThatDidNotProduceJson_IsHandedBackUnchanged()
+    {
+        var provider = new ClaudeCodeProvider();
+        var request = new CliTaskRequest(
+            "hello", "/work", new Dictionary<string, string> { ["outputFormat"] = "json" });
+        var result = new CliRunResult(false, "Error: credit balance too low", "", 1);
+
+        var processed = provider.PostProcess(request, result);
+
+        Assert.Same(result, processed);
+        Assert.Null(processed.Usage);
+    }
+
+    /// <summary>An envelope with no usage block still parses -- the counters just stay unavailable.</summary>
+    [Fact]
+    public void PostProcess_EnvelopeWithoutUsage_LeavesTheCountersNull()
+    {
+        var provider = new ClaudeCodeProvider();
+        var request = new CliTaskRequest(
+            "hello", "/work", new Dictionary<string, string> { ["outputFormat"] = "json" });
+
+        var processed = provider.PostProcess(
+            request, new CliRunResult(true, """{"type":"result","result":"done"}""", "", 0));
+
+        Assert.Equal("done", processed.StandardOutput);
+        Assert.NotNull(processed.Usage);
+        Assert.Null(processed.Usage!.InputTokens);
+        Assert.Null(processed.Usage.OutputTokens);
+        Assert.Null(processed.Usage.CostUsd);
+    }
 }

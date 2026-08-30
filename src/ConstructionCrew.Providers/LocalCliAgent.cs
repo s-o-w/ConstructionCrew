@@ -39,7 +39,11 @@ public sealed class LocalCliAgent : ILocalCliAgent
         var invocation = _provider.BuildInvocation(request);
         var result = await _runner.RunAsync(invocation, cancellationToken);
         _hasSentFirstMessage = true;
-        return result;
+
+        // The provider gets the last word on its own output shape: this is where
+        // an opt-in structured-output run turns into CliRunResult.Usage. Default
+        // implementation is the identity, so every other provider is unaffected.
+        return _provider.PostProcess(request, result);
     }
 
     private string ComposeInitialPrompt(string message)

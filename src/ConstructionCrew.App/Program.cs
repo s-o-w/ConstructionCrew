@@ -107,6 +107,15 @@ var worktreeManager = new WorktreeManager(runner);
 var liveAgents = new LiveAgentRegistry(agentFactory);
 var statusSink = new JobStatusSink();
 var runtimeOptions = new JobRegistryRuntimeOptions(settings.StateDirectory);
+// The Boss's optional external-notification hook, and the two log writers -- all
+// three live outside HomeOffice's reference graph (or, for the options record,
+// have JobRegistry as their only consumer), so Program.cs constructs them and
+// hands JobRegistry the instances. No HomeOfficeHost registration for any of them.
+var notificationOptions = new HomeOfficeNotificationOptions(settings.NotificationsCommand);
+var runLogWriter = new RunLogWriter();
+// After runtimeOptions, deliberately: it reads StateDirectory, and its
+// constructor creates that directory so the very first append cannot throw.
+var jobsLogWriter = new JobsLogWriter(Path.Combine(runtimeOptions.StateDirectory, "jobs.jsonl"));
 var jobRegistry = new JobRegistry(
     foremanDirectory,
     jobsiteDirectory,
@@ -115,7 +124,11 @@ var jobRegistry = new JobRegistry(
     liveAgents,
     settings.GcForemanName,
     worktreeManager,
-    runtimeOptions);
+    runtimeOptions,
+    runner,
+    notificationOptions,
+    runLogWriter,
+    jobsLogWriter);
 // Program.cs is the one place allowed to construct a cross-project
 // implementation and hand HomeOffice an already-built instance -- HomeOffice
 // has no ProjectReference to ConstructionCrew.Graph and never names VaultGraph.

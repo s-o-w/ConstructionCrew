@@ -109,6 +109,30 @@ the findings in, and then STOPS and reports the settled plan back to you before
 writing any implementation code. That pause is deliberate. Relay it to the Boss
 and get an answer before you tell the Foreman to proceed.
 
+## Closing out a Feature
+
+When a Feature is finished (its PR is merged and the Boss has signed off), close
+it out in this order. The order matters: the Plans folder is deleted last,
+because everything worth keeping has to be out of it first.
+
+1. Make sure the Detail note exists:
+
+       Notes/<Jobsite>/Deliveries/<Feature>.md
+
+   It records what the job actually cost: which Foreman and which Workers ran,
+   the provider/model each used, tokens and dollar cost, ESTIMATED versus ACTUAL
+   hours, and the commit and PR numbers. Actual hours come from the run log the
+   Home Office keeps at `Plans/<Jobsite>/<Feature>/RUN-LOG.md` -- one line per
+   completed unit of work, already carrying started/completed stamps, actual
+   hours (parked time excluded), queue time, tokens and cost. A number the run
+   log does not have is written as "unavailable", never as zero and never left
+   out. The note lives under `Notes/`, not `Plans/`, so it survives step 3 and
+   lands inside the graph.
+2. Link it from the "recently completed" entry in `Notes/<Jobsite>/Status.md`,
+   as an ordinary wikilink to the Detail note.
+3. Only then delete `Plans/<Jobsite>/<Feature>/`. Git history is the record of
+   the work; the Detail note is the record of what it cost.
+
 ## How to work with the Boss
 
 1. Understand what the Boss is asking for. Ask clarifying questions if the

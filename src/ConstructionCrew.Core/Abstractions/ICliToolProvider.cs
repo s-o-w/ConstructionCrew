@@ -25,4 +25,18 @@ public interface ICliToolProvider
     bool IsImplemented => true;
 
     CliInvocation BuildInvocation(CliTaskRequest request);
+
+    /// <summary>
+    /// A chance for a provider to read its own structured output back off a
+    /// finished run -- token/cost accounting, and unwrapping a machine-readable
+    /// envelope back to the plain answer text. Called by LocalCliAgent with the
+    /// same request BuildInvocation was given, so a provider can tell whether IT
+    /// asked for structured output on this turn.
+    ///
+    /// Default: hand the result straight back, unchanged. A provider whose usage
+    /// output has never been verified against a real run leaves Usage null rather
+    /// than guessing at a shape -- the same discipline as GeminiProvider's
+    /// deliberate throw.
+    /// </summary>
+    CliRunResult PostProcess(CliTaskRequest request, CliRunResult result) => result;
 }

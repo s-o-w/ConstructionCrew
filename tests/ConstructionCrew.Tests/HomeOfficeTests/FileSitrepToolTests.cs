@@ -40,7 +40,12 @@ public class FileSitrepToolTests
         return vaultRoot;
     }
 
-    private static JobRegistry NewRegistry(IForemanDirectory foremen, ILocalCliAgentFactory factory, IJobStatusSink? sink = null) =>
+    private static JobRegistry NewRegistry(
+        IForemanDirectory foremen,
+        ILocalCliAgentFactory factory,
+        IJobStatusSink? sink = null,
+        IRunLogWriter? runLogWriter = null,
+        IJobsLogWriter? jobsLogWriter = null) =>
         new(
             foremen,
             new FakeJobsiteDirectory(),
@@ -49,7 +54,11 @@ public class FileSitrepToolTests
             new LiveAgentRegistry(factory),
             "GC",
             new FakeWorktreeManager(),
-            new JobRegistryRuntimeOptions(Path.Combine(Path.GetTempPath(), "cc-filesitrep-state"), TimeSpan.FromSeconds(30)));
+            new JobRegistryRuntimeOptions(Path.Combine(Path.GetTempPath(), "cc-filesitrep-state"), TimeSpan.FromSeconds(30)),
+            new FakeCliProcessRunner(),
+            new HomeOfficeNotificationOptions(null),
+            runLogWriter ?? new FakeRunLogWriter(),
+            jobsLogWriter ?? new FakeJobsLogWriter());
 
     [Fact]
     public async Task FileSitrep_KindStatus_WritesTheFileAndNeverAsksTheGc()
@@ -118,9 +127,16 @@ public class FileSitrepToolTests
         try
         {
             var foremen = new FakeForemanDirectory(Foreman(), Gc());
-            var factory = new RecordingAgentFactory();
+            // Gated, not instant: the job has to still be in flight when the
+            // sitrep is filed, or its own completion would have cleared the slot
+            // first and the release under test would prove nothing.
+            var factory = new PerNameGatedAgentFactory();
+            var frontend = factory.For("Frontend");
             var registry = NewRegistry(foremen, factory);
+
+            var (started, release) = frontend.ArmNextCall();
             var jobId = registry.StartJob("Frontend", "the feature", Workorder());
+            await started.WaitAsync(TimeSpan.FromSeconds(5));
             Assert.Equal(jobId, registry.GetWorkorderSlotOwner("Frontend"));
 
             var tool = new FileSitrepTool(foremen, new HomeOfficeVaultOptions(vaultRoot), registry, new SitrepWriter());
@@ -130,11 +146,23 @@ public class FileSitrepToolTests
             var notification = Assert.Single(registry.PrOpenedNotifications);
             Assert.Equal(jobId, notification.JobId);
             Assert.Equal("Frontend", notification.ForemanName);
-            Assert.Null(factory.Existing("GC"));
+            // No GC conversation was ever opened.
+            Assert.DoesNotContain("GC", factory.CreateCalls);
 
-            // Freed immediately: the next workorder goes straight through.
-            var next = registry.StartJob("Frontend", "next feature", Workorder("shacl-shapes"));
-            Assert.Equal(next, registry.GetWorkorderSlotOwner("Frontend"));
+            // Freed immediately: the next workorder goes straight through. Armed
+            // too, so it queues behind the first turn instead of failing on an
+            // un-armed gate and clearing the slot again from under the assertion.
+            var (_, releaseNext) = frontend.ArmNextCall();
+            try
+            {
+                var next = registry.StartJob("Frontend", "next feature", Workorder("shacl-shapes"));
+                Assert.Equal(next, registry.GetWorkorderSlotOwner("Frontend"));
+            }
+            finally
+            {
+                release();
+                releaseNext();
+            }
         }
         finally
         {
@@ -145,8 +173,8 @@ public class FileSitrepToolTests
     /// <summary>
     /// Regression: releasing the slot at PR time must not cost the job the workorder
     /// it is still working on. The job's ActiveWorkorder (and its PlansFolder) stays
-    /// reachable right through completion, which is what Phase 10's run-log append
-    /// depends on -- Phase 10 adds the IRunLogWriter.Append assertion on top of this.
+    /// reachable right through completion -- and the run-log append actually fires,
+    /// exactly once, against that same PlansFolder.
     /// </summary>
     [Fact]
     public async Task FileSitrep_KindPrOpened_ThenTheJobCompletes_StillKnowsItsWorkorder()
@@ -158,7 +186,12 @@ public class FileSitrepToolTests
             var factory = new PerNameGatedAgentFactory();
             var frontend = factory.For("Frontend");
             var sink = new JobStatusSink();
-            var registry = NewRegistry(foremen, factory, sink);
+            var runLog = new FakeRunLogWriter();
+            // The jobs.jsonl append is the LAST statement of Transition, and the
+            // status sink is published FIRST -- so this, not the sink, is the
+            // barrier that says the completion's side effects are all done.
+            var jobsLog = new FakeJobsLogWriter();
+            var registry = NewRegistry(foremen, factory, sink, runLog, jobsLog);
 
             var (started, release) = frontend.ArmNextCall();
             var jobId = registry.StartJob("Frontend", "the feature", Workorder());
@@ -169,12 +202,19 @@ public class FileSitrepToolTests
             Assert.Null(registry.GetWorkorderSlotOwner("Frontend"));
 
             release();
-            var completed = await AskGcToolTests.DrainUntil(sink, r => r.JobId == jobId && r.Status == JobStatus.Completed);
+            await jobsLog.WaitForAppends(2); // Running, then Completed
 
-            Assert.Equal(jobId, completed.JobId);
-            var workorder = registry.GetJobWorkorder(jobId);
-            Assert.NotNull(workorder);
-            Assert.Equal("/vault/Plans/XINFRA/named-graphs", workorder!.PlansFolder);
+            Assert.Equal(JobStatus.Completed, registry.GetJob(jobId)!.Status);
+
+            // The whole point: the completion still knew what it was working on,
+            // even though the busy slot was cleared long before it fired.
+            var append = Assert.Single(runLog.Appends);
+            Assert.Equal("/vault/Plans/XINFRA/named-graphs", append.PlansFolder);
+            Assert.Equal(jobId, append.Job.JobId);
+
+            // Consumed by that append: the completion is the one and only reader of
+            // the job's ActiveWorkorder.
+            Assert.Null(registry.GetJobWorkorder(jobId));
             // Still clear: completion must not resurrect the released slot.
             Assert.Null(registry.GetWorkorderSlotOwner("Frontend"));
         }

@@ -51,7 +51,11 @@ public class SitewalkTests
             "GC",
             new FakeWorktreeManager(),
             new JobRegistryRuntimeOptions(
-                Path.Combine(Path.GetTempPath(), "cc-sitewalk-state"), TimeSpan.FromSeconds(30)));
+                Path.Combine(Path.GetTempPath(), "cc-sitewalk-state"), TimeSpan.FromSeconds(30)),
+            new FakeCliProcessRunner(),
+            new HomeOfficeNotificationOptions(null),
+            new FakeRunLogWriter(),
+            new FakeJobsLogWriter());
 
     private static string NewVault()
     {

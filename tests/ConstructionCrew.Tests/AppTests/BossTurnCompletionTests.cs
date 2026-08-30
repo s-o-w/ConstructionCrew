@@ -47,7 +47,11 @@ public class BossTurnCompletionTests
             new LiveAgentRegistry(factory),
             "GC",
             new FakeWorktreeManager(),
-            new JobRegistryRuntimeOptions(Path.Combine(Path.GetTempPath(), "cc-test-state")));
+            new JobRegistryRuntimeOptions(Path.Combine(Path.GetTempPath(), "cc-test-state")),
+            new FakeCliProcessRunner(),
+            new HomeOfficeNotificationOptions(null),
+            new FakeRunLogWriter(),
+            new FakeJobsLogWriter());
     }
 
     /// <summary>

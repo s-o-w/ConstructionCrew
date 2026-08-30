@@ -43,7 +43,11 @@ public class AskGcToolTests
             new LiveAgentRegistry(factory),
             "GC",
             new FakeWorktreeManager(),
-            new JobRegistryRuntimeOptions(Path.Combine(Path.GetTempPath(), "cc-askgc-state"), askGcTimeout));
+            new JobRegistryRuntimeOptions(Path.Combine(Path.GetTempPath(), "cc-askgc-state"), askGcTimeout),
+            new FakeCliProcessRunner(),
+            new HomeOfficeNotificationOptions(null),
+            new FakeRunLogWriter(),
+            new FakeJobsLogWriter());
 
     [Fact]
     public async Task AskGc_UnknownJobId_ThrowsNamingTheTool()
