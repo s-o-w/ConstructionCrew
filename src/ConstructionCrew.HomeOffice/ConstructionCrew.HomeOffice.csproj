@@ -8,6 +8,13 @@
     <PackageReference Include="ModelContextProtocol.AspNetCore" Version="2.2.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- JobRegistry.TryClaimWorkorderSlot is internal: there is no public path
+         that creates two genuinely concurrent claims against the same in-process
+         dictionary, so the claim has to be tested directly. -->
+    <InternalsVisibleTo Include="ConstructionCrew.Tests" />
+  </ItemGroup>
+
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>

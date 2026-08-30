@@ -73,7 +73,7 @@ public static class FirstRunWizard
             new TextPrompt<string>("[bold]Display name[/] for the GC (optional, blank to just call it 'GC'):")
                 .AllowEmpty());
 
-        var instructionsFilePath = EnsureGcInstructions(repoRoot);
+        var instructionsFilePath = EnsureGcInstructions(repoRoot, vaultRoot, settings.GcForemanName, availableProviderIds);
 
         var config = BuildGcConfig(
             settings.GcForemanName,
@@ -249,20 +249,47 @@ public static class FirstRunWizard
     }
 
     /// <summary>
-    /// GC's instructions file ships with this repo. If a clone is missing it,
-    /// write a minimal stand-in rather than failing the whole first run -- the
-    /// loader hard-fails on an instructionsFilePath that isn't there.
+    /// GC's instructions file, rendered from config/templates/gc-instructions.md
+    /// by the same composer a Foreman's file goes through -- the workorder
+    /// handoff protocol lives in that template, so a GC hired from a hand-written
+    /// stand-in would never learn it. An existing file is never overwritten: the
+    /// Boss may have edited it.
+    ///
+    /// A missing template (a broken clone) falls back to a minimal stand-in
+    /// rather than failing the whole first run -- the loader hard-fails on an
+    /// instructionsFilePath that isn't there.
     /// </summary>
-    private static string EnsureGcInstructions(string repoRoot)
+    private static string EnsureGcInstructions(
+        string repoRoot,
+        string vaultRoot,
+        string gcForemanName,
+        IReadOnlyList<string> availableProviderIds)
     {
         var instructionsDir = Path.Combine(repoRoot, "config", "instructions");
         Directory.CreateDirectory(instructionsDir);
         var path = Path.Combine(instructionsDir, "GC.md");
 
-        if (!File.Exists(path))
+        if (File.Exists(path))
         {
-            File.WriteAllText(
-                path,
+            return path;
+        }
+
+        string contents;
+        try
+        {
+            contents = InstructionsComposer.Compose(
+                gcForemanName,
+                CrewRole.GC,
+                briefing: string.Empty,
+                jobsite: null,
+                vaultFolders: null,
+                availableEngines: availableProviderIds,
+                repoRoot: repoRoot,
+                vaultRoot: vaultRoot);
+        }
+        catch (InvalidOperationException)
+        {
+            contents =
                 """
                 # You are the General Contractor (GC)
 
@@ -274,9 +301,10 @@ public static class FirstRunWizard
                 Call `list_jobsites()` and `list_foremen()` before proposing who should do
                 what; both change at runtime. If a jobsite has no assigned Foreman, tell
                 the Boss to hire one (`/hire`) before you can dispatch work there.
-                """);
+                """;
         }
 
+        File.WriteAllText(path, contents);
         return path;
     }
 }

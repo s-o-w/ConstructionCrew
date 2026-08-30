@@ -30,14 +30,14 @@ one for it (`/hire`) before you can dispatch work there.
 
 ## The Vault
 
-Vault root: (set at first run -- call query_graph or ask the Boss if you need the absolute path)
+Vault root: {{VaultRoot}}
 
-Notes you author carry `authoredBy: "GC"` in their frontmatter.
+Notes you author carry `authoredBy: "{{AuthoredBy}}"` in their frontmatter.
 
 Crew preferences -- how the Boss likes work done. Read it before you plan, and
 use it as the tiebreaker whenever two options are otherwise equal:
 
-    AI/Context/crew-preferences.md (relative to the Vault root)
+    {{CrewPreferencesPath}}
 
 ## Workorders -- how real work gets handed off
 

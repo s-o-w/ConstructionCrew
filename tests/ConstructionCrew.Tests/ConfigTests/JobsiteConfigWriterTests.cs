@@ -37,6 +37,49 @@ public class JobsiteConfigWriterTests
         }
     }
 
+    /// <summary>
+    /// The same three-part persistence rule for Phase 5's four new fields. Miss
+    /// the writer block or the DTO and a Jobsite's build/test commands vanish on
+    /// the next process start, and every Foreman hired after that gets
+    /// instructions telling it no build command is configured.
+    /// </summary>
+    [Fact]
+    public void AppendJobsite_WithBranchCommandsAndUpstream_RoundTripsAllOfThem()
+    {
+        var repoRoot = Path.GetTempPath().TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var repoPath = Path.Combine(repoRoot, "repos", "phase5fields");
+        Directory.CreateDirectory(repoPath);
+
+        var yamlPath = Path.GetTempFileName();
+        File.Delete(yamlPath);
+
+        try
+        {
+            JobsiteConfigWriter.AppendJobsite(
+                yamlPath,
+                new JobsiteConfig(
+                    "XINFRA",
+                    repoPath,
+                    "desc",
+                    DefaultBranch: "develop",
+                    BuildCommand: "dotnet build",
+                    TestCommand: "dotnet test",
+                    Upstream: new Dictionary<string, string> { ["board"] = "https://github.com/orgs/spatialbiz/projects/73" }),
+                repoRoot);
+
+            var reloaded = Assert.Single(new JobsiteConfigLoader().LoadFromFile(yamlPath, repoRoot));
+
+            Assert.Equal("develop", reloaded.DefaultBranch);
+            Assert.Equal("dotnet build", reloaded.BuildCommand);
+            Assert.Equal("dotnet test", reloaded.TestCommand);
+            Assert.Equal("https://github.com/orgs/spatialbiz/projects/73", reloaded.Upstream!["board"]);
+        }
+        finally
+        {
+            File.Delete(yamlPath);
+        }
+    }
+
     [Fact]
     public void AppendJobsite_WithVaultFolders_RoundTripsThemAsAList()
     {
@@ -155,11 +198,11 @@ public class JobsiteConfigWriterTests
         {
             JobsiteConfigWriter.AppendJobsite(
                 yamlPath,
-                new JobsiteConfig("Alpha", repoPathA, "desc", null, null, ["Notes/Alpha", "Plans/Alpha"]),
+                new JobsiteConfig("Alpha", repoPathA, "desc", VaultFolders: ["Notes/Alpha", "Plans/Alpha"]),
                 repoRoot);
             JobsiteConfigWriter.AppendJobsite(
                 yamlPath,
-                new JobsiteConfig("Beta", repoPathB, "desc", null, null, ["Notes/Beta", "Plans/Beta"]),
+                new JobsiteConfig("Beta", repoPathB, "desc", VaultFolders: ["Notes/Beta", "Plans/Beta"]),
                 repoRoot);
 
             Assert.True(JobsiteConfigWriter.RemoveJobsite(yamlPath, "Alpha"));

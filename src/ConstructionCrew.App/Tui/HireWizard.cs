@@ -115,7 +115,17 @@ public static class HireWizard
         var instructionsDir = Path.Combine(repoRoot, "config", "instructions");
         Directory.CreateDirectory(instructionsDir);
         var instructionsFilePath = Path.Combine(instructionsDir, $"{name}.md");
-        File.WriteAllText(instructionsFilePath, ComposeInstructions(name, briefing, jobsite));
+        File.WriteAllText(
+            instructionsFilePath,
+            InstructionsComposer.Compose(
+                name,
+                CrewRole.Foreman,
+                briefing,
+                jobsite,
+                vaultFolders,
+                availableProviderIds,
+                repoRoot,
+                vaultRoot));
 
         // Tool policy is provider-specific -- Claude Code's "Bash,Edit,Read,Write" means
         // nothing to Copilot, and Codex has no tool allowlist at all.
@@ -255,35 +265,16 @@ public static class HireWizard
             colorName,
             // Derived here, where the Jobsite name is first known, so a
             // recognized layout never has to ask. An unrecognized layout leaves
-            // this null and Run() prompts once, on the Foreman.
-            DeriveVaultFolders(vaultRoot, jobsiteName));
+            // this null and Run() prompts once, on the Foreman. Named, not
+            // positional -- DefaultBranch/BuildCommand/TestCommand/Upstream now
+            // sit between ColorName and VaultFolders.
+            VaultFolders: DeriveVaultFolders(vaultRoot, jobsiteName));
 
         var jobsitesYamlPath = Path.Combine(repoRoot, "config", "jobsites.yaml");
         JobsiteConfigWriter.AppendJobsite(jobsitesYamlPath, jobsite, repoRoot);
         jobsites.Add(jobsite);
 
         return jobsite;
-    }
-
-    private static string ComposeInstructions(string name, string briefing, JobsiteConfig jobsite)
-    {
-        return $"""
-            {briefing}
-
-            ---
-
-            ## Your jobsite: {jobsite.Name}
-
-            {jobsite.Description}
-
-            Your working directory is this jobsite's repo clone. You do the work
-            directly for straightforward tasks. For a well-defined, self-contained
-            piece of work, you may instead call `spawn_worker(foreman="{name}", task, engine?)`
-            to hand it to an ephemeral Worker -- in your own engine by default, or a
-            different one (`engine`) if the task can run to completion non-interactively.
-            A Worker may call `ask_foreman(foreman="{name}", question)` if it gets stuck;
-            expect to be re-invoked to answer.
-            """;
     }
 
     private static string Truncate(string text, int max) => text.Length > max ? text[..max] + "..." : text;

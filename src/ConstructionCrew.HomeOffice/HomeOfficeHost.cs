@@ -34,6 +34,7 @@ public sealed class HomeOfficeHost : IAsyncDisposable
         IForemanDirectory foremen,
         IJobsiteDirectory jobsites,
         HomeOfficeVaultOptions vaultOptions,
+        IWorkorderReader workorderReader,
         IVaultGraph vaultGraph,
         int port,
         CancellationToken cancellationToken)
@@ -47,6 +48,10 @@ public sealed class HomeOfficeHost : IAsyncDisposable
         builder.Services.AddSingleton(foremen);
         builder.Services.AddSingleton(jobsites);
         builder.Services.AddSingleton(vaultOptions);
+        // The INSTANCE, never AddSingleton<WorkorderReader>(): naming the concrete
+        // type would force a ProjectReference to Config that this project does not
+        // have, and must not gain.
+        builder.Services.AddSingleton(workorderReader);
         builder.Services.AddSingleton(vaultGraph);
         builder.Services.AddMcpServer()
             .WithHttpTransport()

@@ -174,6 +174,139 @@ public class JobRegistryTests
         Assert.Equal("what is the answer?", provider.Requests[0].Prompt);
     }
 
+    private static ActiveWorkorder Workorder(string feature) =>
+        new(feature, "XINFRA", $"/vault/Plans/XINFRA/{feature}", "main", $"feature/{feature}", DateTimeOffset.UtcNow);
+
+    private static JobRegistry NewRegistry(params ForemanConfig[] foremen)
+    {
+        var factory = new LocalCliAgentFactory([new FakeCliToolProvider("fake")], new FakeCliProcessRunner());
+        return new JobRegistry(new FakeForemanDirectory(foremen), factory, new JobStatusSink(), new LiveAgentRegistry(factory), "GC");
+    }
+
+    private static ForemanConfig Foreman(string name) =>
+        new(name, CrewRole.Foreman, "fake", "dir", "instructions.md", new Dictionary<string, string>(), JobsiteName: "XINFRA");
+
+    [Fact]
+    public void StartJob_WithWorkorder_PopulatesBothMaps()
+    {
+        var registry = NewRegistry(Foreman("Frontend"));
+
+        var jobId = registry.StartJob("Frontend", "do it", Workorder("named-graphs"));
+
+        Assert.Equal(jobId, registry.GetWorkorderSlotOwner("Frontend"));
+        Assert.Equal("named-graphs", registry.GetJobWorkorder(jobId)!.Feature);
+    }
+
+    [Fact]
+    public void StartJob_WithoutWorkorder_ClaimsNothingAndIsNeverRejected()
+    {
+        var registry = NewRegistry(Foreman("Frontend"));
+
+        registry.StartJob("Frontend", "one");
+        registry.StartJob("Frontend", "two");
+
+        Assert.Null(registry.GetWorkorderSlotOwner("Frontend"));
+    }
+
+    /// <summary>An ad-hoc dispatch to a Foreman already holding a workorder is fine -- only a second WORKORDER is rejected.</summary>
+    [Fact]
+    public void StartJob_AdHocDispatchToAForemanHoldingAWorkorder_IsAllowed()
+    {
+        var registry = NewRegistry(Foreman("Frontend"));
+        registry.StartJob("Frontend", "do it", Workorder("named-graphs"));
+
+        var adHocJobId = registry.StartJob("Frontend", "quick question");
+
+        Assert.False(string.IsNullOrWhiteSpace(adHocJobId));
+    }
+
+    /// <summary>
+    /// Mixed-case regression: _workorderSlots is OrdinalIgnoreCase AND the key is
+    /// the canonical ForemanConfig.Name, so "Frontend" and "frontend" are one
+    /// Foreman holding one slot.
+    /// </summary>
+    [Fact]
+    public void StartJob_SecondWorkorderToTheSameForemanInDifferentCase_IsRejectedNamingTheFirstFeature()
+    {
+        var registry = NewRegistry(Foreman("Frontend"));
+        registry.StartJob("Frontend", "first", Workorder("named-graphs"));
+
+        var ex = Assert.Throws<InvalidOperationException>(
+            () => registry.StartJob("frontend", "second", Workorder("shacl-shapes")));
+
+        Assert.Contains("named-graphs", ex.Message);
+    }
+
+    [Fact]
+    public void ReleaseWorkorder_ClearsTheSlotButLeavesTheJobsWorkorderReachable()
+    {
+        var registry = NewRegistry(Foreman("Frontend"));
+        var jobId = registry.StartJob("Frontend", "first", Workorder("named-graphs"));
+
+        registry.ReleaseWorkorder(jobId);
+
+        Assert.Null(registry.GetWorkorderSlotOwner("Frontend"));
+        Assert.Equal("named-graphs", registry.GetJobWorkorder(jobId)!.Feature);
+
+        // Freed immediately: the next workorder goes straight through.
+        var nextJobId = registry.StartJob("Frontend", "second", Workorder("shacl-shapes"));
+        Assert.Equal(nextJobId, registry.GetWorkorderSlotOwner("Frontend"));
+    }
+
+    /// <summary>A stale release must never evict a slot a later job already claimed.</summary>
+    [Fact]
+    public void ReleaseWorkorder_AfterTheSlotMovedOn_DoesNotEvictTheNewOwner()
+    {
+        var registry = NewRegistry(Foreman("Frontend"));
+        var firstJobId = registry.StartJob("Frontend", "first", Workorder("named-graphs"));
+        registry.ReleaseWorkorder(firstJobId);
+        var secondJobId = registry.StartJob("Frontend", "second", Workorder("shacl-shapes"));
+
+        registry.ReleaseWorkorder(firstJobId);
+
+        Assert.Equal(secondJobId, registry.GetWorkorderSlotOwner("Frontend"));
+    }
+
+    /// <summary>
+    /// Best-effort stress test, NOT a deterministic proof of overlap: Barrier
+    /// synchronizes arrival only, and TryClaimWorkorderSlot is a single atomic BCL
+    /// call with no window to pause inside. The determinism guarantee comes from
+    /// GetOrAdd itself; this test just biases toward overlap across enough
+    /// iterations that a reintroduced check-then-set is very likely to be caught.
+    /// Driven at the claim directly -- StartJob resolves the claim synchronously,
+    /// before any agent dispatch, so a gated fake could never reach it.
+    /// </summary>
+    [Fact]
+    public async Task TryClaimWorkorderSlot_TwoConcurrentClaimsForTheSameForeman_ExactlyOneWins()
+    {
+        var registry = NewRegistry();
+        var workorderA = Workorder("feature-a");
+        var workorderB = Workorder("feature-b");
+
+        using var barrier = new Barrier(participantCount: 2);
+        var barrierTimeout = TimeSpan.FromSeconds(5);
+
+        bool ClaimAfterBarrier(string jobId, ActiveWorkorder workorder, string foremanName)
+        {
+            if (!barrier.SignalAndWait(barrierTimeout))
+            {
+                throw new TimeoutException("Barrier participant never arrived -- a test-setup bug, not a claim-logic failure.");
+            }
+
+            return registry.TryClaimWorkorderSlot(foremanName, jobId, workorder, out _);
+        }
+
+        for (var i = 0; i < 200; i++)
+        {
+            var foremanName = $"Frontend-{i}";
+            var taskA = Task.Run(() => ClaimAfterBarrier($"job-a-{i}", workorderA, foremanName));
+            var taskB = Task.Run(() => ClaimAfterBarrier($"job-b-{i}", workorderB, foremanName));
+
+            var results = await Task.WhenAll(taskA, taskB);
+            Assert.Equal(1, results.Count(r => r));
+        }
+    }
+
     [Fact]
     public void GetJob_UnknownId_ReturnsNull()
     {

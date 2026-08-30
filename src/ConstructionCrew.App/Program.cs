@@ -105,11 +105,14 @@ var jobRegistry = new JobRegistry(foremanDirectory, agentFactory, statusSink, li
 // has no ProjectReference to ConstructionCrew.Graph and never names VaultGraph.
 var vaultGraph = new VaultGraph();
 var vaultOptions = new HomeOfficeVaultOptions(settings.VaultRoot);
+// Same rule: WorkorderReader lives in Config, which HomeOffice does not
+// reference. Program.cs news it; HomeOfficeHost registers the instance.
+var workorderReader = new WorkorderReader();
 
 Directory.CreateDirectory(settings.StateDirectory);
 
 using var cts = new CancellationTokenSource();
-var homeOffice = await HomeOfficeHost.StartAsync(jobRegistry, foremanDirectory, jobsiteDirectory, vaultOptions, vaultGraph, settings.HomeOfficePort, cts.Token);
+var homeOffice = await HomeOfficeHost.StartAsync(jobRegistry, foremanDirectory, jobsiteDirectory, vaultOptions, workorderReader, vaultGraph, settings.HomeOfficePort, cts.Token);
 
 // --debug is deliberately not surfaced in the TUI itself (the Dashboard footer
 // used to always show this and it was just screen clutter) -- it's a one-time

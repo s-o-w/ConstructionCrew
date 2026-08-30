@@ -12,6 +12,24 @@ namespace ConstructionCrew.HomeOffice;
 public sealed class JobRegistry
 {
     private readonly ConcurrentDictionary<string, JobRecord> _jobs = new();
+
+    /// <summary>
+    /// foremanName -> jobId. Answers "is this Foreman busy with a workorder, and
+    /// which job holds it". Case-insensitive to match ForemanDirectory and
+    /// LiveAgentRegistry, both of which key by Foreman name the same way; every
+    /// write path here still keys off the resolved canonical ForemanConfig.Name,
+    /// never the raw caller-supplied string.
+    /// </summary>
+    private readonly ConcurrentDictionary<string, string> _workorderSlots = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// jobId -> ActiveWorkorder. Answers "which specific job's workorder do I log
+    /// against". Deliberately NOT cleared by ReleaseWorkorder: a pr-opened release
+    /// frees the Foreman to take new work long before the job itself completes,
+    /// and the completing job still has to know what it was working on.
+    /// </summary>
+    private readonly ConcurrentDictionary<string, ActiveWorkorder> _jobWorkorders = new();
+
     private readonly IForemanDirectory _foremen;
     private readonly LiveAgentRegistry _liveAgents;
     private readonly ILocalCliAgentFactory _agentFactory;
@@ -39,11 +57,22 @@ public sealed class JobRegistry
     /// <summary>The reserved name GC is hired under. Phase 7's AskGc resolves GC's own config through it.</summary>
     public string GcForemanName { get; }
 
-    /// <summary>GC (or another Foreman) dispatching to a named, hired Foreman. Continuation-aware.</summary>
-    public string StartJob(string foremanName, string task)
+    /// <summary>
+    /// GC (or another Foreman) dispatching to a named, hired Foreman.
+    /// Continuation-aware.
+    ///
+    /// <paramref name="workorder"/> is null for an ordinary ad-hoc task, which
+    /// claims nothing and can never be rejected as busy. A non-null workorder
+    /// claims the Foreman's one workorder slot, and throws if it is already
+    /// held. This method does no parsing and no path validation -- DispatchTaskTool
+    /// hands it an already-validated typed value.
+    /// </summary>
+    public string StartJob(string foremanName, string task, ActiveWorkorder? workorder = null)
     {
         var config = FindForemanOrThrow(foremanName);
-        return StartTrackedJob(foremanName, task, ct => _liveAgents.SendAsync(foremanName, config, task, ct));
+        // config.Name, not foremanName: the slot is keyed off the canonical,
+        // resolved name so "Frontend" and "frontend" are one Foreman.
+        return StartTrackedJob(config.Name, task, ct => _liveAgents.SendAsync(foremanName, config, task, ct), workorder);
     }
 
     /// <summary>
@@ -91,14 +120,85 @@ public sealed class JobRegistry
     /// <summary>Evicts a fired Foreman's cached live agent so a later re-hire under the same name starts clean.</summary>
     public void ForgetLiveAgent(string foremanName) => _liveAgents.Remove(foremanName);
 
+    /// <summary>
+    /// Frees the Foreman holding <paramref name="jobId"/>'s workorder slot, so it
+    /// can accept new work immediately -- called when a PR opens, well before the
+    /// job itself completes. Never touches _jobWorkorders: the job still needs its
+    /// ActiveWorkorder when it finishes.
+    ///
+    /// The clear is conditional on the slot still pointing at this exact job. The
+    /// KeyValuePair overload of TryRemove is what makes that atomic: a plain
+    /// read-then-remove could evict a slot a NEXT job had already claimed in
+    /// between.
+    /// </summary>
+    public void ReleaseWorkorder(string jobId)
+    {
+        if (!_jobs.TryGetValue(jobId, out var job))
+        {
+            return;
+        }
+
+        _workorderSlots.TryRemove(new KeyValuePair<string, string>(job.ForemanName, jobId));
+    }
+
+    /// <summary>
+    /// The single atomic claim. GetOrAdd adds the key if absent and returns the
+    /// value just added, or returns the already-present value -- one call, with no
+    /// window in between for a second caller to observe an empty slot. A
+    /// check-then-set (or TryAdd-then-read) would let two concurrent claims for the
+    /// same Foreman both see the slot empty, or would need an unbounded retry loop
+    /// to cope with the slot being vacated between the failed add and the read.
+    ///
+    /// internal, not public: there is no public path that creates two genuinely
+    /// concurrent claims against the same in-process dictionary, because StartJob
+    /// runs synchronously up to the point it schedules RunJobAsync. The claim has
+    /// to be exercised directly. See ConstructionCrew.HomeOffice.csproj's
+    /// InternalsVisibleTo.
+    /// </summary>
+    internal bool TryClaimWorkorderSlot(
+        string foremanName, string jobId, ActiveWorkorder workorder, out string? busyOwnerJobId)
+    {
+        var ownerJobId = _workorderSlots.GetOrAdd(foremanName, jobId);
+
+        if (ownerJobId != jobId)
+        {
+            busyOwnerJobId = ownerJobId;
+            return false;
+        }
+
+        _jobWorkorders[jobId] = workorder;
+        busyOwnerJobId = null;
+        return true;
+    }
+
+    /// <summary>The ActiveWorkorder a job claimed, or null. Survives ReleaseWorkorder by design.</summary>
+    internal ActiveWorkorder? GetJobWorkorder(string jobId) => _jobWorkorders.GetValueOrDefault(jobId);
+
+    /// <summary>The job id currently holding a Foreman's workorder slot, or null when it is free.</summary>
+    internal string? GetWorkorderSlotOwner(string foremanName) => _workorderSlots.GetValueOrDefault(foremanName);
+
     private ForemanConfig FindForemanOrThrow(string foremanName) =>
         _foremen.Find(foremanName)
             ?? throw new InvalidOperationException(
                 $"No Foreman named '{foremanName}' is hired. Known Foremen: {string.Join(", ", _foremen.All().Select(f => f.Name))}.");
 
-    private string StartTrackedJob(string displayName, string task, Func<CancellationToken, Task<CliRunResult>> run)
+    private string StartTrackedJob(
+        string displayName,
+        string task,
+        Func<CancellationToken, Task<CliRunResult>> run,
+        ActiveWorkorder? workorder = null)
     {
         var jobId = Guid.NewGuid().ToString("n");
+
+        // The claim happens before the JobRecord exists: a rejected claim must
+        // leave no trace of the job at all.
+        if (workorder is not null && !TryClaimWorkorderSlot(displayName, jobId, workorder, out var busyOwnerJobId))
+        {
+            throw new InvalidOperationException(
+                $"Foreman '{displayName}' already holds a workorder: {DescribeInFlight(busyOwnerJobId)}. " +
+                "Wait for it to finish (or for its PR to open) before dispatching another workorder to them.");
+        }
+
         var job = new JobRecord(jobId, displayName, task, JobStatus.Pending, DateTimeOffset.UtcNow, null, null);
         _jobs[jobId] = job;
         _statusSink.Publish(job);
@@ -107,6 +207,17 @@ public sealed class JobRegistry
 
         return jobId;
     }
+
+    /// <summary>
+    /// Names the feature the busy owner is on, for the rejection message only.
+    /// The winner writes _jobWorkorders strictly after its own GetOrAdd returns,
+    /// so this lookup can (rarely) run first -- that changes the wording of the
+    /// message, never the exclusivity, which GetOrAdd alone decides.
+    /// </summary>
+    private string DescribeInFlight(string? busyOwnerJobId) =>
+        busyOwnerJobId is not null && _jobWorkorders.TryGetValue(busyOwnerJobId, out var inFlight)
+            ? $"feature '{inFlight.Feature}' (job {busyOwnerJobId})"
+            : $"job {busyOwnerJobId}";
 
     private async Task RunJobAsync(string jobId, Func<CancellationToken, Task<CliRunResult>> run)
     {

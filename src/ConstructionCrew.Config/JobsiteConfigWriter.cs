@@ -37,6 +37,33 @@ public static class JobsiteConfigWriter
             block.AppendLine($"    color: {ForemanConfigWriter.Quote(config.ColorName)}");
         }
 
+        if (!string.IsNullOrWhiteSpace(config.DefaultBranch))
+        {
+            block.AppendLine($"    defaultBranch: {ForemanConfigWriter.Quote(config.DefaultBranch)}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(config.BuildCommand))
+        {
+            block.AppendLine($"    buildCommand: {ForemanConfigWriter.Quote(config.BuildCommand.ReplaceLineEndings(" "))}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(config.TestCommand))
+        {
+            block.AppendLine($"    testCommand: {ForemanConfigWriter.Quote(config.TestCommand.ReplaceLineEndings(" "))}");
+        }
+
+        if (config.Upstream is { Count: > 0 })
+        {
+            // Same shape and same CollapseRepoRoot-then-Quote ordering as
+            // providerOptions in ForemanConfigWriter -- an upstream value can
+            // legitimately be a repo-relative path, not just a URL.
+            block.AppendLine("    upstream:");
+            foreach (var (key, value) in config.Upstream)
+            {
+                block.AppendLine($"      {key}: {ForemanConfigWriter.Quote(CollapseRepoRoot(value, repoRoot))}");
+            }
+        }
+
         if (config.VaultFolders is { Count: > 0 })
         {
             block.AppendLine("    vaultFolders:");
