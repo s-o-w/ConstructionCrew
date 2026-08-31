@@ -123,6 +123,45 @@ public class DashboardTests
         Assert.DoesNotContain("/foreman", driving);
     }
 
+    /// <summary>
+    /// The newest entry must always survive, even alone over budget -- the
+    /// whole point of this replacing TakeLast(10)/Truncate(...,400).
+    /// </summary>
+    [Fact]
+    public void WindowToBudget_NewestEntryAloneOverBudget_IsStillReturnedWhole()
+    {
+        var transcript = new List<TranscriptLine> { new("GC", "a very long reply") };
+
+        var windowed = Dashboard.WindowToBudget(transcript, budget: 1, heightOf: _ => 100);
+
+        Assert.Equal(transcript, windowed);
+    }
+
+    [Fact]
+    public void WindowToBudget_OlderEntriesDropOffFirst_NewestNeverPushedOut()
+    {
+        var transcript = new List<TranscriptLine>
+        {
+            new("Boss", "first"),
+            new("GC", "second"),
+            new("Boss", "third"),
+        };
+
+        var windowed = Dashboard.WindowToBudget(transcript, budget: 2, heightOf: _ => 1);
+
+        Assert.Equal(["second", "third"], windowed.Select(l => l.Text));
+    }
+
+    [Fact]
+    public void WindowToBudget_EverythingFits_PreservesOrder()
+    {
+        var transcript = new List<TranscriptLine> { new("Boss", "first"), new("GC", "second") };
+
+        var windowed = Dashboard.WindowToBudget(transcript, budget: 10, heightOf: _ => 1);
+
+        Assert.Equal(transcript, windowed);
+    }
+
     /// <summary>A job that is genuinely running still wins over a stale parked flag.</summary>
     [Fact]
     public void StatusBadge_BusyWinsOverParked()

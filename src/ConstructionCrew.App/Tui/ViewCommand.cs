@@ -215,7 +215,7 @@ public static class ViewCommand
     /// borders. Renders it once into a throwaway plain-text console rather
     /// than guessing per renderable type.
     /// </summary>
-    private static int EstimateLines(IRenderable block)
+    internal static int EstimateLines(IRenderable block)
     {
         try
         {

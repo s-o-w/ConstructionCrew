@@ -280,16 +280,49 @@ public static class Dashboard
                 : $"[grey]Driving {Markup.Escape(state.DrivenForeman)} -- anything you type goes to them. /exit returns to GC.[/]");
         }
 
-        var rows = transcript
-            .TakeLast(10)
-            .Select(line =>
-            {
-                var speakerStyle = line.Speaker == "Boss" ? "cyan" : line.IsError ? "red" : "green";
-                return (IRenderable)new Markup($"[bold {speakerStyle}]{line.Speaker}:[/] {Markup.Escape(Truncate(line.Text, 400))}");
-            })
-            .ToList();
+        // Height-budgeted walk from the newest entry backward, not
+        // TakeLast(10)/Truncate(...,400): the newest reply must always render
+        // in full, never chopped. See WindowToBudget for the guard that makes
+        // that true even when the newest entry alone exceeds the budget.
+        var budget = Math.Max(4, AnsiConsole.Profile.Height - 8);
+        var windowed = WindowToBudget(transcript, budget, line =>
+            ViewCommand.EstimateLines(RenderLine(line)));
 
-        return new Rows(rows);
+        return new Rows(windowed.Select(RenderLine));
+    }
+
+    private static Markup RenderLine(TranscriptLine line)
+    {
+        var speakerStyle = line.Speaker == "Boss" ? "cyan" : line.IsError ? "red" : "green";
+        return new Markup($"[bold {speakerStyle}]{line.Speaker}:[/] {Markup.Escape(line.Text)}");
+    }
+
+    /// <summary>
+    /// Walks <paramref name="transcript"/> from the newest entry backward,
+    /// keeping as many whole entries as fit in <paramref name="budget"/>
+    /// (whatever unit <paramref name="heightOf"/> returns). The newest entry
+    /// is always kept, even alone over budget -- older entries drop off
+    /// first, never the latest entry's tail. Order is preserved.
+    /// </summary>
+    internal static IReadOnlyList<TranscriptLine> WindowToBudget(
+        IReadOnlyList<TranscriptLine> transcript, int budget, Func<TranscriptLine, int> heightOf)
+    {
+        var kept = new List<TranscriptLine>();
+        var used = 0;
+
+        foreach (var line in transcript.Reverse())
+        {
+            var height = heightOf(line);
+            if (kept.Count > 0 && used + height > budget)
+            {
+                break;
+            }
+
+            kept.Insert(0, line);
+            used += height;
+        }
+
+        return kept;
     }
 
     private static IRenderable BuildTasks(JobRegistry jobs) =>
