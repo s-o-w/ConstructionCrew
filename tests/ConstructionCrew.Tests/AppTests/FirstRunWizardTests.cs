@@ -58,6 +58,21 @@ public class FirstRunWizardTests
         Assert.Contains("mcp__home_office__dispatch_task", config.ProviderOptions["allowedTools"]);
     }
 
+    /// <summary>
+    /// Without a vault write scope SitrepWriter.FindNotesFolder returns null and
+    /// file_sitrep throws. The first entry has to be the one under Notes/, because
+    /// that is the one FindNotesFolder takes.
+    /// </summary>
+    [Fact]
+    public void BuildGcConfig_SetsGcVaultFolders()
+    {
+        var config = FirstRunWizard.BuildGcConfig("GC", "claude", "/vault", "/repo/GC.md", "/repo", null);
+
+        Assert.NotNull(config.VaultFolders);
+        Assert.Equal("Notes/GC", config.VaultFolders![0]);
+        Assert.Equal(FirstRunWizard.GcVaultFolders, config.VaultFolders);
+    }
+
     [Fact]
     public void WrittenGcConfig_RoundTripsThroughTheLoadersValidation()
     {

@@ -27,14 +27,107 @@ public class ProviderDefaultsTests
         Assert.DoesNotContain("mcp__home_office__dispatch_task", allowed);
     }
 
-    /// <summary>GC reads and dispatches; it never edits code or runs shell commands.</summary>
+    /// <summary>
+    /// GC authors and dispatches; it still never runs shell commands. Writing the
+    /// workorder is step one of the work loop, and filing a sitrep is how the Boss
+    /// sees a turn happened -- under `claude -p` a tool outside --allowedTools is
+    /// auto-denied, so omitting either reads back as an unapproved permission prompt.
+    /// </summary>
     [Fact]
-    public void GcToolPolicy_Claude_DispatchesButNeverWrites()
+    public void GcToolPolicy_Claude_GrantsWriteEditAndFileSitrep()
     {
         var allowed = ProviderDefaults.GcToolPolicy("claude")["allowedTools"].Split(',');
 
+        Assert.Contains("Write", allowed);
+        Assert.Contains("Edit", allowed);
+        Assert.Contains("mcp__home_office__file_sitrep", allowed);
+
         Assert.Contains("mcp__home_office__dispatch_task", allowed);
         Assert.DoesNotContain("Bash", allowed);
-        Assert.DoesNotContain("Write", allowed);
+
+        // GC never calls ask_gc: it IS the GC. Granting it would let GC escalate to itself.
+        Assert.DoesNotContain("mcp__home_office__ask_gc", allowed);
+    }
+
+    /// <summary>
+    /// Codex has no per-tool allow-list, so the sandbox policy is the only lever --
+    /// and GC's WorkingDirectory is the Vault, so workspace-write scopes its writes
+    /// to the Vault and nothing else.
+    /// </summary>
+    [Fact]
+    public void GcToolPolicy_Codex_IsWorkspaceWrite()
+    {
+        Assert.Equal("workspace-write", ProviderDefaults.GcToolPolicy("codex")["sandbox"]);
+    }
+
+    /// <summary>
+    /// A roster that predates a ProviderDefaults change never picks it up on its own:
+    /// GcToolPolicy is consulted at first-run hire and nowhere else. The merge is a
+    /// union, and it preserves the order the roster already had.
+    /// </summary>
+    [Fact]
+    public void EnsureGcToolPolicy_UnionsMissingClaudeTools()
+    {
+        var current = new Dictionary<string, string> { ["allowedTools"] = "Read" };
+
+        var merged = ProviderDefaults.EnsureGcToolPolicy("claude", current)["allowedTools"].Split(',');
+
+        Assert.Equal("Read", merged[0]);
+        Assert.Contains("Write", merged);
+        Assert.Contains("Edit", merged);
+        Assert.Contains("Glob", merged);
+        Assert.Contains("Grep", merged);
+        Assert.Contains("mcp__home_office__dispatch_task", merged);
+        Assert.Contains("mcp__home_office__file_sitrep", merged);
+        Assert.Contains("mcp__home_office__query_graph", merged);
+
+        // Union, not replacement -- and no duplicates from what was already there.
+        Assert.Equal(1, merged.Count(t => t == "Read"));
+    }
+
+    /// <summary>The MCP wiring Program.cs stamps on lives in the same dictionary.</summary>
+    [Fact]
+    public void EnsureGcToolPolicy_PreservesUnrelatedKeys()
+    {
+        var current = new Dictionary<string, string>
+        {
+            ["allowedTools"] = "Read",
+            ["mcpConfigPath"] = "/generated/mcp.json",
+        };
+
+        var merged = ProviderDefaults.EnsureGcToolPolicy("claude", current);
+
+        Assert.Equal("/generated/mcp.json", merged["mcpConfigPath"]);
+    }
+
+    /// <summary>
+    /// read-only is the value this app itself used to write, so it is the one safe to
+    /// replace. Any other sandbox is the Boss's own choice and stays.
+    /// </summary>
+    [Fact]
+    public void EnsureGcToolPolicy_CodexUpgradesReadOnlyOnly()
+    {
+        var upgraded = ProviderDefaults.EnsureGcToolPolicy(
+            "codex", new Dictionary<string, string> { ["sandbox"] = "read-only" });
+        Assert.Equal("workspace-write", upgraded["sandbox"]);
+
+        var untouched = ProviderDefaults.EnsureGcToolPolicy(
+            "codex", new Dictionary<string, string> { ["sandbox"] = "danger-full-access" });
+        Assert.Equal("danger-full-access", untouched["sandbox"]);
+    }
+
+    /// <summary>
+    /// Nothing to add means nothing allocated -- Program.cs uses reference equality to
+    /// decide whether the roster on disk actually needs rewriting.
+    /// </summary>
+    [Fact]
+    public void EnsureGcToolPolicy_AlreadyComplete_ReturnsSameInstance()
+    {
+        var current = new Dictionary<string, string>(ProviderDefaults.GcToolPolicy("claude"));
+
+        Assert.Same(current, ProviderDefaults.EnsureGcToolPolicy("claude", current));
+
+        var codex = new Dictionary<string, string>(ProviderDefaults.GcToolPolicy("codex"));
+        Assert.Same(codex, ProviderDefaults.EnsureGcToolPolicy("codex", codex));
     }
 }

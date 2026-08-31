@@ -167,18 +167,61 @@ var mcpOptionsByProvider = WriteMcpWiring(providerRegistry, settings.GeneratedCo
 
 foreach (var foreman in foremanDirectory.All().ToList())
 {
-    if (!mcpOptionsByProvider.TryGetValue(foreman.Provider, out var mcpOptions))
+    var updated = foreman;
+
+    if (mcpOptionsByProvider.TryGetValue(foreman.Provider, out var mcpOptions))
+    {
+        var merged = new Dictionary<string, string>(foreman.ProviderOptions);
+        foreach (var option in mcpOptions)
+        {
+            merged[option.Key] = option.Value;
+        }
+
+        updated = updated with { ProviderOptions = merged };
+    }
+    else if (foreman.Role != CrewRole.GC)
     {
         continue;
     }
 
-    var merged = new Dictionary<string, string>(foreman.ProviderOptions);
-    foreach (var option in mcpOptions)
+    // GC only: a roster that already exists (hand-written, or copied from an older
+    // foremen.yaml.example) never picks up a ProviderDefaults change, because
+    // GcToolPolicy is consulted at first-run hire and nowhere else. That is the
+    // actual cause of "GC stopped to ask for interactive approval on a Home Office
+    // tool": under `claude -p` a tool outside --allowedTools is auto-denied. Repair
+    // it here, and persist the repair so the next start is already correct.
+    if (foreman.Role == CrewRole.GC)
     {
-        merged[option.Key] = option.Value;
+        var repairs = new List<string>();
+
+        var policed = ProviderDefaults.EnsureGcToolPolicy(foreman.Provider, updated.ProviderOptions);
+        if (!ReferenceEquals(policed, updated.ProviderOptions))
+        {
+            updated = updated with { ProviderOptions = new Dictionary<string, string>(policed) };
+            repairs.Add("tool policy");
+        }
+
+        if (updated.VaultFolders is null or { Count: 0 })
+        {
+            updated = updated with { VaultFolders = FirstRunWizard.GcVaultFolders };
+            repairs.Add("vault write scope");
+        }
+
+        if (repairs.Count > 0)
+        {
+            ForemanConfigWriter.RemoveForeman(settings.ForemenConfigPath, foreman.Name);
+            ForemanConfigWriter.AppendForeman(settings.ForemenConfigPath, updated, repoRoot, settings.VaultRoot);
+
+            AnsiConsole.MarkupLine(
+                $"[grey]Repaired {Markup.Escape(foreman.Name)}'s config in " +
+                $"{Markup.Escape(settings.ForemenConfigPath)}: {Markup.Escape(string.Join(", ", repairs))}.[/]");
+        }
     }
 
-    foremanDirectory.Add(foreman with { ProviderOptions = merged });
+    if (!ReferenceEquals(updated, foreman))
+    {
+        foremanDirectory.Add(updated);
+    }
 }
 
 gcConfig = foremanDirectory.Find(settings.GcForemanName)!;

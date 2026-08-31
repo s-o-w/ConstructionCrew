@@ -62,7 +62,15 @@ public static class ProviderDefaults
         "mcp__home_office__query_graph",
     ];
 
-    /// <summary>The Home Office MCP tools GC has to be able to call to do its job at all.</summary>
+    /// <summary>
+    /// The Home Office MCP tools GC has to be able to call to do its job at all.
+    /// Deliberately NOT the bare server name `mcp__home_office`: that form works,
+    /// and is what the copilot branch relies on, but for claude it would also hand
+    /// GC `ask_gc`, `merge_worker_branch` and `close_worktree`. The explicit list is
+    /// the deny-by-omission that keeps those away. `ask_gc` in particular stays out:
+    /// GC never calls it (gc-instructions.md), and granting it would let GC escalate
+    /// to itself.
+    /// </summary>
     private static readonly string[] HomeOfficeTools =
     [
         "mcp__home_office__list_foremen",
@@ -73,33 +81,105 @@ public static class ProviderDefaults
         "mcp__home_office__get_job_status",
         "mcp__home_office__build_graph",
         "mcp__home_office__query_graph",
+        "mcp__home_office__file_sitrep",
     ];
 
     /// <summary>
-    /// GC's starting ProviderOptions, which are NOT a Foreman's. GC reads and
-    /// dispatches; it never edits code or runs shell commands itself. The one
-    /// thing it must have is the Home Office MCP tools -- under `claude -p` an
-    /// allow-list that omits them silently denies every dispatch, which reads as
-    /// a GC that talks but never delegates.
+    /// GC's starting ProviderOptions, which are NOT a Foreman's. GC dispatches and
+    /// authors; it never runs shell commands itself. Two things it must have:
+    /// the Home Office MCP tools -- under `claude -p` an allow-list that omits them
+    /// silently denies every dispatch, which reads as a GC that talks but never
+    /// delegates -- and Write/Edit, because writing the workorder is step one of
+    /// the work loop.
     /// </summary>
     public static IReadOnlyDictionary<string, string> GcToolPolicy(string providerId) =>
         providerId.ToLowerInvariant() switch
         {
             "claude" => new Dictionary<string, string>
             {
-                ["allowedTools"] = string.Join(',', new[] { "Read", "Glob", "Grep" }.Concat(HomeOfficeTools)),
+                ["allowedTools"] = string.Join(
+                    ',',
+                    new[] { "Read", "Glob", "Grep", "Write", "Edit" }.Concat(HomeOfficeTools)),
             },
 
-            // Copilot allows a whole MCP server by bare name; no shell, no write.
+            // Copilot allows a whole MCP server by bare name. `write` is Copilot's
+            // own permission kind for "allow all file editing". No `shell`: GC still
+            // runs no commands.
             "copilot" => new Dictionary<string, string>
             {
-                ["allowedTools"] = CopilotProvider.HomeOfficeServerName,
+                ["allowedTools"] = $"write,{CopilotProvider.HomeOfficeServerName}",
             },
 
-            // Codex has no per-tool allow-list; read-only is the analogue of
-            // "can look, cannot touch."
-            "codex" => new Dictionary<string, string> { ["sandbox"] = "read-only" },
+            // Codex has no per-tool allow-list; the sandbox policy is the only lever.
+            // GC's WorkingDirectory is the Vault, so workspace-write scopes GC's
+            // writes to the Vault and nothing else.
+            "codex" => new Dictionary<string, string> { ["sandbox"] = "workspace-write" },
 
             _ => new Dictionary<string, string>(),
         };
+
+    /// <summary>
+    /// The GC options a roster MUST end up with, merged over whatever foremen.yaml
+    /// supplied. Union, not replacement: a Boss who added an option by hand keeps it.
+    /// </summary>
+    public static IReadOnlyDictionary<string, string> EnsureGcToolPolicy(
+        string providerId,
+        IReadOnlyDictionary<string, string> current)
+    {
+        var required = GcToolPolicy(providerId);
+        if (required.Count == 0)
+        {
+            return current;
+        }
+
+        // Codex: the sandbox policy is the whole permission model, so "upgrade" means
+        // replacing an absent or explicitly read-only value. Anything else the Boss
+        // chose (danger-full-access, say) is theirs and is left alone.
+        if (required.TryGetValue("sandbox", out var requiredSandbox))
+        {
+            var hasSandbox = current.TryGetValue("sandbox", out var currentSandbox);
+            var needsUpgrade = !hasSandbox
+                || string.IsNullOrWhiteSpace(currentSandbox)
+                || string.Equals(currentSandbox!.Trim(), "read-only", StringComparison.OrdinalIgnoreCase);
+
+            if (!needsUpgrade)
+            {
+                return current;
+            }
+
+            var upgraded = new Dictionary<string, string>(current) { ["sandbox"] = requiredSandbox };
+            return upgraded;
+        }
+
+        if (!required.TryGetValue("allowedTools", out var requiredTools))
+        {
+            return current;
+        }
+
+        current.TryGetValue("allowedTools", out var currentTools);
+
+        var merged = Split(currentTools).ToList();
+        var seen = new HashSet<string>(merged, StringComparer.OrdinalIgnoreCase);
+        var added = false;
+
+        foreach (var tool in Split(requiredTools))
+        {
+            if (seen.Add(tool))
+            {
+                merged.Add(tool);
+                added = true;
+            }
+        }
+
+        if (!added)
+        {
+            return current;
+        }
+
+        return new Dictionary<string, string>(current) { ["allowedTools"] = string.Join(',', merged) };
+    }
+
+    private static IEnumerable<string> Split(string? list) =>
+        (list ?? string.Empty)
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 }

@@ -28,6 +28,15 @@ namespace ConstructionCrew.App;
 public static class FirstRunWizard
 {
     /// <summary>
+    /// GC's vault write scope. Order matters: SitrepWriter.FindNotesFolder takes the
+    /// FIRST entry under Notes/, which is where GC's own sitreps land. The bare
+    /// "Notes" and "Plans" entries cover the cross-jobsite writes GC's instructions
+    /// actually ask for -- workorders under Plans/&lt;Jobsite&gt;/&lt;Feature&gt;/ and Delivery
+    /// notes under Notes/&lt;Jobsite&gt;/Deliveries/.
+    /// </summary>
+    public static readonly IReadOnlyList<string> GcVaultFolders = ["Notes/GC", "Notes", "Plans"];
+
+    /// <summary>
     /// Runs the first-run flow. Returns the resolved absolute Vault path, or
     /// null if the Boss backed out (in which case nothing was written).
     /// </summary>
@@ -126,7 +135,8 @@ public static class FirstRunWizard
             new Dictionary<string, string>(ProviderDefaults.GcToolPolicy(provider)),
             JobsiteName: null,
             DisplayName: displayName,
-            AddDirs: [repoRoot]);
+            AddDirs: [repoRoot],
+            VaultFolders: GcVaultFolders);
 
     /// <summary>
     /// Writes Vault:Root into appsettings.json, merging into whatever is already
@@ -368,7 +378,7 @@ public static class FirstRunWizard
                 CrewRole.GC,
                 briefing: string.Empty,
                 jobsite: null,
-                vaultFolders: null,
+                vaultFolders: GcVaultFolders,
                 availableEngines: availableProviderIds,
                 repoRoot: repoRoot,
                 vaultRoot: vaultRoot);

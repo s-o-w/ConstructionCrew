@@ -50,6 +50,10 @@ answer resumes its job by itself, however late it is.
 
 Vault root: {{VaultRoot}}
 
+You may write into these vault-relative folders:
+
+{{VaultFolders}}
+
 Notes you author carry `authoredBy: "{{AuthoredBy}}"` in their frontmatter.
 
 Crew preferences -- how the Boss likes work done. Read it before you plan, and

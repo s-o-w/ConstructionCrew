@@ -1,3 +1,4 @@
+using ConstructionCrew.App;
 using ConstructionCrew.Config;
 using ConstructionCrew.Core.Abstractions;
 
@@ -146,6 +147,36 @@ public class SitrepWriterTests
                 () => new SitrepWriter().Write(Request(vaultRoot, "escape attempt", altitude: "../../../escaped")));
 
             Assert.Contains("outside", ex.Message);
+        }
+        finally
+        {
+            Directory.Delete(vaultRoot, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// GC's own scope, end to end: FindNotesFolder takes the FIRST entry under
+    /// Notes/, so "Notes/GC" leading FirstRunWizard.GcVaultFolders is what keeps GC's
+    /// sitreps out of the bare "Notes" root -- and what stops file_sitrep throwing
+    /// "has no vault folder under 'Notes/' in its write scope" the way a GC with no
+    /// vaultFolders at all does.
+    /// </summary>
+    [Fact]
+    public void Write_GcScope_FilesUnderNotesGc()
+    {
+        var vaultRoot = NewVault();
+        try
+        {
+            var path = new SitrepWriter().Write(new SitrepRequest(
+                vaultRoot,
+                FirstRunWizard.GcVaultFolders,
+                "status",
+                "dispatched the workorder",
+                "GC"));
+
+            Assert.Equal(
+                Path.Combine(vaultRoot, "Notes", "GC", "Sitreps", $"{DateTimeOffset.UtcNow:yyyy-MM-dd}-status.md"),
+                path);
         }
         finally
         {

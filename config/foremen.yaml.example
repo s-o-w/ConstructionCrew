@@ -21,7 +21,13 @@
 # providerOptions.allowedTools is an explicit allow-list (Claude Code's
 # --allowedTools), not a blanket permission bypass -- keep it narrow and
 # scoped to what each role actually needs. Under `claude -p`, an allow-list
-# that omits the Home Office MCP tools silently denies every dispatch.
+# that omits the Home Office MCP tools silently denies every dispatch. GC's
+# list stays narrow but MUST include Write and Edit: writing the workorder is
+# step one of the work loop, and a GC without them reports the blocked write
+# back as a permission prompt that was never approved.
+#
+# vaultFolders is the vault-relative write scope. GC's first entry has to be
+# the one under Notes/ that its own sitreps land in.
 
 foremen:
   - name: GC
@@ -31,8 +37,12 @@ foremen:
     instructionsFilePath: ${repoRoot}/config/instructions/GC.md
     addDirs:
       - ${repoRoot}
+    vaultFolders:
+      - Notes/GC
+      - Notes
+      - Plans
     providerOptions:
-      allowedTools: "Read,Glob,Grep,mcp__home_office__list_foremen,mcp__home_office__list_jobsites,mcp__home_office__dispatch_task,mcp__home_office__spawn_worker,mcp__home_office__ask_foreman,mcp__home_office__get_job_status,mcp__home_office__build_graph,mcp__home_office__query_graph"
+      allowedTools: "Read,Glob,Grep,Write,Edit,mcp__home_office__list_foremen,mcp__home_office__list_jobsites,mcp__home_office__dispatch_task,mcp__home_office__spawn_worker,mcp__home_office__ask_foreman,mcp__home_office__get_job_status,mcp__home_office__build_graph,mcp__home_office__query_graph,mcp__home_office__file_sitrep"
 
   # An example Foreman, for reference -- /hire writes entries in this shape.
   # - name: Frontend

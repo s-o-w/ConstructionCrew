@@ -108,7 +108,7 @@ public class ForemanDetailsCommandTests
     public void ToolPolicyForSwitch_ForemanRole_UsesTheForemanPolicy()
     {
         // Codex has no per-tool allow-list -- sandbox is its analogue, and a
-        // Foreman needs write access to do its job (unlike GC's read-only default).
+        // Foreman needs write access to do its job.
         var policy = ForemanDetailsCommand.ToolPolicyForSwitch(CrewRole.Foreman, "codex");
 
         Assert.Equal("workspace-write", policy["sandbox"]);
@@ -117,9 +117,16 @@ public class ForemanDetailsCommandTests
     [Fact]
     public void ToolPolicyForSwitch_GcRole_UsesTheGcPolicy()
     {
-        var policy = ForemanDetailsCommand.ToolPolicyForSwitch(CrewRole.GC, "codex");
+        // GC also writes now (the workorder is step one of the work loop), so codex's
+        // sandbox no longer tells the two roles apart -- GC's WorkingDirectory is the
+        // Vault, which is what workspace-write scopes it to. Claude's allow-list is
+        // where the roles still differ: GC dispatches and never runs shell commands.
+        Assert.Equal("workspace-write", ForemanDetailsCommand.ToolPolicyForSwitch(CrewRole.GC, "codex")["sandbox"]);
 
-        Assert.Equal("read-only", policy["sandbox"]);
+        var allowed = ForemanDetailsCommand.ToolPolicyForSwitch(CrewRole.GC, "claude")["allowedTools"].Split(',');
+
+        Assert.Contains("mcp__home_office__dispatch_task", allowed);
+        Assert.DoesNotContain("Bash", allowed);
     }
 
     [Fact]
