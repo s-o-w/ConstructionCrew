@@ -12,6 +12,10 @@
     <PackageReference Include="dotNetRDF" Version="3.5.2" />
     <PackageReference Include="coverlet.collector" Version="6.0.4" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <!-- TestConsole: the Markdown renderer's escaping guarantee is only real if
+         it is asserted against actually-rendered output, not the intermediate
+         markup string. Same version as the App's Spectre.Console. -->
+    <PackageReference Include="Spectre.Console.Testing" Version="0.57.2" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
   </ItemGroup>

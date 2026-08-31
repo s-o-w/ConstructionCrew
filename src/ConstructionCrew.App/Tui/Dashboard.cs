@@ -82,7 +82,7 @@ public static class Dashboard
     /// </summary>
     internal static string FooterFor(string? drivenForeman) =>
         drivenForeman is null
-            ? "[grey]/tasks /hire /fire /foreman <Name> /chat /drive <Name> /settings /help /exit[/]"
+            ? "[grey]/tasks /hire /fire /foreman <Name> /view <path> /chat /drive <Name> /settings /help /exit[/]"
             : $"[grey]driving [/][yellow]{Markup.Escape(drivenForeman)}[/][grey] -- /exit returns to GC[/]";
 
     private static void PositionCursorOnPromptRow()
