@@ -8,6 +8,10 @@
     <PackageReference Include="CliWrap" Version="3.10.5" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="ConstructionCrew.Tests" />
+  </ItemGroup>
+
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
