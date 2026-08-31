@@ -87,6 +87,22 @@ public class SitewalkTests
     }
 
     /// <summary>
+    /// Phase 9 adds a SECOND dispatch site (<c>/foreman &lt;Name&gt;</c> -> "run sitewalk")
+    /// on top of the hire-time one, and both go through this one string. Pinned here
+    /// against a jobsite name other than the fixture's, so the note path is proven to
+    /// be derived from the jobsite rather than hardcoded.
+    /// </summary>
+    [Fact]
+    public void SitewalkPrompt_NamesTheJobsiteTheNoteAndTheClosingBuildGraph()
+    {
+        var prompt = HireWizard.SitewalkPrompt("Backend", "SDS-BSD");
+
+        Assert.Contains("Notes/SDS-BSD/Sitewalk.md", prompt);
+        Assert.Contains("milestone", prompt);
+        Assert.Contains("build_graph", prompt);
+    }
+
+    /// <summary>
     /// The gate, end to end at the plumbing level: dispatch the sitewalk the way
     /// HireWizard does, take the job id the Foreman can actually READ off its task
     /// text (not the one StartJob returned to the caller), file the milestone sitrep

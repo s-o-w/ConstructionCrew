@@ -161,6 +161,41 @@ public class ForemanDetailsCommandTests
         Assert.Equal("http://localhost:5099/mcp", policy["mcpServerUrl"]);
     }
 
+    /// <summary>
+    /// The GC works out of the Vault and has no Jobsite by construction, so its
+    /// refusal is a different statement from "not assigned yet".
+    /// </summary>
+    [Fact]
+    public void SitewalkRefusalReason_ForTheGc_RefusesBecauseThereIsNoJobsiteToWalk()
+    {
+        var gc = new ForemanConfig(
+            "GC", CrewRole.GC, "claude", "vault", "instructions.md", new Dictionary<string, string>());
+
+        Assert.Equal("The GC has no jobsite to walk.", ForemanDetailsCommand.SitewalkRefusalReason(gc));
+    }
+
+    [Fact]
+    public void SitewalkRefusalReason_ForemanWithNoJobsite_SaysToAssignOneFirst()
+    {
+        var foreman = new ForemanConfig(
+            "Frontend", CrewRole.Foreman, "claude", "repo", "instructions.md", new Dictionary<string, string>(),
+            JobsiteName: null);
+
+        Assert.Equal(
+            "Frontend has no jobsite assigned -- assign one first.",
+            ForemanDetailsCommand.SitewalkRefusalReason(foreman));
+    }
+
+    [Fact]
+    public void SitewalkRefusalReason_ForemanOnAJobsite_IsDispatchable()
+    {
+        var foreman = new ForemanConfig(
+            "Frontend", CrewRole.Foreman, "claude", "repo", "instructions.md", new Dictionary<string, string>(),
+            JobsiteName: "XINFRA");
+
+        Assert.Null(ForemanDetailsCommand.SitewalkRefusalReason(foreman));
+    }
+
     private static readonly IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> NoMcpWiring =
         new Dictionary<string, IReadOnlyDictionary<string, string>>();
 }

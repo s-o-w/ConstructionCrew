@@ -78,6 +78,8 @@ public static class ForemanDetailsCommand
 
     private const string RerenderInstructionsAction = "re-render instructions";
 
+    private const string RunSitewalkAction = "run sitewalk";
+
     public static void Run(
         ForemanDirectory foremen,
         JobsiteDirectory jobsites,
@@ -125,6 +127,7 @@ public static class ForemanDetailsCommand
             }
 
             choices.Add(RerenderInstructionsAction);
+            choices.Add(RunSitewalkAction);
             choices.Add("done");
 
             var choice = AnsiConsole.Prompt(
@@ -138,6 +141,12 @@ public static class ForemanDetailsCommand
             if (choice == RerenderInstructionsAction)
             {
                 RerenderInstructions(foreman, jobsite, availableProviderIds, repoRoot, vaultRoot, jobs);
+                continue;
+            }
+
+            if (choice == RunSitewalkAction)
+            {
+                RunSitewalk(foreman, jobs);
                 continue;
             }
 
@@ -363,6 +372,66 @@ public static class ForemanDetailsCommand
         {
             jobs.ForgetLiveAgent(foreman.Name);
             AnsiConsole.MarkupLine($"[yellow]Dropped[/] {Markup.Escape(foreman.Name)}'s live conversation.");
+        }
+
+        AnsiConsole.Markup("[grey]Press enter to continue...[/]");
+        Console.ReadLine();
+    }
+
+    /// <summary>
+    /// Why this crew member's sitewalk cannot be dispatched, or null when it can.
+    /// Extracted from <see cref="RunSitewalk"/> so the refusal rules are testable
+    /// without driving an interactive prompt loop.
+    ///
+    /// The GC has no Jobsite by construction -- it works out of the Vault -- so a
+    /// sitewalk is meaningless for it, not merely unassigned. A Foreman with no
+    /// JobsiteName has nothing to survey yet.
+    /// </summary>
+    internal static string? SitewalkRefusalReason(ForemanConfig foreman)
+    {
+        if (foreman.Role == CrewRole.GC)
+        {
+            return "The GC has no jobsite to walk.";
+        }
+
+        if (foreman.JobsiteName is null)
+        {
+            return $"{foreman.Name} has no jobsite assigned -- assign one first.";
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Dispatches the sitewalk the hire flow offers, for a Boss who declined it
+    /// then. Ordinary StartJob, exactly like the hire-time dispatch -- same board,
+    /// same job id, same file_sitrep reporting. HireWizard.SitewalkPrompt stays the
+    /// single source of the task text.
+    /// </summary>
+    private static void RunSitewalk(ForemanConfig foreman, JobRegistry jobs)
+    {
+        var refusal = SitewalkRefusalReason(foreman);
+        if (refusal is not null)
+        {
+            AnsiConsole.MarkupLine($"[yellow]{Markup.Escape(refusal)}[/]");
+            AnsiConsole.Markup("[grey]Press enter to continue...[/]");
+            Console.ReadLine();
+            return;
+        }
+
+        try
+        {
+            var jobId = jobs.StartJob(foreman.Name, HireWizard.SitewalkPrompt(foreman.Name, foreman.JobsiteName!));
+            AnsiConsole.MarkupLine(
+                $"[green]Sitewalk dispatched[/] -- job {Markup.Escape(jobId)}. " +
+                $"{Markup.Escape(foreman.Name)} reports back to the GC when it lands.");
+        }
+        catch (Exception ex)
+        {
+            // A failed dispatch is not a failed command: it is reported and the
+            // menu stays open, same as the hire-time dispatch never un-hires.
+            AnsiConsole.MarkupLine(
+                $"[yellow]Sitewalk could not be dispatched:[/] {Markup.Escape(ex.Message)}");
         }
 
         AnsiConsole.Markup("[grey]Press enter to continue...[/]");
