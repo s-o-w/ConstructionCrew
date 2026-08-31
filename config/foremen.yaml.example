@@ -1,11 +1,11 @@
-# ConstructionCrew Foreman registry -- copy this file to foremen.yaml to get
+# ConstructionCrew Foreman registry: copy this file to foremen.yaml to get
 # started (foremen.yaml itself is git-ignored: it's your personal roster, not
 # something to ship or commit).
 #
 # "GC" is a reserved name: whichever entry is named GC plays the General
 # Contractor role the Boss talks to directly. That entry must also carry
 # `role: GC`; every other entry is `role: Foreman`. Add Foremen via the /hire
-# wizard once the app is running -- it appends real entries here for you,
+# wizard once the app is running. It appends real entries here for you,
 # writes their instructions file, and (if you give it one) creates their
 # Jobsite in jobsites.yaml. Hand-editing this file directly also works.
 #
@@ -19,7 +19,7 @@
 # repo comes along as an addDirs entry instead.
 #
 # providerOptions.allowedTools is an explicit allow-list (Claude Code's
-# --allowedTools), not a blanket permission bypass -- keep it narrow and
+# --allowedTools), not a blanket permission bypass. Keep it narrow and
 # scoped to what each role actually needs. Under `claude -p`, an allow-list
 # that omits the Home Office MCP tools silently denies every dispatch. GC's
 # list stays narrow but MUST include Write and Edit: writing the workorder is
@@ -44,7 +44,7 @@ foremen:
     providerOptions:
       allowedTools: "Read,Glob,Grep,Write,Edit,mcp__home_office__list_foremen,mcp__home_office__list_jobsites,mcp__home_office__dispatch_task,mcp__home_office__spawn_worker,mcp__home_office__ask_foreman,mcp__home_office__get_job_status,mcp__home_office__build_graph,mcp__home_office__query_graph,mcp__home_office__file_sitrep"
 
-  # An example Foreman, for reference -- /hire writes entries in this shape.
+  # An example Foreman, for reference: /hire writes entries in this shape.
   # - name: Frontend
   #   role: Foreman
   #   provider: claude

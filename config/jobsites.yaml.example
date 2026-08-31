@@ -1,23 +1,24 @@
-# ConstructionCrew Jobsite registry -- copy this file to jobsites.yaml to get
+# ConstructionCrew Jobsite registry: copy this file to jobsites.yaml to get
 # started (jobsites.yaml itself is git-ignored: it's personal to whoever's
-# running the tool -- real repo paths, not something to ship or commit).
+# running the tool, real repo paths, not something to ship or commit).
 #
-# Each Foreman in foremen.yaml is assigned to exactly one jobsite by name.
-# Starts empty; the /hire wizard's "add a new jobsite" step creates entries
-# here for you (name, an existing local repo clone path, a description, a
-# border color). Hand-editing is fine too. This file doesn't even need to
-# exist -- ConstructionCrew creates it on the first jobsite you add.
+# Each Foreman in foremen.yaml is assigned to exactly one jobsite by name; a
+# jobsite may have more than one Foreman assigned to it. Starts empty; the
+# /hire wizard's "add a new jobsite" step creates entries here for you (name,
+# an existing local repo clone path, a description, a border color).
+# Hand-editing is fine too. This file doesn't even need to exist:
+# ConstructionCrew creates it on the first jobsite you add.
 #
 # vaultFolders is the jobsite's write scope inside the Vault, always
-# vault-RELATIVE (never an absolute path -- it is resolved against the
+# vault-RELATIVE (never an absolute path; it is resolved against the
 # configured Vault root at use time, so it survives the Vault moving). On a
-# recognized vault layout (HOME.md, CLAUDE.md, Notes/, Plans/ at the root)
-# /hire derives "Notes/<Jobsite>" and "Plans/<Jobsite>" without asking;
-# otherwise it prompts.
+# recognized vault layout (HOME.md, CLAUDE.md, Notes/, Plans/, and AI/ all at
+# the root) /hire derives "Notes/<Jobsite>" and "Plans/<Jobsite>" without
+# asking; otherwise it prompts.
 
 jobsites:
 
-  # An example jobsite, for reference -- /hire writes entries in this shape.
+  # An example jobsite, for reference: /hire writes entries in this shape.
   # - name: frontend
   #   repoPath: /home/you/Projects/frontend
   #   description: 'The customer-facing web app.'
