@@ -94,4 +94,71 @@ public class CodexProviderTests
         Assert.Equal("codex", provider.ExecutableName);
         Assert.True(provider.IsImplemented);
     }
+
+    /// <summary>
+    /// The banner is on STDERR, not stdout. Confirmed on 2026-08-31 by running
+    /// a real turn with the streams captured separately: stdout held exactly
+    /// the answer text, stderr held version/workdir/model/sandbox and the
+    /// session id line reproduced below.
+    /// </summary>
+    private const string StartupBanner = """
+        OpenAI Codex v0.144.6
+        --------
+        workdir: C:\work
+        model: gpt-5.6-sol
+        provider: openai
+        approval: on-request
+        sandbox: read-only
+        reasoning effort: medium
+        reasoning summaries: none
+        session id: 01a059d4-fdb4-7023-91bb-d651add61b44
+        --------
+        """;
+
+    [Fact]
+    public void PostProcess_ReadsTheSessionIdOffStderr()
+    {
+        var processed = new CodexProvider()
+            .PostProcess(Request(), new CliRunResult(true, "OK.", StartupBanner, 0));
+
+        Assert.Equal("01a059d4-fdb4-7023-91bb-d651add61b44", processed.Usage!.SessionId);
+
+        // Watch-only: nothing here claims counters or cost Codex never reported.
+        Assert.Null(processed.Usage.InputTokens);
+        Assert.Null(processed.Usage.CostUsd);
+        // And the turn's own answer is untouched.
+        Assert.Equal("OK.", processed.StandardOutput);
+    }
+
+    /// <summary>Stderr with no banner (a crash dump, an empty stream) is not an error -- there is simply no id to report.</summary>
+    [Theory]
+    [InlineData("")]
+    [InlineData("Error: something went wrong")]
+    public void PostProcess_WithoutABanner_LeavesTheResultAlone(string stderr)
+    {
+        var result = new CliRunResult(false, "", stderr, 1);
+
+        Assert.Same(result, new CodexProvider().PostProcess(Request(), result));
+    }
+
+    /// <summary>
+    /// Capturing the id must NOT change how Codex resumes. `codex exec resume
+    /// &lt;id&gt;` is unverified, so continuity stays on `resume --last` and an
+    /// id captured for a read-only watch never becomes what a conversation
+    /// depends on.
+    /// </summary>
+    [Fact]
+    public void BuildInvocation_WithASessionId_StillResumesWithLast()
+    {
+        var args = new CodexProvider()
+            .BuildInvocation(new CliTaskRequest(
+                "do the thing", "/work", new Dictionary<string, string>(),
+                ContinuePreviousConversation: true,
+                ResumeSessionId: "01a059d4-fdb4-7023-91bb-d651add61b44"))
+            .Arguments.ToList();
+
+        Assert.Contains("resume", args);
+        Assert.Contains("--last", args);
+        Assert.DoesNotContain("01a059d4-fdb4-7023-91bb-d651add61b44", args);
+    }
 }

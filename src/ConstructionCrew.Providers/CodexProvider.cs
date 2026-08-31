@@ -98,4 +98,55 @@ public sealed class CodexProvider : ICliToolProvider
 
         return new CliInvocation(_executablePath, args, request.WorkingDirectory);
     }
+
+    /// <summary>
+    /// Captures the session id so a Codex Foreman can be watched, and nothing
+    /// else: no counters and no cost, because `codex exec` reports neither in a
+    /// machine-readable form.
+    ///
+    /// <para>
+    /// It comes off STDERR, which is worth stating because the obvious guess is
+    /// wrong. Confirmed by running a real turn on 2026-08-31 with the two
+    /// streams captured separately: stdout held exactly the answer text ("OK.")
+    /// and nothing else, while stderr carried the startup banner -- version,
+    /// workdir, model, sandbox, and the line `session id: &lt;uuid&gt;`. So there
+    /// is no need for the heavier "find the newest rollout whose cwd matches"
+    /// heuristic; the CLI states the id outright.
+    /// </para>
+    ///
+    /// <para>
+    /// This deliberately does NOT change how Codex resumes. BuildInvocation
+    /// still uses `resume --last` and ignores ResumeSessionId: whether `codex
+    /// exec resume &lt;id&gt;` behaves identically has not been verified, and an
+    /// id captured for a read-only watch must not quietly become the mechanism
+    /// a conversation's continuity depends on.
+    /// </para>
+    /// </summary>
+    public CliRunResult PostProcess(CliTaskRequest request, CliRunResult result)
+    {
+        if (string.IsNullOrEmpty(result.StandardError))
+        {
+            return result;
+        }
+
+        var match = SessionIdBanner.Match(result.StandardError);
+        if (!match.Success)
+        {
+            return result;
+        }
+
+        return result with
+        {
+            Usage = (result.Usage ?? new CliUsage(null, null, null, null)) with
+            {
+                SessionId = match.Groups["id"].Value,
+            },
+        };
+    }
+
+    /// <summary>Matches the banner line `session id: 01a059d4-fdb4-7023-91bb-d651add61b44`, copied from real stderr.</summary>
+    private static readonly System.Text.RegularExpressions.Regex SessionIdBanner = new(
+        @"^\s*session id:\s*(?<id>[0-9a-fA-F][0-9a-fA-F-]{7,})\s*$",
+        System.Text.RegularExpressions.RegexOptions.Multiline |
+        System.Text.RegularExpressions.RegexOptions.Compiled);
 }
