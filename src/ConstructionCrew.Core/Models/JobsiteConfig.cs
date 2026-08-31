@@ -2,8 +2,10 @@ namespace ConstructionCrew.Core.Models;
 
 /// <summary>
 /// A project GC is responsible for -- a repo clone plus enough context that a
-/// Foreman assigned to it can "know all about" the site. Strictly one Foreman
-/// per Jobsite by design (Shawn's call, 2026-08-28).
+/// Foreman assigned to it can "know all about" the site. More than one Foreman
+/// may be assigned to the same Jobsite (Shawn's call, 2026-08-31) -- GC can
+/// dispatch different workorders to each. Nothing here tracks WHICH Foremen are
+/// assigned; that's read the other way, off <c>ForemanConfig.JobsiteName</c>.
 /// </summary>
 public sealed record JobsiteConfig(
     string Name,

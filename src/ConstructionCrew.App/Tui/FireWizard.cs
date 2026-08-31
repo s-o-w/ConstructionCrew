@@ -7,16 +7,20 @@ using Spectre.Console;
 namespace ConstructionCrew.App.Tui;
 
 /// <summary>
-/// Removes a Foreman (and its strictly-one-to-one Jobsite) from
-/// ConstructionCrew's own config and live state.
+/// Removes a Foreman from ConstructionCrew's own config and live state. NEVER
+/// removes its Jobsite -- a Jobsite may have other Foremen assigned to it, and
+/// even a solo Foreman's Jobsite config (and everything under
+/// <c>Notes/&lt;Jobsite&gt;</c>/<c>Plans/&lt;Jobsite&gt;</c> in the Vault) is work
+/// the Boss may still want, so firing never deletes it.
 ///
 /// HARD INVARIANT, never to be relaxed: this only ever edits/deletes files
-/// this tool itself generated (foremen.yaml, jobsites.yaml, a Foreman's
+/// this tool itself generated (foremen.yaml, a Foreman's own
 /// AI/ConstructionCrew/Instructions/<name>.md in the Vault). It NEVER touches
-/// tracked working-tree content in a Jobsite repo, with exactly one exception:
-/// <c>git worktree remove</c>/<c>prune</c>, which only ever rewrite
-/// <c>.git/worktrees/</c> bookkeeping for worktrees ConstructionCrew itself
-/// opened. Those repos are the Boss's, not this tool's to touch.
+/// jobsites.yaml, tracked working-tree content in a Jobsite repo, or anything
+/// in the Vault, with exactly one exception: <c>git worktree remove</c>/
+/// <c>prune</c>, which only ever rewrite <c>.git/worktrees/</c> bookkeeping for
+/// worktrees ConstructionCrew itself opened. Those repos are the Boss's, not
+/// this tool's to touch.
 /// </summary>
 public static class FireWizard
 {
@@ -69,8 +73,8 @@ public static class FireWizard
                 new Markup($"[bold]Name:[/] {Markup.Escape(foreman.Name)}"),
                 new Markup(jobsite is null
                     ? "[bold]Jobsite:[/] [grey]none[/]"
-                    : $"[bold]Jobsite (also removed):[/] {Markup.Escape(jobsite.Name)}"),
-                new Markup("[grey]This only removes config in this tool. The jobsite's repo on disk is never touched.[/]")))
+                    : $"[bold]Jobsite:[/] {Markup.Escape(jobsite.Name)} [grey](kept -- not removed, even if this was its only Foreman)[/]"),
+                new Markup("[grey]This only removes this Foreman's own config in this tool. The jobsite's repo, its Vault content, and any other Foreman assigned to it are never touched.[/]")))
             .Header("confirm")
             .Border(BoxBorder.Rounded));
 
@@ -87,13 +91,11 @@ public static class FireWizard
 
         DeleteGeneratedInstructionsFile(foreman.InstructionsFilePath, vaultRoot);
 
-        if (jobsite is not null)
-        {
-            var jobsitesYamlPath = Path.Combine(repoRoot, "config", "jobsites.yaml");
-            JobsiteConfigWriter.RemoveJobsite(jobsitesYamlPath, jobsite.Name);
-            jobsites.Remove(jobsite.Name);
-        }
-
+        // The Jobsite itself is never removed here -- see the class doc comment.
+        // Worktree prune is still safe to run regardless: it only ever clears
+        // stale .git/worktrees/ bookkeeping for a worktree whose directory is
+        // already gone, never a live one another Foreman might still have open.
+        //
         // NEVER repoRoot -- that is ConstructionCrew's own checkout, not the
         // jobsite's. A Foreman with no Jobsite (GC, or one never assigned one) has
         // no worktrees to clean up: skipping the whole prune is the correct
@@ -103,7 +105,7 @@ public static class FireWizard
             await worktreeManager.PruneAsync(jobsite.RepoPath, cancellationToken);
         }
 
-        AnsiConsole.MarkupLine($"[bold green]{Markup.Escape(name)} is fired.[/] Config removed. The jobsite's repo was not touched.");
+        AnsiConsole.MarkupLine($"[bold green]{Markup.Escape(name)} is fired.[/] Config removed. The jobsite (its config and everything under it in the Vault) was not touched.");
     }
 
     /// <summary>Public so the "never deletes outside AI/ConstructionCrew/Instructions" invariant can be tested directly, not just code-reviewed.</summary>

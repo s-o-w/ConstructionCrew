@@ -36,8 +36,10 @@ namespace ConstructionCrew.App.Tui;
 /// </item>
 /// </list>
 ///
-/// A Foreman tied to a Jobsite (one Foreman per Jobsite, by design) also shows
-/// and can edit that Jobsite's own fields -- Description, RepoUrl, etc.
+/// A Foreman tied to a Jobsite also shows and can edit that Jobsite's own
+/// fields -- Description, RepoUrl, etc. More than one Foreman may be tied to
+/// the same Jobsite, so editing these fields through one Foreman's view edits
+/// the same shared Jobsite every other Foreman there sees too.
 /// <b>RepoPath</b> is excluded there for the same "foundational, not casually
 /// editable" reason WorkingDirectory is excluded above.
 /// </summary>
@@ -445,10 +447,9 @@ public static class ForemanDetailsCommand
     }
 
     /// <summary>
-    /// One Foreman per Jobsite, by design (JobsiteConfig's own doc comment). A
-    /// Jobsite already claimed by a different Foreman is refused rather than
-    /// silently double-assigned -- the Boss picks a different Jobsite, or frees
-    /// the current one first via that other Foreman's own "(none)" choice here.
+    /// A Jobsite may have more than one Foreman assigned to it, so reassigning
+    /// to an already-claimed one is never refused -- just noted, so the Boss
+    /// knows who else is already there.
     /// </summary>
     private static ForemanConfig ReassignJobsite(ForemanConfig foreman, ForemanDirectory foremen, JobsiteDirectory jobsites)
     {
@@ -462,19 +463,18 @@ public static class ForemanDetailsCommand
             return foreman with { JobsiteName = null };
         }
 
-        var currentHolder = foremen.All().FirstOrDefault(f =>
-            !f.Name.Equals(foreman.Name, StringComparison.OrdinalIgnoreCase) &&
-            f.JobsiteName is not null &&
-            f.JobsiteName.Equals(chosen, StringComparison.OrdinalIgnoreCase));
+        var otherHolders = foremen.All()
+            .Where(f =>
+                !f.Name.Equals(foreman.Name, StringComparison.OrdinalIgnoreCase) &&
+                f.JobsiteName is not null &&
+                f.JobsiteName.Equals(chosen, StringComparison.OrdinalIgnoreCase))
+            .Select(f => f.Name)
+            .ToList();
 
-        if (currentHolder is not null)
+        if (otherHolders.Count > 0)
         {
             AnsiConsole.MarkupLine(
-                $"[red]'{Markup.Escape(chosen)}' is already assigned to {Markup.Escape(currentHolder.Name)}[/] -- " +
-                "one Foreman per Jobsite. Unassign it there first.");
-            AnsiConsole.Markup("[grey]Press enter to continue...[/]");
-            Console.ReadLine();
-            return foreman;
+                $"[grey]'{Markup.Escape(chosen)}' is already assigned to {Markup.Escape(string.Join(", ", otherHolders))}.[/]");
         }
 
         return foreman with { JobsiteName = chosen };

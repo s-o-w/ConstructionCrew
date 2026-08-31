@@ -13,7 +13,8 @@ namespace ConstructionCrew.App.Tui;
 /// "Add Agent" dialog. Runs as a plain blocking sequence of Spectre prompts --
 /// not part of the redrawn dashboard -- since it's a distinct, linear flow.
 /// Workspace here means picking (or creating) the Jobsite this Foreman is
-/// strictly assigned to -- one Foreman per Jobsite.
+/// assigned to. A Jobsite may have more than one Foreman assigned to it --
+/// the picker below shows every Jobsite, already-claimed ones included.
 /// </summary>
 public static class HireWizard
 {
@@ -351,16 +352,23 @@ public static class HireWizard
         ICliProcessRunner runner, CancellationToken cancellationToken)
     {
         const string addNew = "+ add a new jobsite";
-        var assignedNames = new HashSet<string>(
-            foremen.All().Select(f => f.JobsiteName).Where(n => n is not null)!,
-            StringComparer.OrdinalIgnoreCase);
 
-        var unassigned = jobsites.All().Where(j => !assignedNames.Contains(j.Name)).ToList();
-        var choices = unassigned.Select(j => j.Name).Append(addNew).ToList();
+        // A Jobsite may have more than one Foreman assigned to it -- every
+        // Jobsite is offered, not just unclaimed ones, but an already-staffed
+        // one is labeled with who's already there so the Boss picks it knowingly.
+        var assignedTo = foremen.All()
+            .Where(f => f.JobsiteName is not null)
+            .GroupBy(f => f.JobsiteName!, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => string.Join(", ", g.Select(f => f.Name)), StringComparer.OrdinalIgnoreCase);
+
+        var choices = jobsites.All().Select(j => j.Name).Append(addNew).ToList();
 
         var picked = AnsiConsole.Prompt(
             new SelectionPrompt<string>()
                 .Title("[bold]Workspace[/] -- pick a jobsite, or add a new one:")
+                .UseConverter(jobsiteName => jobsiteName == addNew || !assignedTo.TryGetValue(jobsiteName, out var existing)
+                    ? jobsiteName
+                    : $"{jobsiteName} (already assigned: {existing})")
                 .AddChoices(choices));
 
         if (picked != addNew)
