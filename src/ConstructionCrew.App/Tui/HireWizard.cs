@@ -403,7 +403,16 @@ public static class HireWizard
         string? repoPath = null;
         while (repoPath is null)
         {
-            var input = AnsiConsole.Prompt(
+            var mode = AnsiConsole.Prompt(
+                new SelectionPrompt<string>()
+                    .Title("[bold]Repo path[/] -- browse for an existing folder, or type one (a new, not-yet-created folder must be typed):")
+                    .AddChoices("Browse for it", "Type it"));
+
+            string? input = mode == "Browse for it"
+                ? DirectoryPicker.Pick(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile))
+                : null;
+
+            input ??= AnsiConsole.Prompt(
                 new TextPrompt<string>(
                     "[bold]Repo path[/] -- an existing local clone, or a new folder to create it as an empty project (quotes optional, forward or back slash both work; 'cancel' to stop hiring):"));
 

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using ConstructionCrew.App.Tui;
 using ConstructionCrew.Config;
 using ConstructionCrew.Core.Models;
 using ConstructionCrew.Providers;
@@ -258,6 +259,20 @@ public static class FirstRunWizard
 
         if (choice == useExisting)
         {
+            var mode = AnsiConsole.Prompt(
+                new SelectionPrompt<string>()
+                    .Title("[bold]Vault path[/] -- browse for it, or type it:")
+                    .AddChoices("Browse for it", "Type it"));
+
+            var browsed = mode == "Browse for it"
+                ? DirectoryPicker.Pick(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile))
+                : null;
+
+            if (browsed is not null)
+            {
+                return ExpandPath(browsed);
+            }
+
             var existing = AnsiConsole.Prompt(
                 new TextPrompt<string>("[bold]Vault path[/] -- an existing directory (quotes optional; ~ expands to your home folder):")
                     .Validate(p => Directory.Exists(ExpandPath(p))
