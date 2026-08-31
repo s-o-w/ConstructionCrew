@@ -14,16 +14,18 @@ namespace ConstructionCrew.App.Tui;
 /// </summary>
 public static class Dashboard
 {
+    // "memory" and "monitor" are placeholders for real, not-yet-built features
+    // (see new_features.md) -- they render in the tab strip but, like every tab
+    // that isn't in LiveTabs below, are otherwise inert. "ask me"/"triggers"/
+    // "activity" were removed outright: first-commit scaffolding with no
+    // documented purpose behind any of them.
     private static readonly (string Id, string Label)[] Tabs =
     [
         ("chat", "chat"),
         ("tasks", "tasks"),
         ("hire", "hire"),
-        ("ask me", "ask me"),
         ("memory", "memory"),
-        ("triggers", "triggers"),
         ("monitor", "monitor"),
-        ("activity", "activity"),
     ];
 
     private static readonly HashSet<string> LiveTabs = new(StringComparer.OrdinalIgnoreCase) { "chat", "tasks", "hire" };
