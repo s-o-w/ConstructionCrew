@@ -269,6 +269,7 @@ public class HireWizardVaultFoldersTests
         File.WriteAllText(Path.Combine(path, "CLAUDE.md"), "# CLAUDE");
         Directory.CreateDirectory(Path.Combine(path, "Notes"));
         Directory.CreateDirectory(Path.Combine(path, "Plans"));
+        Directory.CreateDirectory(Path.Combine(path, "AI"));
         return path;
     }
 }

@@ -3,10 +3,17 @@ using ConstructionCrew.Core.Models;
 namespace ConstructionCrew.Config;
 
 /// <summary>
-/// Renders a crew member's instructions file from a checked-in template --
-/// <c>config/templates/gc-instructions.md</c> for a GC,
-/// <c>config/templates/foreman-instructions.md</c> for a Foreman. Replaces
-/// HireWizard's old inline ComposeInstructions.
+/// Renders a crew member's instructions file from a Vault-hosted template --
+/// <c>AI/ConstructionCrew/Templates/gc-instructions.md</c> for a GC,
+/// <c>AI/ConstructionCrew/Templates/foreman-instructions.md</c> for a Foreman.
+/// Replaces HireWizard's old inline ComposeInstructions.
+///
+/// Templates live in the Vault, not this repo, so the Boss can read and edit
+/// them where the rest of the second brain lives. They still ship a master copy
+/// under <c>config/scaffold/AI/ConstructionCrew/Templates/</c>, seeded into a
+/// vault that doesn't have its own copy yet (see VaultLayout.EnsureScaffoldFile)
+/// and never overwritten after that -- an edited template is the Boss's, not
+/// this tool's to clobber.
 ///
 /// The adversarial-review workflow lives in the TEMPLATE, as literal prose, not
 /// in a skill and not in C#. That is what makes it provider-agnostic: an
@@ -19,10 +26,10 @@ public static class InstructionsComposer
 {
     private const string NotConfigured = "(not configured)";
 
-    public static string TemplatesDirectory(string repoRoot) => Path.Combine(repoRoot, "config", "templates");
+    public static string TemplatesDirectory(string vaultRoot) => Path.Combine(vaultRoot, "AI", "ConstructionCrew", "Templates");
 
-    public static string TemplatePath(string repoRoot, CrewRole role) =>
-        Path.Combine(TemplatesDirectory(repoRoot), role == CrewRole.GC ? "gc-instructions.md" : "foreman-instructions.md");
+    public static string TemplatePath(string vaultRoot, CrewRole role) =>
+        Path.Combine(TemplatesDirectory(vaultRoot), role == CrewRole.GC ? "gc-instructions.md" : "foreman-instructions.md");
 
     /// <summary>
     /// The authoredBy string this role stamps on every Vault note it writes.
@@ -43,15 +50,15 @@ public static class InstructionsComposer
 
     /// <summary>Where a crew member's raw briefing is kept, verbatim, so its
     /// instructions can be re-rendered later without asking the Boss again.</summary>
-    public static string BriefingFilePath(string repoRoot, string name) =>
-        Path.Combine(repoRoot, "config", "instructions", $"{name}.briefing.md");
+    public static string BriefingFilePath(string vaultRoot, string name) =>
+        Path.Combine(vaultRoot, "AI", "ConstructionCrew", "Instructions", $"{name}.briefing.md");
 
     /// <summary>
     /// The briefing back out of an already-rendered Foreman instructions file, for a
     /// crew member hired before the sidecar existed. The template puts the briefing
     /// first, then a line that is exactly "---", a blank line, and a "# You are"
-    /// heading (config/templates/foreman-instructions.md:1-5). Returns "" when that
-    /// shape is not found -- a GC file, or a hand-rewritten one.
+    /// heading (AI/ConstructionCrew/Templates/foreman-instructions.md:1-5). Returns ""
+    /// when that shape is not found -- a GC file, or a hand-rewritten one.
     /// </summary>
     public static string ExtractBriefing(string renderedInstructions)
     {
@@ -91,15 +98,21 @@ public static class InstructionsComposer
         JobsiteConfig? jobsite,
         IReadOnlyList<string>? vaultFolders,
         IReadOnlyList<string>? availableEngines,
-        string repoRoot,
         string? vaultRoot)
     {
-        var templatePath = TemplatePath(repoRoot, role);
+        if (string.IsNullOrWhiteSpace(vaultRoot))
+        {
+            throw new InvalidOperationException(
+                "No Vault configured; cannot locate the instructions templates under AI/ConstructionCrew/Templates/.");
+        }
+
+        var templatePath = TemplatePath(vaultRoot, role);
 
         if (!File.Exists(templatePath))
         {
             throw new InvalidOperationException(
-                $"No instructions template at '{templatePath}'. It ships with this repo -- restore it before hiring.");
+                $"No instructions template at '{templatePath}'. It should have been seeded from this repo's " +
+                "config/scaffold/AI/ConstructionCrew/Templates/ -- restore it there before hiring.");
         }
 
         var tokens = new Dictionary<string, string>(StringComparer.Ordinal)

@@ -140,7 +140,7 @@ public static class ForemanDetailsCommand
 
             if (choice == RerenderInstructionsAction)
             {
-                RerenderInstructions(foreman, jobsite, availableProviderIds, repoRoot, vaultRoot, jobs);
+                RerenderInstructions(foreman, jobsite, availableProviderIds, vaultRoot, jobs);
                 continue;
             }
 
@@ -314,11 +314,18 @@ public static class ForemanDetailsCommand
         ForemanConfig foreman,
         JobsiteConfig? jobsite,
         IReadOnlyList<string> availableProviderIds,
-        string repoRoot,
         string? vaultRoot,
         JobRegistry jobs)
     {
-        var briefingPath = InstructionsComposer.BriefingFilePath(repoRoot, foreman.Name);
+        if (string.IsNullOrWhiteSpace(vaultRoot))
+        {
+            AnsiConsole.MarkupLine("[red]No Vault configured -- cannot locate the instructions templates.[/]");
+            AnsiConsole.Markup("[grey]Press enter to continue...[/]");
+            Console.ReadLine();
+            return;
+        }
+
+        var briefingPath = InstructionsComposer.BriefingFilePath(vaultRoot, foreman.Name);
 
         string briefing;
         if (File.Exists(briefingPath))
@@ -349,7 +356,6 @@ public static class ForemanDetailsCommand
                     jobsite,
                     foreman.VaultFolders,
                     availableProviderIds,
-                    repoRoot,
                     vaultRoot));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)

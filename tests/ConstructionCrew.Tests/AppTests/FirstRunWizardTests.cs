@@ -2,6 +2,7 @@ using System.Text.Json.Nodes;
 using ConstructionCrew.App;
 using ConstructionCrew.Config;
 using ConstructionCrew.Core.Models;
+using ConstructionCrew.Tests.TestSupport;
 
 namespace ConstructionCrew.Tests.AppTests;
 
@@ -92,11 +93,10 @@ public class FirstRunWizardTests
         var root = NewTempDir();
         try
         {
-            var repoRoot = Path.Combine(root, "repo");
             var vaultRoot = Path.Combine(root, "vault");
             Directory.CreateDirectory(vaultRoot);
 
-            var path = FirstRunWizard.EnsureGcInstructions(repoRoot, vaultRoot, "GC", ["claude"]);
+            var path = FirstRunWizard.EnsureGcInstructions(vaultRoot, "GC", ["claude"]);
 
             Assert.True(File.Exists(path));
             Assert.Contains("General Contractor", File.ReadAllText(path));
@@ -249,8 +249,7 @@ public class FirstRunWizardTests
             jobsite: null,
             vaultFolders: ["AI/Context"],
             availableEngines: ["claude"],
-            repoRoot: RepoPaths.FindRepoRoot(AppContext.BaseDirectory),
-            vaultRoot: "/vault");
+            vaultRoot: SeededVault.WithInstructionsTemplates());
 
         Assert.Contains("Closing out a Feature", rendered);
         Assert.Contains("file_sitrep", rendered);

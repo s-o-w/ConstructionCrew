@@ -135,14 +135,14 @@ public static class HireWizard
                 "It stays in this Foreman's write scope, but nothing will be able to write there.");
         }
 
-        var instructionsDir = Path.Combine(repoRoot, "config", "instructions");
+        var instructionsDir = Path.Combine(vaultRoot, "AI", "ConstructionCrew", "Instructions");
         Directory.CreateDirectory(instructionsDir);
         var instructionsFilePath = Path.Combine(instructionsDir, $"{name}.md");
 
         // The briefing is kept verbatim beside the rendered file. Nothing else on
         // disk holds it -- ForemanConfig has no briefing field -- so without this
         // sidecar a later re-render would have to ask the Boss for it again.
-        File.WriteAllText(InstructionsComposer.BriefingFilePath(repoRoot, name), briefing);
+        File.WriteAllText(InstructionsComposer.BriefingFilePath(vaultRoot, name), briefing);
 
         File.WriteAllText(
             instructionsFilePath,
@@ -153,7 +153,6 @@ public static class HireWizard
                 jobsite,
                 vaultFolders,
                 availableProviderIds,
-                repoRoot,
                 vaultRoot));
 
         // Tool policy is provider-specific -- Claude Code's "Bash,Edit,Read,Write" means
@@ -211,7 +210,7 @@ public static class HireWizard
 
     /// <summary>
     /// The dispatched task text for a sitewalk. A POINTER, not the brief: the
-    /// sitewalk brief itself is template text in config/templates/foreman-instructions.md,
+    /// sitewalk brief itself is template text in AI/ConstructionCrew/Templates/foreman-instructions.md,
     /// rendered into this Foreman's instructions file by InstructionsComposer and
     /// prepended by LocalCliAgent on turn one. Writing the brief here too would
     /// mean maintaining it in two places and letting the two drift.
@@ -449,7 +448,7 @@ public static class HireWizard
         // hiring) does not. `git init` is safe to run unconditionally here: it
         // is a no-op on a directory that is already a git repo (confirmed via
         // `rev-parse --git-dir` first, rather than assumed), and the Foreman's
-        // own later bootstrap step (config/templates/foreman-instructions.md's
+        // own later bootstrap step (AI/ConstructionCrew/Templates/foreman-instructions.md's
         // "Stand the repository up" step) checks the same way, so this and
         // that step can never disagree about whether a repo already exists.
         await EnsureGitRepo(repoPath, defaultBranch, runner, cancellationToken);
@@ -509,7 +508,7 @@ public static class HireWizard
     /// <summary>
     /// Makes <paramref name="repoPath"/> a real git repository if it isn't one
     /// yet. Checked via `rev-parse --git-dir`, the same command the Foreman's
-    /// own bootstrap step (config/templates/foreman-instructions.md) checks with
+    /// own bootstrap step (AI/ConstructionCrew/Templates/foreman-instructions.md) checks with
     /// -- deliberately the identical check, so hire time and the Foreman's own
     /// later dispatch can never disagree about whether `git init` still needs to
     /// run. Never throws: a repo the Foreman will need to bootstrap for real

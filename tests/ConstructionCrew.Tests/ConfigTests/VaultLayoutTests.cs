@@ -39,9 +39,9 @@ public class VaultLayoutTests
 
             Assert.Equal(VaultRecognition.Unrecognized, VaultLayout.Recognize(root));
 
-            // The three that are actually absent, and only those -- the wizard
+            // The four that are actually absent, and only those -- the wizard
             // shows this list to the Boss verbatim.
-            Assert.Equal(["CLAUDE.md", "Notes/", "Plans/"], VaultLayout.MissingMarkers(root));
+            Assert.Equal(["CLAUDE.md", "Notes/", "Plans/", "AI/"], VaultLayout.MissingMarkers(root));
         }
         finally
         {
@@ -50,7 +50,7 @@ public class VaultLayoutTests
     }
 
     [Fact]
-    public void Recognize_AllFourMarkers_IsRecognized()
+    public void Recognize_AllFiveMarkers_IsRecognized()
     {
         var root = NewTempDir();
         try
@@ -59,6 +59,7 @@ public class VaultLayoutTests
             File.WriteAllText(Path.Combine(root, "CLAUDE.md"), "# CLAUDE");
             Directory.CreateDirectory(Path.Combine(root, "Notes"));
             Directory.CreateDirectory(Path.Combine(root, "Plans"));
+            Directory.CreateDirectory(Path.Combine(root, "AI"));
 
             Assert.Equal(VaultRecognition.Recognized, VaultLayout.Recognize(root));
         }
@@ -73,7 +74,9 @@ public class VaultLayoutTests
     {
         // HOME.md as a directory and Notes as a file both have to fail: plan-Work's
         // Step 0 tests HOME.md/CLAUDE.md with `-f`, and a "Notes" file is not
-        // somewhere a Foreman's Notes/<Jobsite> path can ever be written.
+        // somewhere a Foreman's Notes/<Jobsite> path can ever be written. AI/ is
+        // left correct here -- this test is about the OTHER markers' wrong-kind
+        // failures, not AI/'s.
         var root = NewTempDir();
         try
         {
@@ -81,6 +84,7 @@ public class VaultLayoutTests
             File.WriteAllText(Path.Combine(root, "CLAUDE.md"), "# CLAUDE");
             File.WriteAllText(Path.Combine(root, "Notes"), "not a directory");
             Directory.CreateDirectory(Path.Combine(root, "Plans"));
+            Directory.CreateDirectory(Path.Combine(root, "AI"));
 
             Assert.Equal(VaultRecognition.Unrecognized, VaultLayout.Recognize(root));
             Assert.Equal(["HOME.md", "Notes/"], VaultLayout.MissingMarkers(root));
@@ -128,6 +132,10 @@ public class VaultLayoutTests
             Assert.True(File.Exists(Path.Combine(root, "AI", "graph", "Ontologies", "VaultMeta", "Properties", "touchesProject.md")));
             Assert.True(File.Exists(Path.Combine(root, "AI", "graph", "Vocabularies", "InformationClassification", "External.md")));
             Assert.True(File.Exists(Path.Combine(root, "AI", "graph", "Vocabularies", "NoteMaturity", "Superseded.md")));
+
+            // The instructions templates every crew member's Compose call needs.
+            Assert.True(File.Exists(Path.Combine(root, "AI", "ConstructionCrew", "Templates", "gc-instructions.md")));
+            Assert.True(File.Exists(Path.Combine(root, "AI", "ConstructionCrew", "Templates", "foreman-instructions.md")));
 
             // A scaffolded vault must not ship a Python prerequisite -- build_graph
             // is the export mechanism now, so no export_graph.sh comes along.

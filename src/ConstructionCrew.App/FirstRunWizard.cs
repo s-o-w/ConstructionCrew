@@ -72,7 +72,7 @@ public static class FirstRunWizard
             new TextPrompt<string>("[bold]Display name[/] for the GC (optional, blank to just call it 'GC'):")
                 .AllowEmpty());
 
-        var instructionsFilePath = EnsureGcInstructions(repoRoot, vaultRoot, settings.GcForemanName, availableProviderIds);
+        var instructionsFilePath = EnsureGcInstructions(vaultRoot, settings.GcForemanName, availableProviderIds);
 
         var config = BuildGcConfig(
             settings.GcForemanName,
@@ -184,7 +184,7 @@ public static class FirstRunWizard
     /// is reachable from `~/.claude/skills/` -- that check made sense when this
     /// was written, before ConstructionCrew's own `build_graph`/`query_graph` MCP
     /// tools existed. GC and Foreman instructions call those tools directly
-    /// (see config/templates/*.md); neither ever invokes the skill, so its
+    /// (see AI/ConstructionCrew/Templates/*.md); neither ever invokes the skill, so its
     /// reachability has no bearing on ConstructionCrew's own operation. The skill
     /// still exists for a human, or an external Claude Code session, querying the
     /// vault directly outside this app -- that's a separate concern from hiring
@@ -345,15 +345,16 @@ public static class FirstRunWizard
     }
 
     /// <summary>
-    /// GC's instructions file, rendered from config/templates/gc-instructions.md
-    /// by the same composer a Foreman's file goes through -- the workorder
-    /// handoff protocol lives in that template, so a GC hired from a hand-written
+    /// GC's instructions file, rendered from
+    /// AI/ConstructionCrew/Templates/gc-instructions.md (in the Vault) by the
+    /// same composer a Foreman's file goes through -- the workorder handoff
+    /// protocol lives in that template, so a GC hired from a hand-written
     /// stand-in would never learn it. An existing file is never overwritten: the
     /// Boss may have edited it.
     ///
-    /// A missing template (a broken clone) falls back to a minimal stand-in
-    /// rather than failing the whole first run -- the loader hard-fails on an
-    /// instructionsFilePath that isn't there.
+    /// A missing template (a broken vault, or one not yet migrated) falls back
+    /// to a minimal stand-in rather than failing the whole first run -- the
+    /// loader hard-fails on an instructionsFilePath that isn't there.
     ///
     /// Called from two places, not just first run: <see cref="Run"/> (a genuinely
     /// new install), and Program.cs unconditionally, right before the roster
@@ -366,12 +367,11 @@ public static class FirstRunWizard
     /// hard-fail above is not hypothetical -- it is the only thing the Boss sees.
     /// </summary>
     internal static string EnsureGcInstructions(
-        string repoRoot,
         string vaultRoot,
         string gcForemanName,
         IReadOnlyList<string> availableProviderIds)
     {
-        var instructionsDir = Path.Combine(repoRoot, "config", "instructions");
+        var instructionsDir = Path.Combine(vaultRoot, "AI", "ConstructionCrew", "Instructions");
         Directory.CreateDirectory(instructionsDir);
         var path = Path.Combine(instructionsDir, "GC.md");
 
@@ -390,7 +390,6 @@ public static class FirstRunWizard
                 jobsite: null,
                 vaultFolders: GcVaultFolders,
                 availableEngines: availableProviderIds,
-                repoRoot: repoRoot,
                 vaultRoot: vaultRoot);
         }
         catch (InvalidOperationException)

@@ -1,16 +1,20 @@
 using ConstructionCrew.Config;
 using ConstructionCrew.Core.Models;
+using ConstructionCrew.Tests.TestSupport;
 
 namespace ConstructionCrew.Tests.ConfigTests;
 
 /// <summary>
 /// Runs against the templates that actually ship in this repo, not a synthetic
 /// fixture -- an unreplaced token or a lost section in the real file is exactly
-/// the failure worth catching.
+/// the failure worth catching. They now live under a Vault's
+/// AI/ConstructionCrew/Templates/, so <see cref="RealVaultRoot"/> is a real temp
+/// directory seeded once from this repo's config/scaffold/ copy -- not the vault
+/// this tool was built against, and not a hand-written fixture.
 /// </summary>
 public class InstructionsComposerTests
 {
-    private static string RepoRoot => RepoPaths.FindRepoRoot(AppContext.BaseDirectory);
+    private static readonly string RealVaultRoot = SeededVault.WithInstructionsTemplates();
 
     private static JobsiteConfig Jobsite() =>
         new(
@@ -35,8 +39,7 @@ public class InstructionsComposerTests
             Jobsite(),
             ["Notes/XINFRA", "Plans/XINFRA"],
             ["claude", "codex"],
-            RepoRoot,
-            "/home/shawn/Vault");
+            RealVaultRoot);
 
         Assert.DoesNotContain("{{", rendered);
         Assert.Contains("You are the Frontend Foreman.", rendered);
@@ -47,7 +50,7 @@ public class InstructionsComposerTests
         Assert.Contains("https://github.com/orgs/spatialbiz/projects/73", rendered);
         Assert.Contains("Notes/XINFRA", rendered);
         Assert.Contains("Foreman:XINFRA", rendered);
-        Assert.Contains(Path.Combine("/home/shawn/Vault", "AI", "Context", "crew-preferences.md"), rendered);
+        Assert.Contains(Path.Combine(RealVaultRoot, "AI", "Context", "crew-preferences.md"), rendered);
         Assert.Contains("claude, codex", rendered);
         // The adversarial-review workflow is template text, and it must be
         // provider-agnostic -- no vault skill is ever named.
@@ -73,8 +76,7 @@ public class InstructionsComposerTests
             Jobsite(),
             ["Notes/XINFRA", "Plans/XINFRA"],
             ["claude", "codex"],
-            RepoRoot,
-            "/home/shawn/Vault");
+            RealVaultRoot);
 
         Assert.Contains("sitewalk", rendered, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("READ-ONLY", rendered);
@@ -103,8 +105,7 @@ public class InstructionsComposerTests
             Jobsite(),
             ["Notes/XINFRA", "Plans/XINFRA"],
             ["claude", "codex"],
-            RepoRoot,
-            "/home/shawn/Vault");
+            RealVaultRoot);
 
         // HEAD, not just --git-dir, is the real gate: hiring against a new
         // jobsite already runs a bare `git init`, so a .git directory existing
@@ -124,8 +125,7 @@ public class InstructionsComposerTests
             jobsite: null,
             vaultFolders: null,
             availableEngines: ["claude"],
-            repoRoot: RepoRoot,
-            vaultRoot: "/home/shawn/Vault");
+            vaultRoot: RealVaultRoot);
 
         Assert.DoesNotContain("{{", rendered);
         Assert.Contains("WORKORDER.md", rendered);
@@ -156,8 +156,7 @@ public class InstructionsComposerTests
             Jobsite() with { DefaultBranch = null },
             ["Notes/XINFRA"],
             ["claude"],
-            RepoRoot,
-            "/home/shawn/Vault");
+            RealVaultRoot);
 
         Assert.Contains("--base main", rendered);
         Assert.DoesNotContain("(no defaultBranch configured)", rendered);
@@ -166,20 +165,29 @@ public class InstructionsComposerTests
     [Fact]
     public void Compose_MissingTemplate_ThrowsNamingThePath()
     {
-        var emptyRepoRoot = Path.Combine(Path.GetTempPath(), "cc-no-templates-" + Guid.NewGuid().ToString("n")[..8]);
-        Directory.CreateDirectory(emptyRepoRoot);
+        var emptyVaultRoot = Path.Combine(Path.GetTempPath(), "cc-no-templates-" + Guid.NewGuid().ToString("n")[..8]);
+        Directory.CreateDirectory(emptyVaultRoot);
 
         try
         {
             var ex = Assert.Throws<InvalidOperationException>(() => InstructionsComposer.Compose(
-                "Frontend", CrewRole.Foreman, "b", null, null, null, emptyRepoRoot, null));
+                "Frontend", CrewRole.Foreman, "b", null, null, null, emptyVaultRoot));
 
             Assert.Contains("foreman-instructions.md", ex.Message);
         }
         finally
         {
-            Directory.Delete(emptyRepoRoot, recursive: true);
+            Directory.Delete(emptyVaultRoot, recursive: true);
         }
+    }
+
+    [Fact]
+    public void Compose_NoVaultConfigured_ThrowsRatherThanLookingAnywhereElse()
+    {
+        var ex = Assert.Throws<InvalidOperationException>(() => InstructionsComposer.Compose(
+            "Frontend", CrewRole.Foreman, "b", null, null, null, vaultRoot: null));
+
+        Assert.Contains("No Vault configured", ex.Message);
     }
 
     [Fact]
@@ -197,8 +205,7 @@ public class InstructionsComposerTests
             Jobsite(),
             ["Notes/XINFRA"],
             ["claude"],
-            RepoRoot,
-            "/home/shawn/Vault");
+            RealVaultRoot);
 
         Assert.Equal(briefing, InstructionsComposer.ExtractBriefing(rendered));
     }
@@ -213,8 +220,7 @@ public class InstructionsComposerTests
             jobsite: null,
             vaultFolders: ["AI/Context"],
             availableEngines: ["claude"],
-            repoRoot: RepoRoot,
-            vaultRoot: "/home/shawn/Vault");
+            vaultRoot: RealVaultRoot);
 
         Assert.Equal(string.Empty, InstructionsComposer.ExtractBriefing(rendered));
     }
@@ -232,13 +238,15 @@ public class InstructionsComposerTests
     }
 
     [Fact]
-    public void BriefingFilePath_SitsBesideTheInstructionsFile()
+    public void BriefingFilePath_SitsUnderConstructionCrewInstructions()
     {
-        var briefingPath = InstructionsComposer.BriefingFilePath("/repo", "Frontend");
+        var briefingPath = InstructionsComposer.BriefingFilePath("/vault", "Frontend");
 
-        Assert.Equal(Path.Combine("/repo", "config", "instructions", "Frontend.briefing.md"), briefingPath);
         Assert.Equal(
-            Path.Combine("/repo", "config", "instructions"),
+            Path.Combine("/vault", "AI", "ConstructionCrew", "Instructions", "Frontend.briefing.md"),
+            briefingPath);
+        Assert.Equal(
+            Path.Combine("/vault", "AI", "ConstructionCrew", "Instructions"),
             Path.GetDirectoryName(briefingPath));
     }
 }

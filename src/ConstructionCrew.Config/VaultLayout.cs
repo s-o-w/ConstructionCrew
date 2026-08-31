@@ -25,12 +25,18 @@ public enum VaultRecognition
 ///
 /// Note what that literally tests: `HOME.md` and `CLAUDE.md` as *files*. `Plans/`
 /// it derives without an existence check, and `Notes/` it never names at all.
-/// Recognize() checks all four -- a strict superset -- because Notes/ and Plans/
+/// Recognize() checks all five -- a strict superset -- because Notes/ and Plans/
 /// are what the VaultFolders derivation ("Notes/&lt;Jobsite&gt;", "Plans/&lt;Jobsite&gt;")
 /// actually writes into, and deriving a write path into a directory that isn't
 /// there is the failure this check exists to prevent. Anything Recognized here
 /// therefore also satisfies plan-Work's own two-file test; the reverse is not
 /// guaranteed, and that asymmetry is intentional.
+///
+/// `AI/` joined the required set alongside Notes/ and Plans/ for the same
+/// reason: ConstructionCrew's own instructions templates and rendered
+/// instructions files now live under AI/ConstructionCrew/ (InstructionsComposer),
+/// so a vault missing AI/ is exactly as unable to host this tool's writes as one
+/// missing Notes/ or Plans/.
 /// </summary>
 public static class VaultLayout
 {
@@ -38,7 +44,7 @@ public static class VaultLayout
     public static readonly IReadOnlyList<string> RequiredFiles = ["HOME.md", "CLAUDE.md"];
 
     /// <summary>Directories that must exist directly under the vault root.</summary>
-    public static readonly IReadOnlyList<string> RequiredFolders = ["Notes", "Plans"];
+    public static readonly IReadOnlyList<string> RequiredFolders = ["Notes", "Plans", "AI"];
 
     public static VaultRecognition Recognize(string? vaultRoot) =>
         MissingMarkers(vaultRoot).Count == 0 ? VaultRecognition.Recognized : VaultRecognition.Unrecognized;

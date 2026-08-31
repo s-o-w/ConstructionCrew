@@ -96,7 +96,7 @@ if (!string.IsNullOrWhiteSpace(settings.VaultRoot) && Directory.Exists(settings.
 {
     try
     {
-        FirstRunWizard.EnsureGcInstructions(repoRoot, settings.VaultRoot, settings.GcForemanName, availableProviderIds);
+        FirstRunWizard.EnsureGcInstructions(settings.VaultRoot, settings.GcForemanName, availableProviderIds);
     }
     catch (Exception ex)
     {
