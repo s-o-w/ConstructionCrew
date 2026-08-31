@@ -7,8 +7,7 @@ namespace ConstructionCrew.Tests.TestSupport;
 /// AI/ConstructionCrew/Templates/ masters -- the same seed
 /// VaultLayout.EnsureScaffoldFile would perform on a real vault. Used wherever a
 /// test needs InstructionsComposer.Compose to actually find a template, without
-/// depending on the real personal vault (see GraphTests.TestVault, a different
-/// concern) existing on the machine running the test.
+/// depending on any particular machine having a real vault at all.
 /// </summary>
 internal static class SeededVault
 {
@@ -26,9 +25,8 @@ internal static class SeededVault
             File.Copy(source, Path.Combine(vaultTemplates, Path.GetFileName(source)));
         }
 
-        // These are process-lifetime temp dirs, not per-test-cleaned-up -- the
-        // same tradeoff TestVault's fixtures make. Removed on process exit so
-        // a long test session doesn't litter the temp directory indefinitely.
+        // Process-lifetime temp dir, not per-test-cleaned-up. Removed on process
+        // exit so a long test session doesn't litter the temp directory.
         AppDomain.CurrentDomain.ProcessExit += (_, _) =>
         {
             if (Directory.Exists(vaultRoot))

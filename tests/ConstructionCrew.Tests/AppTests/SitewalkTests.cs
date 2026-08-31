@@ -35,7 +35,7 @@ public class SitewalkTests
 
     private static ForemanConfig Foreman() =>
         new("Frontend", CrewRole.Foreman, "fake", "dir", "instructions.md", new Dictionary<string, string>(),
-            JobsiteName: "XINFRA", VaultFolders: ["Notes/XINFRA", "Plans/XINFRA"]);
+            JobsiteName: "Lighthouse", VaultFolders: ["Notes/Lighthouse", "Plans/Lighthouse"]);
 
     private static ForemanConfig Gc() =>
         new("GC", CrewRole.GC, "fake", "dir", "instructions.md", new Dictionary<string, string>(),
@@ -60,7 +60,7 @@ public class SitewalkTests
     private static string NewVault()
     {
         var vaultRoot = Path.Combine(Path.GetTempPath(), "cc-sitewalk-" + Guid.NewGuid().ToString("n")[..8]);
-        Directory.CreateDirectory(Path.Combine(vaultRoot, "Notes", "XINFRA"));
+        Directory.CreateDirectory(Path.Combine(vaultRoot, "Notes", "Lighthouse"));
         return vaultRoot;
     }
 
@@ -73,11 +73,11 @@ public class SitewalkTests
     [Fact]
     public void SitewalkPrompt_PointsAtTheBriefWithoutRestatingIt()
     {
-        var prompt = HireWizard.SitewalkPrompt("Frontend", "XINFRA");
+        var prompt = HireWizard.SitewalkPrompt("Frontend", "Lighthouse");
 
-        Assert.Contains("XINFRA", prompt);
+        Assert.Contains("Lighthouse", prompt);
         Assert.Contains("Frontend", prompt);
-        Assert.Contains("Notes/XINFRA/Sitewalk.md", prompt);
+        Assert.Contains("Notes/Lighthouse/Sitewalk.md", prompt);
         Assert.Contains("milestone", prompt);
         Assert.Contains("build_graph", prompt);
         // Read-only is the one hard constraint on a sitewalk.
@@ -95,9 +95,9 @@ public class SitewalkTests
     [Fact]
     public void SitewalkPrompt_NamesTheJobsiteTheNoteAndTheClosingBuildGraph()
     {
-        var prompt = HireWizard.SitewalkPrompt("Backend", "SDS-BSD");
+        var prompt = HireWizard.SitewalkPrompt("Backend", "Tidepool");
 
-        Assert.Contains("Notes/SDS-BSD/Sitewalk.md", prompt);
+        Assert.Contains("Notes/Tidepool/Sitewalk.md", prompt);
         Assert.Contains("milestone", prompt);
         Assert.Contains("build_graph", prompt);
     }
@@ -125,13 +125,13 @@ public class SitewalkTests
             var (frontendStarted, releaseFrontendTurn) = frontend.ArmNextCall();
             releaseFrontend = releaseFrontendTurn;
 
-            var jobId = registry.StartJob("Frontend", HireWizard.SitewalkPrompt("Frontend", "XINFRA"));
+            var jobId = registry.StartJob("Frontend", HireWizard.SitewalkPrompt("Frontend", "Lighthouse"));
             await frontendStarted.WaitAsync(TimeSpan.FromSeconds(5));
 
             // What the Foreman actually sees: its job id, then the sitewalk pointer.
             var task = Assert.Single(frontend.Messages.ToList());
             Assert.StartsWith($"ConstructionCrew job id: {jobId}", task);
-            Assert.Contains("Notes/XINFRA/Sitewalk.md", task);
+            Assert.Contains("Notes/Lighthouse/Sitewalk.md", task);
 
             // Parse the id back out of the task text -- that is the only channel the
             // Foreman has for it, so parsing it is what proves the round trip.
@@ -148,7 +148,7 @@ public class SitewalkTests
                 idFromTaskText,
                 "summary",
                 "milestone",
-                "Sitewalk done: Notes/XINFRA/Sitewalk.md written; build succeeded, 12 tests green.",
+                "Sitewalk done: Notes/Lighthouse/Sitewalk.md written; build succeeded, 12 tests green.",
                 CancellationToken.None);
 
             // The GC is genuinely woken: this only completes because AskGc opened
@@ -159,7 +159,7 @@ public class SitewalkTests
             var result = await sitrep.WaitAsync(TimeSpan.FromSeconds(10));
 
             // 1. The note really landed in the Vault.
-            var path = Path.Combine(vaultRoot, "Notes", "XINFRA", "Sitreps", $"{DateTimeOffset.UtcNow:yyyy-MM-dd}-summary.md");
+            var path = Path.Combine(vaultRoot, "Notes", "Lighthouse", "Sitreps", $"{DateTimeOffset.UtcNow:yyyy-MM-dd}-summary.md");
             Assert.True(File.Exists(path));
             Assert.Contains("Sitewalk done", File.ReadAllText(path));
 
@@ -200,7 +200,7 @@ public class SitewalkTests
             var foremen = new FakeForemanDirectory(Foreman(), Gc());
             var factory = new RecordingAgentFactory();
             var registry = NewRegistry(foremen, factory);
-            var jobId = registry.StartJob("Frontend", HireWizard.SitewalkPrompt("Frontend", "XINFRA"));
+            var jobId = registry.StartJob("Frontend", HireWizard.SitewalkPrompt("Frontend", "Lighthouse"));
             var tool = new FileSitrepTool(foremen, new HomeOfficeVaultOptions(vaultRoot), registry, new SitrepWriter());
 
             var result = await tool.FileSitrep(

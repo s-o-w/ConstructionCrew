@@ -142,7 +142,7 @@ public class JobRegistryTests
     [Fact]
     public async Task StartWorkerJob_RunsUnderParentName_LabeledAsWorker()
     {
-        var parent = new ForemanConfig("Frontend", CrewRole.Foreman, "fake", "dir", "instructions.md", new Dictionary<string, string>(), JobsiteName: "XINFRA");
+        var parent = new ForemanConfig("Frontend", CrewRole.Foreman, "fake", "dir", "instructions.md", new Dictionary<string, string>(), JobsiteName: "Lighthouse");
         var directory = new FakeForemanDirectory(parent);
         // The PARENT's turn hangs (it has to still hold its workorder when the
         // Worker is spawned); the Worker's own turn completes normally.
@@ -158,7 +158,7 @@ public class JobRegistryTests
         var stateDirectory = Path.Combine(Path.GetTempPath(), "cc-worker-state");
         var registry = BuildRegistry(
             directory, factory, sink, new LiveAgentRegistry(factory), "GC",
-            new FakeJobsiteDirectory(new JobsiteConfig("XINFRA", "/repos/xinfra", "the jobsite")),
+            new FakeJobsiteDirectory(new JobsiteConfig("Lighthouse", "/repos/lighthouse", "the jobsite")),
             worktrees,
             stateDirectory);
 
@@ -182,10 +182,10 @@ public class JobRegistryTests
         // The worktree was opened off the workorder's feature branch, under
         // <StateDirectory>/worktrees/<Jobsite>/, and the Worker actually ran in it.
         var opened = Assert.Single(worktrees.Opened);
-        Assert.Equal("/repos/xinfra", opened.RepoPath);
+        Assert.Equal("/repos/lighthouse", opened.RepoPath);
         Assert.Equal("feature/named-graphs", opened.FeatureBranch);
         Assert.StartsWith("feature/named-graphs-worker-", opened.WorkerBranch);
-        Assert.StartsWith(Path.Combine(stateDirectory, "worktrees", "XINFRA"), opened.WorktreePath);
+        Assert.StartsWith(Path.Combine(stateDirectory, "worktrees", "Lighthouse"), opened.WorktreePath);
         Assert.Equal(opened.WorktreePath, last.WorktreePath);
         Assert.Contains(provider.Requests, r => r.WorkingDirectory == opened.WorktreePath);
     }
@@ -253,7 +253,7 @@ public class JobRegistryTests
     }
 
     private static ActiveWorkorder Workorder(string feature) =>
-        new(feature, "XINFRA", $"/vault/Plans/XINFRA/{feature}", "main", $"feature/{feature}", DateTimeOffset.UtcNow);
+        new(feature, "Lighthouse", $"/vault/Plans/Lighthouse/{feature}", "main", $"feature/{feature}", DateTimeOffset.UtcNow);
 
     /// <summary>
     /// Every job dispatched through this registry hangs mid-turn, on purpose: the
@@ -268,7 +268,7 @@ public class JobRegistryTests
     }
 
     private static ForemanConfig Foreman(string name) =>
-        new(name, CrewRole.Foreman, "fake", "dir", "instructions.md", new Dictionary<string, string>(), JobsiteName: "XINFRA");
+        new(name, CrewRole.Foreman, "fake", "dir", "instructions.md", new Dictionary<string, string>(), JobsiteName: "Lighthouse");
 
     [Fact]
     public void StartJob_WithWorkorder_PopulatesBothMaps()
@@ -575,7 +575,7 @@ public class JobRegistryTests
         await rig.JobsLog.WaitForAppends(2); // Running, then Completed -- the second one is Transition's last act
 
         var append = Assert.Single(rig.RunLog.Appends);
-        Assert.Equal("/vault/Plans/XINFRA/named-graphs", append.PlansFolder);
+        Assert.Equal("/vault/Plans/Lighthouse/named-graphs", append.PlansFolder);
         Assert.Equal(jobId, append.Job.JobId);
         Assert.Equal(JobStatus.Completed, append.Job.Status);
 
@@ -636,7 +636,7 @@ public class JobRegistryTests
         await rig.JobsLog.WaitForAppends(1); // Completed
 
         var append = Assert.Single(rig.RunLog.Appends);
-        Assert.Equal("/vault/Plans/XINFRA/named-graphs", append.PlansFolder);
+        Assert.Equal("/vault/Plans/Lighthouse/named-graphs", append.PlansFolder);
         Assert.Equal(jobId, append.Job.JobId);
     }
 
@@ -853,7 +853,7 @@ public class JobRegistryTests
                 rig.Registry.StartJob(
                     $"Frontend-{i}",
                     $"token-{i}",
-                    new ActiveWorkorder($"feature-{i}", "XINFRA", plansFolder, "main", $"feature/f-{i}", DateTimeOffset.UtcNow)))));
+                    new ActiveWorkorder($"feature-{i}", "Lighthouse", plansFolder, "main", $"feature/f-{i}", DateTimeOffset.UtcNow)))));
 
             await rig.RunLog.WaitForAppends(jobCount);
 

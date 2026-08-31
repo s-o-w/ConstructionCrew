@@ -27,12 +27,12 @@ public class WorkorderReaderTests
         var vaultRoot = NewVault();
         try
         {
-            var path = WriteWorkorder(vaultRoot, "XINFRA", "named-graphs", "feature: named-graphs\njobsite: XINFRA\nsourceBranch: develop");
+            var path = WriteWorkorder(vaultRoot, "Lighthouse", "named-graphs", "feature: named-graphs\njobsite: Lighthouse\nsourceBranch: develop");
 
             var parsed = new WorkorderReader().Read(path, vaultRoot);
 
             Assert.Equal("named-graphs", parsed.Feature);
-            Assert.Equal("XINFRA", parsed.Jobsite);
+            Assert.Equal("Lighthouse", parsed.Jobsite);
             Assert.Equal("develop", parsed.SourceBranch);
         }
         finally
@@ -52,7 +52,7 @@ public class WorkorderReaderTests
         var vaultRoot = NewVault();
         try
         {
-            var path = WriteWorkorder(vaultRoot, "XINFRA", "named-graphs", "feature: named-graphs\njobsite: XINFRA");
+            var path = WriteWorkorder(vaultRoot, "Lighthouse", "named-graphs", "feature: named-graphs\njobsite: Lighthouse");
 
             var parsed = new WorkorderReader().Read(path, vaultRoot);
 
@@ -70,10 +70,10 @@ public class WorkorderReaderTests
         var vaultRoot = NewVault();
         try
         {
-            var folder = Path.Combine(vaultRoot, "Notes", "XINFRA");
+            var folder = Path.Combine(vaultRoot, "Notes", "Lighthouse");
             Directory.CreateDirectory(folder);
             var path = Path.Combine(folder, "WORKORDER.md");
-            File.WriteAllText(path, "---\nfeature: named-graphs\njobsite: XINFRA\n---\n");
+            File.WriteAllText(path, "---\nfeature: named-graphs\njobsite: Lighthouse\n---\n");
 
             var ex = Assert.Throws<InvalidOperationException>(() => new WorkorderReader().Read(path, vaultRoot));
 
@@ -91,10 +91,10 @@ public class WorkorderReaderTests
         var vaultRoot = NewVault();
         try
         {
-            var folder = Path.Combine(vaultRoot, "Plans", "XINFRA");
+            var folder = Path.Combine(vaultRoot, "Plans", "Lighthouse");
             Directory.CreateDirectory(folder);
             var path = Path.Combine(folder, "WORKORDER.md");
-            File.WriteAllText(path, "---\nfeature: named-graphs\njobsite: XINFRA\n---\n");
+            File.WriteAllText(path, "---\nfeature: named-graphs\njobsite: Lighthouse\n---\n");
 
             Assert.Throws<InvalidOperationException>(() => new WorkorderReader().Read(path, vaultRoot));
         }
@@ -110,12 +110,12 @@ public class WorkorderReaderTests
         var vaultRoot = NewVault();
         try
         {
-            var path = WriteWorkorder(vaultRoot, "XINFRA", "named-graphs", "feature: named-graphs\njobsite: SDS-BSD");
+            var path = WriteWorkorder(vaultRoot, "Lighthouse", "named-graphs", "feature: named-graphs\njobsite: Tidepool");
 
             var ex = Assert.Throws<InvalidOperationException>(() => new WorkorderReader().Read(path, vaultRoot));
 
-            Assert.Contains("SDS-BSD", ex.Message);
-            Assert.Contains("XINFRA", ex.Message);
+            Assert.Contains("Tidepool", ex.Message);
+            Assert.Contains("Lighthouse", ex.Message);
         }
         finally
         {
@@ -129,7 +129,7 @@ public class WorkorderReaderTests
         var vaultRoot = NewVault();
         try
         {
-            var path = WriteWorkorder(vaultRoot, "XINFRA", "named-graphs", "feature: something-else\njobsite: XINFRA");
+            var path = WriteWorkorder(vaultRoot, "Lighthouse", "named-graphs", "feature: something-else\njobsite: Lighthouse");
 
             var ex = Assert.Throws<InvalidOperationException>(() => new WorkorderReader().Read(path, vaultRoot));
 
@@ -147,7 +147,7 @@ public class WorkorderReaderTests
         var vaultRoot = NewVault();
         try
         {
-            var folder = Path.Combine(vaultRoot, "Plans", "XINFRA", "named-graphs");
+            var folder = Path.Combine(vaultRoot, "Plans", "Lighthouse", "named-graphs");
             Directory.CreateDirectory(folder);
             var path = Path.Combine(folder, "WORKORDER.md");
             File.WriteAllText(path, "Just a body, no frontmatter.\n");
@@ -168,7 +168,7 @@ public class WorkorderReaderTests
         var vaultRoot = NewVault();
         try
         {
-            var path = Path.Combine(vaultRoot, "Plans", "XINFRA", "named-graphs", "WORKORDER.md");
+            var path = Path.Combine(vaultRoot, "Plans", "Lighthouse", "named-graphs", "WORKORDER.md");
 
             Assert.Throws<InvalidOperationException>(() => new WorkorderReader().Read(path, vaultRoot));
         }

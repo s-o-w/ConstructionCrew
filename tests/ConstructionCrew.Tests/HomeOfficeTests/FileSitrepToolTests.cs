@@ -24,19 +24,19 @@ public class FileSitrepToolTests
 
     private static ForemanConfig Foreman(string name = "Frontend") =>
         new(name, CrewRole.Foreman, "fake", "dir", "instructions.md", new Dictionary<string, string>(),
-            JobsiteName: "XINFRA", VaultFolders: ["Notes/XINFRA", "Plans/XINFRA"]);
+            JobsiteName: "Lighthouse", VaultFolders: ["Notes/Lighthouse", "Plans/Lighthouse"]);
 
     private static ForemanConfig Gc() =>
         new("GC", CrewRole.GC, "fake", "dir", "instructions.md", new Dictionary<string, string>(),
             VaultFolders: ["Notes/GC"]);
 
     private static ActiveWorkorder Workorder(string feature = "named-graphs") =>
-        new(feature, "XINFRA", $"/vault/Plans/XINFRA/{feature}", "main", $"feature/{feature}", DateTimeOffset.UtcNow);
+        new(feature, "Lighthouse", $"/vault/Plans/Lighthouse/{feature}", "main", $"feature/{feature}", DateTimeOffset.UtcNow);
 
     private static string NewVault()
     {
         var vaultRoot = Path.Combine(Path.GetTempPath(), "cc-filesitrep-" + Guid.NewGuid().ToString("n")[..8]);
-        Directory.CreateDirectory(Path.Combine(vaultRoot, "Notes", "XINFRA"));
+        Directory.CreateDirectory(Path.Combine(vaultRoot, "Notes", "Lighthouse"));
         return vaultRoot;
     }
 
@@ -74,7 +74,7 @@ public class FileSitrepToolTests
 
             var result = await tool.FileSitrep("Frontend", jobId, "summary", "status", "still going", CancellationToken.None);
 
-            var path = Path.Combine(vaultRoot, "Notes", "XINFRA", "Sitreps", $"{DateTimeOffset.UtcNow:yyyy-MM-dd}-summary.md");
+            var path = Path.Combine(vaultRoot, "Notes", "Lighthouse", "Sitreps", $"{DateTimeOffset.UtcNow:yyyy-MM-dd}-summary.md");
             Assert.True(File.Exists(path));
             Assert.Contains(path, result);
             Assert.Contains("still going", File.ReadAllText(path));
@@ -106,8 +106,8 @@ public class FileSitrepToolTests
 
             await tool.FileSitrep("Frontend", jobId, "summary", "status", "still going", CancellationToken.None);
 
-            var path = Path.Combine(vaultRoot, "Notes", "XINFRA", "Sitreps", $"{DateTimeOffset.UtcNow:yyyy-MM-dd}-summary.md");
-            Assert.Contains("authoredBy: \"Foreman:Frontend:XINFRA\"", File.ReadAllText(path));
+            var path = Path.Combine(vaultRoot, "Notes", "Lighthouse", "Sitreps", $"{DateTimeOffset.UtcNow:yyyy-MM-dd}-summary.md");
+            Assert.Contains("authoredBy: \"Foreman:Frontend:Lighthouse\"", File.ReadAllText(path));
         }
         finally
         {
@@ -237,7 +237,7 @@ public class FileSitrepToolTests
             // The whole point: the completion still knew what it was working on,
             // even though the busy slot was cleared long before it fired.
             var append = Assert.Single(runLog.Appends);
-            Assert.Equal("/vault/Plans/XINFRA/named-graphs", append.PlansFolder);
+            Assert.Equal("/vault/Plans/Lighthouse/named-graphs", append.PlansFolder);
             Assert.Equal(jobId, append.Job.JobId);
 
             // Consumed by that append: the completion is the one and only reader of

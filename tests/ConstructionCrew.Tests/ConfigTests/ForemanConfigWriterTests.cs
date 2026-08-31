@@ -71,7 +71,7 @@ public class ForemanConfigWriterTests
         var yamlPath = Path.GetTempFileName();
         File.WriteAllText(yamlPath, "foremen:\n");
 
-        var mcpConfigPath = @"C:\Users\shawn.weekly\PROJECTS\ConstructionCrew\config\generated\claude-mcp-config.json";
+        var mcpConfigPath = @"C:\Users\devuser\PROJECTS\ConstructionCrew\config\generated\claude-mcp-config.json";
 
         try
         {

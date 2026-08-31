@@ -142,10 +142,10 @@ public class DashboardTests
     {
         var foremen = new ForemanDirectory([
             Crew("GC", CrewRole.GC),
-            Crew("Frontend", CrewRole.Foreman, "XINFRA"),
-            Crew("Backend", CrewRole.Foreman, "XINFRA"),
+            Crew("Frontend", CrewRole.Foreman, "Lighthouse"),
+            Crew("Backend", CrewRole.Foreman, "Lighthouse"),
         ]);
-        var jobsites = new JobsiteDirectory([new JobsiteConfig("XINFRA", "/repos/xinfra", "the jobsite")]);
+        var jobsites = new JobsiteDirectory([new JobsiteConfig("Lighthouse", "/repos/lighthouse", "the jobsite")]);
 
         var rows = Dashboard.MonitorRows(foremen, jobsites, Array.Empty<JobRecord>(), DateTimeOffset.UtcNow);
 
@@ -157,7 +157,7 @@ public class DashboardTests
         Assert.All(rows, r => Assert.Equal("idle", r.State));
         Assert.All(rows, r => Assert.Null(r.Task));
         Assert.All(rows, r => Assert.Null(r.Elapsed));
-        Assert.Equal("XINFRA", rows[1].Jobsite);
+        Assert.Equal("Lighthouse", rows[1].Jobsite);
         Assert.Null(rows[0].Jobsite);
     }
 
@@ -171,8 +171,8 @@ public class DashboardTests
     [Fact]
     public async Task MonitorRows_RunningWorker_GetsItsOwnRow()
     {
-        var foremen = new ForemanDirectory([Crew("GC", CrewRole.GC), Crew("Frontend", CrewRole.Foreman, "XINFRA")]);
-        var jobsites = new JobsiteDirectory([new JobsiteConfig("XINFRA", "/repos/xinfra", "the jobsite")]);
+        var foremen = new ForemanDirectory([Crew("GC", CrewRole.GC), Crew("Frontend", CrewRole.Foreman, "Lighthouse")]);
+        var jobsites = new JobsiteDirectory([new JobsiteConfig("Lighthouse", "/repos/lighthouse", "the jobsite")]);
         var runner = new HangingCliProcessRunner();
         var sink = new JobStatusSink();
         var registry = BuildRegistry(foremen, jobsites, runner, sink);
@@ -186,7 +186,7 @@ public class DashboardTests
         Assert.StartsWith("Frontend/worker-", worker.Who);
         Assert.Equal("do a small thing", worker.Task);
         Assert.Equal("working", worker.State);
-        Assert.Equal("XINFRA", worker.Jobsite);
+        Assert.Equal("Lighthouse", worker.Jobsite);
 
         var parent = Assert.Single(rows, r => r.Who == "Frontend");
         Assert.Equal("working", parent.State);
@@ -208,8 +208,8 @@ public class DashboardTests
     [Fact]
     public async Task MonitorRows_CompletedWorker_IsDropped()
     {
-        var foremen = new ForemanDirectory([Crew("GC", CrewRole.GC), Crew("Frontend", CrewRole.Foreman, "XINFRA")]);
-        var jobsites = new JobsiteDirectory([new JobsiteConfig("XINFRA", "/repos/xinfra", "the jobsite")]);
+        var foremen = new ForemanDirectory([Crew("GC", CrewRole.GC), Crew("Frontend", CrewRole.Foreman, "Lighthouse")]);
+        var jobsites = new JobsiteDirectory([new JobsiteConfig("Lighthouse", "/repos/lighthouse", "the jobsite")]);
         var runner = new HangingCliProcessRunner { NextResult = new CliRunResult(true, "worker done", "", 0) };
         var sink = new JobStatusSink();
         var registry = BuildRegistry(foremen, jobsites, runner, sink);
@@ -294,5 +294,5 @@ public class DashboardTests
     }
 
     private static ActiveWorkorder Workorder(string feature) =>
-        new(feature, "XINFRA", $"/vault/Plans/XINFRA/{feature}", "main", $"feature/{feature}", DateTimeOffset.UtcNow);
+        new(feature, "Lighthouse", $"/vault/Plans/Lighthouse/{feature}", "main", $"feature/{feature}", DateTimeOffset.UtcNow);
 }

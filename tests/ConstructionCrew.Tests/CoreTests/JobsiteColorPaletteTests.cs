@@ -7,8 +7,8 @@ public class JobsiteColorPaletteTests
     [Fact]
     public void DeriveDeterministic_SameName_AlwaysReturnsSameColor()
     {
-        var first = JobsiteColorPalette.DeriveDeterministic("XINFRA");
-        var second = JobsiteColorPalette.DeriveDeterministic("XINFRA");
+        var first = JobsiteColorPalette.DeriveDeterministic("Lighthouse");
+        var second = JobsiteColorPalette.DeriveDeterministic("Lighthouse");
 
         Assert.Equal(first, second);
         Assert.Contains(first, JobsiteColorPalette.Names);

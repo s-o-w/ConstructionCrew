@@ -9,16 +9,16 @@ public class SitrepWriterTests
     private static string NewVault()
     {
         var vaultRoot = Path.Combine(Path.GetTempPath(), "cc-sitrepw-" + Guid.NewGuid().ToString("n")[..8]);
-        Directory.CreateDirectory(Path.Combine(vaultRoot, "Notes", "XINFRA"));
+        Directory.CreateDirectory(Path.Combine(vaultRoot, "Notes", "Lighthouse"));
         return vaultRoot;
     }
 
     private static SitrepRequest Request(string vaultRoot, string body, string altitude = "summary", params string[] folders) =>
         new(vaultRoot,
-            folders.Length == 0 ? ["Notes/XINFRA", "Plans/XINFRA"] : folders,
+            folders.Length == 0 ? ["Notes/Lighthouse", "Plans/Lighthouse"] : folders,
             altitude,
             body,
-            "Foreman:XINFRA");
+            "Foreman:Lighthouse");
 
     [Fact]
     public void Write_FirstOfTheDay_CreatesTheFileWithFrontmatterInsideTheCallersNotesFolder()
@@ -29,17 +29,17 @@ public class SitrepWriterTests
             var path = new SitrepWriter().Write(Request(vaultRoot, "build is green"));
 
             Assert.Equal(
-                Path.Combine(vaultRoot, "Notes", "XINFRA", "Sitreps", $"{DateTimeOffset.UtcNow:yyyy-MM-dd}-summary.md"),
+                Path.Combine(vaultRoot, "Notes", "Lighthouse", "Sitreps", $"{DateTimeOffset.UtcNow:yyyy-MM-dd}-summary.md"),
                 path);
 
             var text = File.ReadAllText(path);
             Assert.StartsWith("---", text);
             Assert.Contains("type: \"[[SessionNote]]\"", text);
-            Assert.Contains("touchesProject: \"[[XINFRA]]\"", text);
-            Assert.Contains("authoredBy: \"Foreman:XINFRA\"", text);
+            Assert.Contains("touchesProject: \"[[Lighthouse]]\"", text);
+            Assert.Contains("authoredBy: \"Foreman:Lighthouse\"", text);
             // The section heading carries its own author too, not just the
             // file-level frontmatter -- what a shared Jobsite's file needs.
-            Assert.Contains("UTC -- Foreman:XINFRA", text);
+            Assert.Contains("UTC -- Foreman:Lighthouse", text);
             Assert.Contains("build is green", text);
         }
         finally
@@ -87,8 +87,8 @@ public class SitrepWriterTests
         try
         {
             var writer = new SitrepWriter();
-            var caseyRequest = Request(vaultRoot, "Casey's update") with { AuthoredBy = "Foreman:Casey:XINFRA" };
-            var robinRequest = Request(vaultRoot, "Robin's update") with { AuthoredBy = "Foreman:Robin:XINFRA" };
+            var caseyRequest = Request(vaultRoot, "Casey's update") with { AuthoredBy = "Foreman:Casey:Lighthouse" };
+            var robinRequest = Request(vaultRoot, "Robin's update") with { AuthoredBy = "Foreman:Robin:Lighthouse" };
 
             var first = writer.Write(caseyRequest);
             var second = writer.Write(robinRequest);
@@ -96,12 +96,12 @@ public class SitrepWriterTests
 
             var text = File.ReadAllText(first);
             // File-level frontmatter still only names whoever created it first.
-            Assert.Contains("authoredBy: \"Foreman:Casey:XINFRA\"", text);
+            Assert.Contains("authoredBy: \"Foreman:Casey:Lighthouse\"", text);
 
             // But each section is self-attributed, and paired with its OWN body --
             // not just that both authors and both bodies appear somewhere.
-            var caseyHeadingIndex = text.IndexOf("UTC -- Foreman:Casey:XINFRA", StringComparison.Ordinal);
-            var robinHeadingIndex = text.IndexOf("UTC -- Foreman:Robin:XINFRA", StringComparison.Ordinal);
+            var caseyHeadingIndex = text.IndexOf("UTC -- Foreman:Casey:Lighthouse", StringComparison.Ordinal);
+            var robinHeadingIndex = text.IndexOf("UTC -- Foreman:Robin:Lighthouse", StringComparison.Ordinal);
             var caseyBodyIndex = text.IndexOf("Casey's update", StringComparison.Ordinal);
             var robinBodyIndex = text.IndexOf("Robin's update", StringComparison.Ordinal);
 
@@ -143,9 +143,9 @@ public class SitrepWriterTests
         try
         {
             var ex = Assert.Throws<InvalidOperationException>(
-                () => new SitrepWriter().Write(Request(vaultRoot, "nowhere to go", "summary", "Plans/XINFRA")));
+                () => new SitrepWriter().Write(Request(vaultRoot, "nowhere to go", "summary", "Plans/Lighthouse")));
 
-            Assert.Contains("Foreman:XINFRA", ex.Message);
+            Assert.Contains("Foreman:Lighthouse", ex.Message);
             Assert.Contains("Notes/", ex.Message);
         }
         finally
@@ -231,8 +231,8 @@ public class SitrepWriterTests
     public void Write_NoVaultRoot_ThrowsNamingTheCaller()
     {
         var ex = Assert.Throws<InvalidOperationException>(
-            () => new SitrepWriter().Write(new SitrepRequest("", ["Notes/XINFRA"], "summary", "body", "Foreman:XINFRA")));
+            () => new SitrepWriter().Write(new SitrepRequest("", ["Notes/Lighthouse"], "summary", "body", "Foreman:Lighthouse")));
 
-        Assert.Contains("Foreman:XINFRA", ex.Message);
+        Assert.Contains("Foreman:Lighthouse", ex.Message);
     }
 }

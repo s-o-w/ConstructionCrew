@@ -24,7 +24,7 @@ public class AskGcToolTests
 
     private static ForemanConfig Foreman(string name) =>
         new(name, CrewRole.Foreman, "fake", "dir", "instructions.md", new Dictionary<string, string>(),
-            JobsiteName: "XINFRA", VaultFolders: ["Notes/XINFRA", "Plans/XINFRA"]);
+            JobsiteName: "Lighthouse", VaultFolders: ["Notes/Lighthouse", "Plans/Lighthouse"]);
 
     private static ForemanConfig Gc() =>
         new("GC", CrewRole.GC, "fake", "dir", "instructions.md", new Dictionary<string, string>(),
@@ -240,7 +240,7 @@ public class AskGcToolTests
     internal static string TestVaultRoot()
     {
         var vaultRoot = Path.Combine(Path.GetTempPath(), "cc-sitrep-" + Guid.NewGuid().ToString("n")[..8]);
-        Directory.CreateDirectory(Path.Combine(vaultRoot, "Notes", "XINFRA"));
+        Directory.CreateDirectory(Path.Combine(vaultRoot, "Notes", "Lighthouse"));
         return vaultRoot;
     }
 

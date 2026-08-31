@@ -18,16 +18,16 @@ public class InstructionsComposerTests
 
     private static JobsiteConfig Jobsite() =>
         new(
-            "XINFRA",
-            "/home/shawn/PROJECTS/XINFRA",
+            "Lighthouse",
+            "/home/boss/code/lighthouse",
             "The semantic data platform.",
             RepoUrl: null,
             ColorName: "purple",
             DefaultBranch: "develop",
             BuildCommand: "dotnet build",
             TestCommand: "dotnet test",
-            Upstream: new Dictionary<string, string> { ["board"] = "https://github.com/orgs/spatialbiz/projects/73" },
-            VaultFolders: ["Notes/XINFRA", "Plans/XINFRA"]);
+            Upstream: new Dictionary<string, string> { ["board"] = "https://github.com/orgs/example-org/projects/73" },
+            VaultFolders: ["Notes/Lighthouse", "Plans/Lighthouse"]);
 
     [Fact]
     public void Compose_Foreman_RendersEveryTokenAndTheReviewWorkflow()
@@ -37,19 +37,19 @@ public class InstructionsComposerTests
             CrewRole.Foreman,
             "You are the Frontend Foreman.",
             Jobsite(),
-            ["Notes/XINFRA", "Plans/XINFRA"],
+            ["Notes/Lighthouse", "Plans/Lighthouse"],
             ["claude", "codex"],
             RealVaultRoot);
 
         Assert.DoesNotContain("{{", rendered);
         Assert.Contains("You are the Frontend Foreman.", rendered);
-        Assert.Contains("XINFRA", rendered);
+        Assert.Contains("Lighthouse", rendered);
         Assert.Contains("dotnet build", rendered);
         Assert.Contains("dotnet test", rendered);
         Assert.Contains("develop", rendered);
-        Assert.Contains("https://github.com/orgs/spatialbiz/projects/73", rendered);
-        Assert.Contains("Notes/XINFRA", rendered);
-        Assert.Contains("Foreman:Frontend:XINFRA", rendered);
+        Assert.Contains("https://github.com/orgs/example-org/projects/73", rendered);
+        Assert.Contains("Notes/Lighthouse", rendered);
+        Assert.Contains("Foreman:Frontend:Lighthouse", rendered);
         Assert.Contains(Path.Combine(RealVaultRoot, "AI", "Context", "crew-preferences.md"), rendered);
         Assert.Contains("claude, codex", rendered);
         // The adversarial-review workflow is template text, and it must be
@@ -74,13 +74,13 @@ public class InstructionsComposerTests
             CrewRole.Foreman,
             "You are the Frontend Foreman.",
             Jobsite(),
-            ["Notes/XINFRA", "Plans/XINFRA"],
+            ["Notes/Lighthouse", "Plans/Lighthouse"],
             ["claude", "codex"],
             RealVaultRoot);
 
         Assert.Contains("sitewalk", rendered, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("READ-ONLY", rendered);
-        Assert.Contains("Notes/XINFRA/Sitewalk.md", rendered);
+        Assert.Contains("Notes/Lighthouse/Sitewalk.md", rendered);
         // The completion path, spelled out: milestone, not status.
         Assert.Contains("kind=\"milestone\"", rendered);
         Assert.Contains("a file appearing in the", rendered);
@@ -103,7 +103,7 @@ public class InstructionsComposerTests
             CrewRole.Foreman,
             "You are the Frontend Foreman.",
             Jobsite(),
-            ["Notes/XINFRA", "Plans/XINFRA"],
+            ["Notes/Lighthouse", "Plans/Lighthouse"],
             ["claude", "codex"],
             RealVaultRoot);
 
@@ -128,7 +128,7 @@ public class InstructionsComposerTests
             CrewRole.Foreman,
             "You are the Frontend Foreman.",
             Jobsite(),
-            ["Notes/XINFRA", "Plans/XINFRA"],
+            ["Notes/Lighthouse", "Plans/Lighthouse"],
             ["claude", "codex"],
             RealVaultRoot);
 
@@ -160,13 +160,13 @@ public class InstructionsComposerTests
     [Fact]
     public void AuthoredBy_IsGcForAGcAndForemanNameJobsiteForAForeman()
     {
-        Assert.Equal("GC", InstructionsComposer.AuthoredBy(CrewRole.GC, "GC", "XINFRA"));
-        Assert.Equal("Foreman:Frontend:XINFRA", InstructionsComposer.AuthoredBy(CrewRole.Foreman, "Frontend", "XINFRA"));
+        Assert.Equal("GC", InstructionsComposer.AuthoredBy(CrewRole.GC, "GC", "Lighthouse"));
+        Assert.Equal("Foreman:Frontend:Lighthouse", InstructionsComposer.AuthoredBy(CrewRole.Foreman, "Frontend", "Lighthouse"));
 
         // The whole point: two Foremen sharing a Jobsite must not collide.
         Assert.NotEqual(
-            InstructionsComposer.AuthoredBy(CrewRole.Foreman, "Frontend", "XINFRA"),
-            InstructionsComposer.AuthoredBy(CrewRole.Foreman, "Backend", "XINFRA"));
+            InstructionsComposer.AuthoredBy(CrewRole.Foreman, "Frontend", "Lighthouse"),
+            InstructionsComposer.AuthoredBy(CrewRole.Foreman, "Backend", "Lighthouse"));
     }
 
     /// <summary>
@@ -182,7 +182,7 @@ public class InstructionsComposerTests
             CrewRole.Foreman,
             "You are the Frontend Foreman.",
             Jobsite() with { DefaultBranch = null },
-            ["Notes/XINFRA"],
+            ["Notes/Lighthouse"],
             ["claude"],
             RealVaultRoot);
 
@@ -231,7 +231,7 @@ public class InstructionsComposerTests
             CrewRole.Foreman,
             briefing,
             Jobsite(),
-            ["Notes/XINFRA"],
+            ["Notes/Lighthouse"],
             ["claude"],
             RealVaultRoot);
 

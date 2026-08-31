@@ -191,7 +191,7 @@ public class ForemanDetailsCommandTests
     {
         var foreman = new ForemanConfig(
             "Frontend", CrewRole.Foreman, "claude", "repo", "instructions.md", new Dictionary<string, string>(),
-            JobsiteName: "XINFRA");
+            JobsiteName: "Lighthouse");
 
         Assert.Null(ForemanDetailsCommand.SitewalkRefusalReason(foreman));
     }

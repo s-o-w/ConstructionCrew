@@ -9,7 +9,7 @@ public class JobsiteConfigWriterTests
     public void AppendJobsite_ThenReload_RoundTripsCorrectly()
     {
         var repoRoot = Path.GetTempPath().TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        var repoPath = Path.Combine(repoRoot, "repos", "xinfra");
+        var repoPath = Path.Combine(repoRoot, "repos", "lighthouse");
         Directory.CreateDirectory(repoPath);
 
         var yamlPath = Path.GetTempFileName();
@@ -17,7 +17,7 @@ public class JobsiteConfigWriterTests
 
         try
         {
-            var jobsite = new JobsiteConfig("XINFRA", repoPath, "The semantic data platform.", "https://github.com/spatialbiz/XINFRA", "purple");
+            var jobsite = new JobsiteConfig("Lighthouse", repoPath, "The semantic data platform.", "https://github.com/example-org/Lighthouse", "purple");
 
             JobsiteConfigWriter.AppendJobsite(yamlPath, jobsite, repoRoot);
 
@@ -25,10 +25,10 @@ public class JobsiteConfigWriterTests
 
             Assert.Single(reloaded);
             var reloadedJobsite = reloaded[0];
-            Assert.Equal("XINFRA", reloadedJobsite.Name);
+            Assert.Equal("Lighthouse", reloadedJobsite.Name);
             Assert.Equal(Path.GetFullPath(repoPath), Path.GetFullPath(reloadedJobsite.RepoPath));
             Assert.Equal("The semantic data platform.", reloadedJobsite.Description);
-            Assert.Equal("https://github.com/spatialbiz/XINFRA", reloadedJobsite.RepoUrl);
+            Assert.Equal("https://github.com/example-org/Lighthouse", reloadedJobsite.RepoUrl);
             Assert.Equal("purple", reloadedJobsite.ColorName);
         }
         finally
@@ -58,13 +58,13 @@ public class JobsiteConfigWriterTests
             JobsiteConfigWriter.AppendJobsite(
                 yamlPath,
                 new JobsiteConfig(
-                    "XINFRA",
+                    "Lighthouse",
                     repoPath,
                     "desc",
                     DefaultBranch: "develop",
                     BuildCommand: "dotnet build",
                     TestCommand: "dotnet test",
-                    Upstream: new Dictionary<string, string> { ["board"] = "https://github.com/orgs/spatialbiz/projects/73" }),
+                    Upstream: new Dictionary<string, string> { ["board"] = "https://github.com/orgs/example-org/projects/73" }),
                 repoRoot);
 
             var reloaded = Assert.Single(new JobsiteConfigLoader().LoadFromFile(yamlPath, repoRoot));
@@ -72,7 +72,7 @@ public class JobsiteConfigWriterTests
             Assert.Equal("develop", reloaded.DefaultBranch);
             Assert.Equal("dotnet build", reloaded.BuildCommand);
             Assert.Equal("dotnet test", reloaded.TestCommand);
-            Assert.Equal("https://github.com/orgs/spatialbiz/projects/73", reloaded.Upstream!["board"]);
+            Assert.Equal("https://github.com/orgs/example-org/projects/73", reloaded.Upstream!["board"]);
         }
         finally
         {

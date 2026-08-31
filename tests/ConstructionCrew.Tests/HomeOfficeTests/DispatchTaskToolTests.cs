@@ -87,7 +87,7 @@ public class DispatchTaskToolTests
     [Fact]
     public void DispatchTask_WithWorkorder_ButNoVaultConfigured_RejectsBeforeReadingAnything()
     {
-        var foremen = new FakeForemanDirectory(Foreman("Frontend", "XINFRA"));
+        var foremen = new FakeForemanDirectory(Foreman("Frontend", "Lighthouse"));
         var tool = new DispatchTaskTool(
             NewRegistry(foremen),
             new ExplodingWorkorderReader(),
@@ -96,7 +96,7 @@ public class DispatchTaskToolTests
             new HomeOfficeVaultOptions(null));
 
         var ex = Assert.Throws<InvalidOperationException>(
-            () => tool.DispatchTask("Frontend", "do it", "/anywhere/Plans/XINFRA/f/WORKORDER.md"));
+            () => tool.DispatchTask("Frontend", "do it", "/anywhere/Plans/Lighthouse/f/WORKORDER.md"));
 
         Assert.Contains("dispatch_task", ex.Message);
         Assert.Contains("Vault", ex.Message);
@@ -108,7 +108,7 @@ public class DispatchTaskToolTests
     [Fact]
     public void DispatchTask_WithoutWorkorder_NeverTouchesVaultOptions()
     {
-        var foremen = new FakeForemanDirectory(Foreman("Frontend", "XINFRA"));
+        var foremen = new FakeForemanDirectory(Foreman("Frontend", "Lighthouse"));
         var tool = new DispatchTaskTool(
             NewRegistry(foremen),
             new ExplodingWorkorderReader(),
@@ -127,9 +127,9 @@ public class DispatchTaskToolTests
         var vaultRoot = NewVault();
         try
         {
-            var path = WriteWorkorder(vaultRoot, "XINFRA", "named-graphs", "feature: named-graphs\njobsite: XINFRA");
+            var path = WriteWorkorder(vaultRoot, "Lighthouse", "named-graphs", "feature: named-graphs\njobsite: Lighthouse");
             // Backend is assigned to a different jobsite than the workorder names.
-            var foremen = new FakeForemanDirectory(Foreman("Backend", "SDS-BSD"));
+            var foremen = new FakeForemanDirectory(Foreman("Backend", "Tidepool"));
             var tool = new DispatchTaskTool(
                 NewRegistry(foremen),
                 new WorkorderReader(),
@@ -139,8 +139,8 @@ public class DispatchTaskToolTests
 
             var ex = Assert.Throws<InvalidOperationException>(() => tool.DispatchTask("Backend", "do it", path));
 
-            Assert.Contains("XINFRA", ex.Message);
-            Assert.Contains("SDS-BSD", ex.Message);
+            Assert.Contains("Lighthouse", ex.Message);
+            Assert.Contains("Tidepool", ex.Message);
         }
         finally
         {
@@ -156,16 +156,16 @@ public class DispatchTaskToolTests
         {
             var repoPath = Path.Combine(vaultRoot, "repo");
             Directory.CreateDirectory(repoPath);
-            var path = WriteWorkorder(vaultRoot, "XINFRA", "named-graphs", "feature: named-graphs\njobsite: XINFRA");
+            var path = WriteWorkorder(vaultRoot, "Lighthouse", "named-graphs", "feature: named-graphs\njobsite: Lighthouse");
 
-            var foremen = new FakeForemanDirectory(Foreman("Frontend", "XINFRA"));
+            var foremen = new FakeForemanDirectory(Foreman("Frontend", "Lighthouse"));
             var registry = NewRegistry(foremen);
             var tool = new DispatchTaskTool(
                 registry,
                 new WorkorderReader(),
                 foremen,
                 // No sourceBranch in the workorder -> the jobsite's DefaultBranch wins.
-                new FakeJobsiteDirectory(new JobsiteConfig("XINFRA", repoPath, "desc", DefaultBranch: "develop")),
+                new FakeJobsiteDirectory(new JobsiteConfig("Lighthouse", repoPath, "desc", DefaultBranch: "develop")),
                 new HomeOfficeVaultOptions(vaultRoot));
 
             var jobId = tool.DispatchTask("Frontend", "do it", path);
@@ -173,8 +173,8 @@ public class DispatchTaskToolTests
             var claimed = registry.GetJobWorkorder(jobId);
             Assert.NotNull(claimed);
             Assert.Equal("named-graphs", claimed!.Feature);
-            Assert.Equal("XINFRA", claimed.Jobsite);
-            Assert.Equal(Path.Combine(vaultRoot, "Plans", "XINFRA", "named-graphs"), claimed.PlansFolder);
+            Assert.Equal("Lighthouse", claimed.Jobsite);
+            Assert.Equal(Path.Combine(vaultRoot, "Plans", "Lighthouse", "named-graphs"), claimed.PlansFolder);
             Assert.Equal("develop", claimed.SourceBranch);
             Assert.Equal("feature/named-graphs", claimed.FeatureBranch);
             Assert.Equal(jobId, registry.GetWorkorderSlotOwner("Frontend"));
@@ -192,8 +192,8 @@ public class DispatchTaskToolTests
         var vaultRoot = NewVault();
         try
         {
-            var path = WriteWorkorder(vaultRoot, "XINFRA", "named-graphs", "feature: named-graphs\njobsite: XINFRA");
-            var foremen = new FakeForemanDirectory(Foreman("Frontend", "XINFRA"));
+            var path = WriteWorkorder(vaultRoot, "Lighthouse", "named-graphs", "feature: named-graphs\njobsite: Lighthouse");
+            var foremen = new FakeForemanDirectory(Foreman("Frontend", "Lighthouse"));
             var registry = NewRegistry(foremen);
             var tool = new DispatchTaskTool(
                 registry,
