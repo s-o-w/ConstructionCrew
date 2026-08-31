@@ -1,5 +1,7 @@
 # ConstructionCrew
 
+A personal project, not SBS/Enverus work: early, built for one person's own use, Apache-2.0, ships to a personal GitHub. It solves one problem -- running more than one local coding-agent CLI at once, each on its own repo, coordinated through one small hierarchy instead of babysitting one terminal per agent.
+
 A cross-platform, single-input-line .NET TUI that dispatches work to local CLI coding agents (Claude Code, Codex CLI and GitHub Copilot CLI today) through a construction-site metaphor:
 
 **Boss** (whoever is running it) → **GC** (dispatcher, talks to the Boss directly) → **Foremen** (each working one **Jobsite**, a real repo, backed by a configurable CLI) → **Workers** (ephemeral sub-agents a Foreman spawns for a single piece of work) → **Tools** (the CLIs themselves).
