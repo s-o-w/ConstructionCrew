@@ -184,6 +184,38 @@ public class ClaudeCodeProviderTests
         Assert.Equal(0, processed.ExitCode);
     }
 
+    /// <summary>
+    /// session_id is the field the whole watch/resume path is built on: it names
+    /// one exact conversation, where --continue only ever means "whatever ran in
+    /// this directory last". Read off the same envelope as the counters, so no
+    /// caller has to parse the JSON a second time.
+    /// </summary>
+    [Fact]
+    public void PostProcess_JsonRun_CapturesTheSessionId()
+    {
+        var provider = new ClaudeCodeProvider();
+        var request = new CliTaskRequest(
+            "hello", "/work", new Dictionary<string, string> { ["outputFormat"] = "json" });
+
+        var processed = provider.PostProcess(request, new CliRunResult(true, JsonResultSample, "", 0));
+
+        Assert.Equal("6f0d1e0e-1b7a-4c33-9a24-2f2c1f5f1a10", processed.Usage!.SessionId);
+    }
+
+    /// <summary>An envelope with no session_id is not an error: accounting still lands, the id just stays unavailable.</summary>
+    [Fact]
+    public void PostProcess_EnvelopeWithoutASessionId_LeavesItNull()
+    {
+        var provider = new ClaudeCodeProvider();
+        var request = new CliTaskRequest(
+            "hello", "/work", new Dictionary<string, string> { ["outputFormat"] = "json" });
+
+        var processed = provider.PostProcess(
+            request, new CliRunResult(true, """{"type":"result","result":"done"}""", "", 0));
+
+        Assert.Null(processed.Usage!.SessionId);
+    }
+
     /// <summary>Without the opt-in there is no envelope to read, so nothing is parsed and Usage stays null.</summary>
     [Fact]
     public void PostProcess_WithoutTheOption_LeavesTheResultExactlyAsItCame()

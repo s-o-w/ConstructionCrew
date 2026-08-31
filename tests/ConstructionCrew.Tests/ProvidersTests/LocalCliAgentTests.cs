@@ -103,4 +103,68 @@ public class LocalCliAgentTests
         Assert.Equal(20, result.Usage.OutputTokens);
         Assert.Equal(0.5m, result.Usage.CostUsd);
     }
+
+    /// <summary>
+    /// The agent remembers the engine's own session id off every turn, which is
+    /// what the watcher looks a transcript up by. Taken straight off CliUsage --
+    /// no second parse of the envelope and no "is this Claude?" check in here.
+    /// </summary>
+    [Fact]
+    public async Task SendAsync_RemembersTheSessionIdTheProviderReported()
+    {
+        var provider = new FakeCliToolProvider
+        {
+            NextUsage = new CliUsage(null, null, null, null, "abc-123"),
+        };
+        var agent = NewAgent(provider);
+
+        Assert.Null(agent.SessionId);
+
+        await agent.SendAsync("do the thing", CancellationToken.None);
+
+        Assert.Equal("abc-123", agent.SessionId);
+    }
+
+    /// <summary>
+    /// Sticky on purpose. A turn that reported no id (a crashed CLI, a
+    /// plain-text provider) must not blank a conversation that is still
+    /// perfectly resumable -- dropping it would send the next turn to a fresh
+    /// session and lose the Foreman's context.
+    /// </summary>
+    [Fact]
+    public async Task SendAsync_ATurnWithNoSessionId_KeepsTheOneAlreadyKnown()
+    {
+        var provider = new FakeCliToolProvider
+        {
+            NextUsage = new CliUsage(null, null, null, null, "abc-123"),
+        };
+        var agent = NewAgent(provider);
+
+        await agent.SendAsync("first", CancellationToken.None);
+
+        provider.NextUsage = null;
+        await agent.SendAsync("second", CancellationToken.None);
+
+        Assert.Equal("abc-123", agent.SessionId);
+    }
+
+    /// <summary>A provider that reports no usage at all leaves the agent with no session to watch, and says so.</summary>
+    [Fact]
+    public async Task SendAsync_ProviderThatReportsNoUsage_LeavesSessionIdNull()
+    {
+        var agent = NewAgent(new FakeCliToolProvider());
+
+        await agent.SendAsync("do the thing", CancellationToken.None);
+
+        Assert.Null(agent.SessionId);
+    }
+
+    private static LocalCliAgent NewAgent(FakeCliToolProvider provider) =>
+        new(
+            new ForemanConfig(
+                "Test", CrewRole.Foreman, "fake", Path.GetTempPath(),
+                Path.Combine(Path.GetTempPath(), "does-not-exist.md"),
+                new Dictionary<string, string>()),
+            provider,
+            new FakeCliProcessRunner());
 }

@@ -18,7 +18,7 @@ namespace ConstructionCrew.HomeOffice;
 public sealed class LiveAgentRegistry
 {
     private readonly ILocalCliAgentFactory _agentFactory;
-    private readonly ConcurrentDictionary<string, (ILocalCliAgent Agent, SemaphoreSlim Lock)> _live = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, (ILocalCliAgent Agent, SemaphoreSlim Lock, string Engine)> _live = new(StringComparer.OrdinalIgnoreCase);
 
     public LiveAgentRegistry(ILocalCliAgentFactory agentFactory)
     {
@@ -35,7 +35,7 @@ public sealed class LiveAgentRegistry
     /// </summary>
     public async Task<CliRunResult> SendAsync(string name, ForemanConfig config, string message, CancellationToken cancellationToken, Action? onStarted = null)
     {
-        var entry = _live.GetOrAdd(name, _ => (_agentFactory.Create(config), new SemaphoreSlim(1, 1)));
+        var entry = _live.GetOrAdd(name, _ => (_agentFactory.Create(config), new SemaphoreSlim(1, 1), config.Provider));
 
         await entry.Lock.WaitAsync(cancellationToken);
         try
@@ -48,6 +48,27 @@ public sealed class LiveAgentRegistry
             entry.Lock.Release();
         }
     }
+
+    /// <summary>
+    /// What is needed to find a name's live activity on disk: the engine driving
+    /// it, and that engine's own session id once a turn has reported one.
+    ///
+    /// <para>
+    /// Null when the name has never been dispatched to, which is the honest
+    /// answer: there is no conversation to watch yet. A non-null result with a
+    /// null SessionId means "hired and cached, but its first turn has not
+    /// reported an id" -- a real state the watcher renders differently from
+    /// "never started".
+    /// </para>
+    ///
+    /// <para>
+    /// The engine comes from the ForemanConfig this name's agent was created
+    /// with, not from the agent: it is already known at Create time, and asking
+    /// the agent would push a naming concern into ILocalCliAgent for nothing.
+    /// </para>
+    /// </summary>
+    public (string? SessionId, string Engine)? GetActivityInfo(string name) =>
+        _live.TryGetValue(name, out var entry) ? (entry.Agent.SessionId, entry.Engine) : null;
 
     /// <summary>
     /// Evicts a name's cached agent so a Foreman later re-hired under the same

@@ -184,6 +184,76 @@ public class ProviderDefaultsTests
         Assert.False(composed.ContainsKey("mcpConfigPath"));
     }
 
+    /// <summary>
+    /// A newly hired Claude crew member reports its own session id from turn
+    /// one. Without --output-format json the CLI never states session_id, so
+    /// there is nothing to resume one exact conversation against and nothing to
+    /// point a transcript tail at.
+    /// </summary>
+    [Theory]
+    [InlineData(CrewRole.Foreman)]
+    [InlineData(CrewRole.GC)]
+    public void ComposeProviderOptions_Claude_DefaultsToJsonOutput(CrewRole role)
+    {
+        var composed = ProviderDefaults.ComposeProviderOptions(role, "claude", McpWiring());
+
+        Assert.Equal("json", composed["outputFormat"]);
+    }
+
+    /// <summary>Claude's envelope is the only one verified to carry a session id; nobody else gets a flag invented for them.</summary>
+    [Fact]
+    public void ComposeProviderOptions_OtherProviders_GetNoOutputFormat()
+    {
+        Assert.False(ProviderDefaults
+            .ComposeProviderOptions(CrewRole.Foreman, "codex", McpWiring())
+            .ContainsKey("outputFormat"));
+        Assert.False(ProviderDefaults
+            .ComposeProviderOptions(CrewRole.Foreman, "copilot", McpWiring())
+            .ContainsKey("outputFormat"));
+    }
+
+    /// <summary>A default, not a hardcoded flag: a Boss who picked a format keeps it.</summary>
+    [Fact]
+    public void EnsureSessionAccounting_AnExplicitChoice_IsLeftAlone()
+    {
+        var current = new Dictionary<string, string> { ["outputFormat"] = "text" };
+
+        Assert.Same(current, ProviderDefaults.EnsureSessionAccounting("claude", current));
+    }
+
+    /// <summary>
+    /// The startup self-heal: a Claude crew member hired before session
+    /// accounting existed has no outputFormat, so its turns report no
+    /// session_id. Repaired in place, with everything else it carries kept.
+    /// </summary>
+    [Fact]
+    public void EnsureSessionAccounting_LegacyClaudeMember_GainsJsonAndKeepsTheRest()
+    {
+        var current = new Dictionary<string, string>
+        {
+            ["allowedTools"] = "Read",
+            ["mcpConfigPath"] = "/generated/mcp.json",
+        };
+
+        var repaired = ProviderDefaults.EnsureSessionAccounting("claude", current);
+
+        Assert.NotSame(current, repaired);
+        Assert.Equal("json", repaired["outputFormat"]);
+        Assert.Equal("Read", repaired["allowedTools"]);
+        Assert.Equal("/generated/mcp.json", repaired["mcpConfigPath"]);
+    }
+
+    /// <summary>Reference equality is how Program.cs decides whether foremen.yaml actually needs rewriting.</summary>
+    [Fact]
+    public void EnsureSessionAccounting_NothingToDo_ReturnsSameInstance()
+    {
+        var claude = new Dictionary<string, string> { ["outputFormat"] = "json" };
+        Assert.Same(claude, ProviderDefaults.EnsureSessionAccounting("claude", claude));
+
+        var codex = new Dictionary<string, string> { ["sandbox"] = "workspace-write" };
+        Assert.Same(codex, ProviderDefaults.EnsureSessionAccounting("codex", codex));
+    }
+
     private static IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> McpWiring(
         params (string Provider, IReadOnlyDictionary<string, string> Options)[] entries) =>
         entries.ToDictionary(e => e.Provider, e => e.Options);

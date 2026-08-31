@@ -224,6 +224,7 @@ void StampMcpWiring()
     foreach (var foreman in foremanDirectory.All().ToList())
     {
         var updated = foreman;
+        var repairs = new List<string>();
 
         if (mcpOptionsByProvider.TryGetValue(foreman.Provider, out var mcpOptions))
         {
@@ -235,9 +236,17 @@ void StampMcpWiring()
 
             updated = updated with { ProviderOptions = merged };
         }
-        else if (foreman.Role != CrewRole.GC)
+
+        // Every role, not just GC: a Claude crew member hired before session
+        // accounting existed has no outputFormat, so its turns report no
+        // session_id, so there is nothing to resume against or to watch. Same
+        // "an existing roster never picks up a ProviderDefaults change" gap the
+        // GC block below repairs, and repaired the same way.
+        var accounted = ProviderDefaults.EnsureSessionAccounting(foreman.Provider, updated.ProviderOptions);
+        if (!ReferenceEquals(accounted, updated.ProviderOptions))
         {
-            continue;
+            updated = updated with { ProviderOptions = new Dictionary<string, string>(accounted) };
+            repairs.Add("session accounting");
         }
 
         // GC only. An existing roster never picks up a ProviderDefaults change,
@@ -247,8 +256,6 @@ void StampMcpWiring()
         // Repair and persist it here.
         if (foreman.Role == CrewRole.GC)
         {
-            var repairs = new List<string>();
-
             var policed = ProviderDefaults.EnsureGcToolPolicy(foreman.Provider, updated.ProviderOptions);
             if (!ReferenceEquals(policed, updated.ProviderOptions))
             {
@@ -261,16 +268,16 @@ void StampMcpWiring()
                 updated = updated with { VaultFolders = FirstRunWizard.GcVaultFolders };
                 repairs.Add("vault write scope");
             }
+        }
 
-            if (repairs.Count > 0)
-            {
-                ForemanConfigWriter.RemoveForeman(settings.ForemenConfigPath, foreman.Name);
-                ForemanConfigWriter.AppendForeman(settings.ForemenConfigPath, updated, repoRoot, settings.VaultRoot);
+        if (repairs.Count > 0)
+        {
+            ForemanConfigWriter.RemoveForeman(settings.ForemenConfigPath, foreman.Name);
+            ForemanConfigWriter.AppendForeman(settings.ForemenConfigPath, updated, repoRoot, settings.VaultRoot);
 
-                AnsiConsole.MarkupLine(
-                    $"[grey]Repaired {Markup.Escape(foreman.Name)}'s config in " +
-                    $"{Markup.Escape(settings.ForemenConfigPath)}: {Markup.Escape(string.Join(", ", repairs))}.[/]");
-            }
+            AnsiConsole.MarkupLine(
+                $"[grey]Repaired {Markup.Escape(foreman.Name)}'s config in " +
+                $"{Markup.Escape(settings.ForemenConfigPath)}: {Markup.Escape(string.Join(", ", repairs))}.[/]");
         }
 
         if (!ReferenceEquals(updated, foreman))

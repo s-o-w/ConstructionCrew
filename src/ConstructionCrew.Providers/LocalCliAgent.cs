@@ -25,6 +25,14 @@ public sealed class LocalCliAgent : ILocalCliAgent
 
     public string Name => _config.Name;
 
+    /// <summary>
+    /// The last session id this agent's engine reported, or null if it has
+    /// reported none. Sticky: a turn whose envelope carried no id (a crashed
+    /// CLI, a plain-text provider) leaves the previously known id in place
+    /// rather than blanking a conversation that is still perfectly resumable.
+    /// </summary>
+    public string? SessionId { get; private set; }
+
     public async Task<CliRunResult> SendAsync(string message, CancellationToken cancellationToken)
     {
         var prompt = _hasSentFirstMessage ? message : ComposeInitialPrompt(message);
@@ -41,9 +49,18 @@ public sealed class LocalCliAgent : ILocalCliAgent
         _hasSentFirstMessage = true;
 
         // The provider gets the last word on its own output shape: this is where
-        // an opt-in structured-output run becomes CliRunResult.Usage. Default is
+        // a structured-output run becomes CliRunResult.Usage. Default is
         // identity, so other providers are unaffected.
-        return _provider.PostProcess(request, result);
+        var processed = _provider.PostProcess(request, result);
+
+        // No provider-name check and no second JSON parse: whichever provider
+        // knows how to find its own session id has already put it on CliUsage.
+        if (processed.Usage?.SessionId is { Length: > 0 } sessionId)
+        {
+            SessionId = sessionId;
+        }
+
+        return processed;
     }
 
     private string ComposeInitialPrompt(string message)

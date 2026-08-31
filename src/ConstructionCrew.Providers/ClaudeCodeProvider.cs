@@ -18,10 +18,12 @@ public sealed class ClaudeCodeProvider : ICliToolProvider
     }
 
     /// <summary>
-    /// providerOptions key that opts a Foreman into `--output-format json`. Opt-in,
-    /// not default: the JSON envelope fills CliRunResult.Usage, but it also replaces
-    /// the CLI's plain-text stdout, so a Foreman only gets it when the Boss asked
-    /// for the accounting.
+    /// providerOptions key that puts a Foreman on `--output-format json`. Now a
+    /// default for every Claude crew member (ProviderDefaults.EnsureSessionAccounting),
+    /// not an opt-in: the envelope is the only place the CLI reports its own
+    /// session_id, and without that there is nothing to key a resume or a
+    /// transcript tail off. PostProcess unwraps `result` back to plain text, so
+    /// nothing downstream sees the JSON.
     /// </summary>
     public const string OutputFormatOption = "outputFormat";
 
@@ -174,10 +176,17 @@ public sealed class ClaudeCodeProvider : ICliToolProvider
                 ? resultText.GetString() ?? result.StandardOutput
                 : result.StandardOutput;
 
+            // The CLI's own id for the conversation this turn belonged to. Read
+            // here rather than re-parsed by a caller, because this is the only
+            // place the envelope is already open.
+            var sessionId = root.TryGetProperty("session_id", out var session) && session.ValueKind == JsonValueKind.String
+                ? session.GetString()
+                : null;
+
             return result with
             {
                 StandardOutput = text,
-                Usage = new CliUsage(inputTokens, outputTokens, costUsd, result.StandardOutput),
+                Usage = new CliUsage(inputTokens, outputTokens, costUsd, result.StandardOutput, sessionId),
             };
         }
         catch (JsonException)

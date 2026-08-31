@@ -22,15 +22,23 @@ public sealed record CliInvocation(
     string WorkingDirectory);
 
 /// <summary>
-/// Token/cost accounting for one CLI turn. Stays null for any provider whose
-/// usage output hasn't been verified against a real run, same discipline as
+/// Token/cost accounting for one CLI turn, plus the CLI's own id for the
+/// conversation that turn belonged to. Stays null for any provider whose usage
+/// output hasn't been verified against a real run, same discipline as
 /// GeminiProvider's deliberate throw.
 /// </summary>
+/// <param name="SessionId">
+/// The engine's own session identifier, when its result envelope carries one.
+/// A first-class field rather than something callers re-parse out of
+/// <paramref name="RawJson"/>: it is what keys a resume to one exact
+/// conversation, and what locates that conversation's transcript on disk.
+/// </param>
 public sealed record CliUsage(
     long? InputTokens,
     long? OutputTokens,
     decimal? CostUsd,
-    string? RawJson);
+    string? RawJson,
+    string? SessionId = null);
 
 public sealed record CliRunResult(
     bool Succeeded,

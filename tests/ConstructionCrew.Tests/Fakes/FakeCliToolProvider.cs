@@ -17,9 +17,19 @@ public sealed class FakeCliToolProvider : ICliToolProvider
         IsImplemented = isImplemented;
     }
 
+    /// <summary>
+    /// What this provider's PostProcess hangs on the result, standing in for a
+    /// real engine's accounting envelope. Null (the default) is the honest shape
+    /// for a provider that reports nothing.
+    /// </summary>
+    public CliUsage? NextUsage { get; set; }
+
     public CliInvocation BuildInvocation(CliTaskRequest request)
     {
         Requests.Add(request);
         return new CliInvocation("fake-exe", [request.Prompt], request.WorkingDirectory);
     }
+
+    public CliRunResult PostProcess(CliTaskRequest request, CliRunResult result) =>
+        NextUsage is null ? result : result with { Usage = NextUsage };
 }

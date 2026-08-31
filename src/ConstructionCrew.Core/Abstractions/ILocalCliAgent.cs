@@ -9,6 +9,18 @@ public interface ILocalCliAgent
 {
     string Name { get; }
 
+    /// <summary>
+    /// The engine's own id for this agent's conversation, once a turn has
+    /// reported one. Null before the first turn, and for any engine whose
+    /// result envelope carries no session id.
+    ///
+    /// <para>
+    /// Defaulted rather than required: an agent that is not a real CLI process
+    /// (a test double) genuinely has no session, and saying so costs it nothing.
+    /// </para>
+    /// </summary>
+    string? SessionId => null;
+
     Task<CliRunResult> SendAsync(string message, CancellationToken cancellationToken);
 }
 

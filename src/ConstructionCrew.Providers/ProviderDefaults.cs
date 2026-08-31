@@ -142,7 +142,48 @@ public static class ProviderDefaults
             }
         }
 
-        return composed;
+        return new Dictionary<string, string>(EnsureSessionAccounting(provider, composed));
+    }
+
+    /// <summary>
+    /// The options a crew member needs before its engine will report its own
+    /// session id. For claude that is `--output-format json`: the result
+    /// envelope is the only place the CLI states session_id, and without it
+    /// there is no way to resume one exact conversation or to find that
+    /// conversation's transcript on disk.
+    ///
+    /// <para>
+    /// A default, not a hardcoded flag: an explicit outputFormat the Boss
+    /// already chose is left exactly as it is. Every other provider is
+    /// untouched, because none of them has a verified session-id-bearing
+    /// envelope.
+    /// </para>
+    ///
+    /// <para>
+    /// Returns <paramref name="current"/> by reference when nothing changed, so
+    /// a caller can use ReferenceEquals to tell "repaired" from "already fine",
+    /// the same contract <see cref="EnsureGcToolPolicy"/> holds.
+    /// </para>
+    /// </summary>
+    public static IReadOnlyDictionary<string, string> EnsureSessionAccounting(
+        string providerId,
+        IReadOnlyDictionary<string, string> current)
+    {
+        if (!providerId.Equals("claude", StringComparison.OrdinalIgnoreCase))
+        {
+            return current;
+        }
+
+        if (current.TryGetValue(ClaudeCodeProvider.OutputFormatOption, out var existing) &&
+            !string.IsNullOrWhiteSpace(existing))
+        {
+            return current;
+        }
+
+        return new Dictionary<string, string>(current)
+        {
+            [ClaudeCodeProvider.OutputFormatOption] = "json",
+        };
     }
 
     /// <summary>

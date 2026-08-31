@@ -80,6 +80,45 @@ public class LiveAgentRegistryTests
         Assert.False(provider.Requests[1].ContinuePreviousConversation);
     }
 
+    /// <summary>
+    /// "Never dispatched to" and "dispatched, but its engine reported no id" are
+    /// different answers, and the watcher renders them differently: one has no
+    /// conversation at all, the other has one that just isn't locatable yet.
+    /// </summary>
+    [Fact]
+    public async Task GetActivityInfo_ReportsTheEngineAndSessionOnceATurnHasRun()
+    {
+        var provider = new FakeCliToolProvider("fake")
+        {
+            NextUsage = new CliUsage(null, null, null, null, "sess-42"),
+        };
+        var registry = new LiveAgentRegistry(new LocalCliAgentFactory([provider], new FakeCliProcessRunner()));
+        var config = new ForemanConfig("Frontend", CrewRole.Foreman, "fake", "dir", "instructions.md", new Dictionary<string, string>());
+
+        Assert.Null(registry.GetActivityInfo("Frontend"));
+
+        await registry.SendAsync("Frontend", config, "first", CancellationToken.None);
+
+        var info = registry.GetActivityInfo("Frontend");
+        Assert.NotNull(info);
+        Assert.Equal("sess-42", info!.Value.SessionId);
+        // The engine comes off the config the agent was created with, not the agent.
+        Assert.Equal("fake", info.Value.Engine);
+    }
+
+    /// <summary>Case-insensitive, the same as every other lookup keyed on a roster name.</summary>
+    [Fact]
+    public async Task GetActivityInfo_MatchesTheRosterNameCaseInsensitively()
+    {
+        var registry = new LiveAgentRegistry(
+            new LocalCliAgentFactory([new FakeCliToolProvider("fake")], new FakeCliProcessRunner()));
+        var config = new ForemanConfig("Frontend", CrewRole.Foreman, "fake", "dir", "instructions.md", new Dictionary<string, string>());
+
+        await registry.SendAsync("Frontend", config, "first", CancellationToken.None);
+
+        Assert.NotNull(registry.GetActivityInfo("frontend"));
+    }
+
     private sealed class SlowFakeRunner : ICliProcessRunner
     {
         private readonly Func<Task> _onRun;

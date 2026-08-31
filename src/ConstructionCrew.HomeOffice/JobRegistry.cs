@@ -338,6 +338,16 @@ public sealed class JobRegistry
     public void ForgetLiveAgent(string foremanName) => _liveAgents.Remove(foremanName);
 
     /// <summary>
+    /// The engine and session id behind a name's live conversation, for the
+    /// watcher. Null when nothing has been dispatched to that name yet.
+    /// A pass-through so the TUI keeps talking to one registry, the same way it
+    /// already asks this one <see cref="IsForemanBusy"/> rather than reaching
+    /// past it into LiveAgentRegistry.
+    /// </summary>
+    public (string? SessionId, string Engine)? GetActivityInfo(string foremanName) =>
+        _liveAgents.GetActivityInfo(foremanName);
+
+    /// <summary>
     /// Frees the Foreman's workorder slot for <paramref name="jobId"/>, called
     /// when a PR opens, well before the job completes. Never touches
     /// _jobWorkorders: the job still needs its ActiveWorkorder when it finishes.
