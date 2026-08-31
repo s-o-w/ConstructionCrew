@@ -63,6 +63,68 @@ public class ClaudeCodeProviderTests
     }
 
     /// <summary>
+    /// The three permission flags are independent. An allowlist no longer suppresses
+    /// a permission mode, and "--" still ends option parsing before the prompt.
+    /// </summary>
+    [Fact]
+    public void BuildInvocation_PermissionMode_EmitsFlagAlongsideAllowedTools()
+    {
+        var provider = new ClaudeCodeProvider();
+        var request = new CliTaskRequest(
+            "do the thing",
+            "/work",
+            new Dictionary<string, string>
+            {
+                ["allowedTools"] = "Read mcp__home_office",
+                [ClaudeCodeProvider.PermissionModeOption] = "acceptEdits",
+            });
+
+        var args = provider.BuildInvocation(request).Arguments.ToList();
+
+        var allowedIndex = args.IndexOf("--allowedTools");
+        Assert.True(allowedIndex >= 0, "Expected --allowedTools.");
+        Assert.Equal("Read mcp__home_office", args[allowedIndex + 1]);
+
+        var modeIndex = args.IndexOf("--permission-mode");
+        Assert.True(modeIndex >= 0, "Expected --permission-mode alongside the allowlist.");
+        Assert.Equal("acceptEdits", args[modeIndex + 1]);
+
+        var separatorIndex = args.IndexOf("--");
+        Assert.True(allowedIndex < separatorIndex, "--allowedTools must precede the \"--\" terminator.");
+        Assert.True(modeIndex < separatorIndex, "--permission-mode must precede the \"--\" terminator.");
+        Assert.Equal("do the thing", args[separatorIndex + 1]);
+        Assert.Equal(args.Count - 1, separatorIndex + 1);
+    }
+
+    /// <summary>
+    /// Regression: dangerouslySkipPermissions used to sit in the `else if` branch of
+    /// allowedTools, so any crew member with an allowlist (all of them) could never
+    /// reach it.
+    /// </summary>
+    [Fact]
+    public void BuildInvocation_DangerouslySkipPermissions_NoLongerShadowedByAllowedTools()
+    {
+        var provider = new ClaudeCodeProvider();
+        var request = new CliTaskRequest(
+            "do the thing",
+            "/work",
+            new Dictionary<string, string>
+            {
+                ["allowedTools"] = "Read",
+                ["dangerouslySkipPermissions"] = "true",
+            });
+
+        var args = provider.BuildInvocation(request).Arguments.ToList();
+
+        Assert.Contains("--allowedTools", args);
+        Assert.Contains("--dangerously-skip-permissions", args);
+        Assert.True(
+            args.IndexOf("--dangerously-skip-permissions") < args.IndexOf("--"),
+            "--dangerously-skip-permissions must precede the \"--\" terminator.");
+        Assert.Equal("do the thing", args[^1]);
+    }
+
+    /// <summary>
     /// A real `claude -p --output-format json` result envelope, captured from the
     /// CLI's documented output shape -- not invented. `usage` counts every
     /// input-side bucket separately; a cached turn reports almost all of its input

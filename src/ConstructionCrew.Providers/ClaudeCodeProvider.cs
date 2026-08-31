@@ -25,6 +25,15 @@ public sealed class ClaudeCodeProvider : ICliToolProvider
     /// </summary>
     public const string OutputFormatOption = "outputFormat";
 
+    /// <summary>
+    /// providerOptions key that emits `--permission-mode &lt;value&gt;`. Per-crew-member
+    /// escape hatch only, set through `/foreman &lt;Name&gt;` -> provider options; there is
+    /// deliberately no global toggle for it. Real CLI choices (captured 2026-08-30,
+    /// see docs/provider-flags/claude-help.txt): acceptEdits, auto, bypassPermissions,
+    /// manual, dontAsk, plan. Composes with an allowlist rather than replacing one.
+    /// </summary>
+    public const string PermissionModeOption = "permissionMode";
+
     public string ProviderId => "claude";
 
     public string ExecutableName => _executablePath;
@@ -49,8 +58,18 @@ public sealed class ClaudeCodeProvider : ICliToolProvider
             args.Add("--allowedTools");
             args.Add(allowedTools);
         }
-        else if (request.ProviderOptions.TryGetValue("dangerouslySkipPermissions", out var skipRaw) &&
-                 bool.TryParse(skipRaw, out var skip) && skip)
+        // The three permission-related flags are independent of each other. They
+        // were once chained through an `else if`, which made
+        // --dangerously-skip-permissions unreachable for any crew member carrying
+        // an allowlist -- i.e. all of them.
+        if (request.ProviderOptions.TryGetValue(PermissionModeOption, out var permissionMode) && !string.IsNullOrWhiteSpace(permissionMode))
+        {
+            args.Add("--permission-mode");
+            args.Add(permissionMode);
+        }
+
+        if (request.ProviderOptions.TryGetValue("dangerouslySkipPermissions", out var skipRaw) &&
+            bool.TryParse(skipRaw, out var skip) && skip)
         {
             args.Add("--dangerously-skip-permissions");
         }
