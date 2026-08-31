@@ -93,10 +93,11 @@ public class FirstRunWizardTests
         var root = NewTempDir();
         try
         {
+            var repoRoot = Path.Combine(root, "repo");
             var vaultRoot = Path.Combine(root, "vault");
             Directory.CreateDirectory(vaultRoot);
 
-            var path = FirstRunWizard.EnsureGcInstructions(vaultRoot, "GC", ["claude"]);
+            var path = FirstRunWizard.EnsureGcInstructions(repoRoot, vaultRoot, "GC", ["claude"]);
 
             Assert.True(File.Exists(path));
             Assert.Contains("General Contractor", File.ReadAllText(path));

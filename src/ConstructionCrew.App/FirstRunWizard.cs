@@ -72,7 +72,7 @@ public static class FirstRunWizard
             new TextPrompt<string>("[bold]Display name[/] for the GC (optional, blank to just call it 'GC'):")
                 .AllowEmpty());
 
-        var instructionsFilePath = EnsureGcInstructions(vaultRoot, settings.GcForemanName, availableProviderIds);
+        var instructionsFilePath = EnsureGcInstructions(repoRoot, vaultRoot, settings.GcForemanName, availableProviderIds);
 
         var config = BuildGcConfig(
             settings.GcForemanName,
@@ -365,8 +365,19 @@ public static class FirstRunWizard
     /// fresh clone: a `git rm` picked up by a pull, a manual delete, a restore
     /// from a backup that predates it. Without the second call site, the loader's
     /// hard-fail above is not hypothetical -- it is the only thing the Boss sees.
+    ///
+    /// This runs BEFORE foremen.yaml loads -- deliberately before the general
+    /// InstructionsMigration pass (Program.cs, right after the roster loads),
+    /// which is the one that actually MOVES a legacy file and rewrites
+    /// foremen.yaml to match. This method must never move anything itself: at
+    /// this point foremen.yaml still names the OLD location (if that is where
+    /// GC was hired), and the loader that runs moments later hard-fails if the
+    /// path it names stops existing out from under it. So the legacy check
+    /// below only ever READS -- if the old file is there, hand its path back
+    /// unchanged and let the loader (then migration) see it through.
     /// </summary>
     internal static string EnsureGcInstructions(
+        string repoRoot,
         string vaultRoot,
         string gcForemanName,
         IReadOnlyList<string> availableProviderIds)
@@ -378,6 +389,14 @@ public static class FirstRunWizard
         if (File.Exists(path))
         {
             return path;
+        }
+
+        // Not moved here -- see the method doc comment. A Boss who hand-edited
+        // this file keeps that edit intact until InstructionsMigration moves it.
+        var legacyPath = Path.Combine(repoRoot, "config", "instructions", "GC.md");
+        if (File.Exists(legacyPath))
+        {
+            return legacyPath;
         }
 
         string contents;

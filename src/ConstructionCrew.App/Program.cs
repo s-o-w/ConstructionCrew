@@ -96,7 +96,7 @@ if (!string.IsNullOrWhiteSpace(settings.VaultRoot) && Directory.Exists(settings.
 {
     try
     {
-        FirstRunWizard.EnsureGcInstructions(settings.VaultRoot, settings.GcForemanName, availableProviderIds);
+        FirstRunWizard.EnsureGcInstructions(repoRoot, settings.VaultRoot, settings.GcForemanName, availableProviderIds);
     }
     catch (Exception ex)
     {
@@ -113,6 +113,32 @@ catch (Exception ex)
 {
     AnsiConsole.MarkupLine($"[red]Could not load Foreman config:[/] {Markup.Escape(ex.Message)}");
     return 1;
+}
+
+// A roster hired before instructions templates and rendered instructions files
+// moved into the Vault still names their old repoRoot/config/instructions/
+// locations. Migrate on every start -- a no-op once everyone's already on
+// AI/ConstructionCrew/Instructions/ -- and use the RETURNED list from here on:
+// foremenSeed itself is stale for anyone just migrated, since the file it named
+// has physically moved. Never fatal: a read-only repo or vault share is a
+// reason to keep running on the old paths, not to refuse to start.
+if (!string.IsNullOrWhiteSpace(settings.VaultRoot) && Directory.Exists(settings.VaultRoot))
+{
+    try
+    {
+        var migration = InstructionsMigration.MigrateToVault(repoRoot, settings.VaultRoot, settings.ForemenConfigPath, foremenSeed);
+        foremenSeed = migration.Foremen;
+
+        if (migration.MigratedForemen.Count > 0)
+        {
+            AnsiConsole.MarkupLine(
+                $"[grey]Migrated instructions files into the Vault for: {Markup.Escape(string.Join(", ", migration.MigratedForemen))}.[/]");
+        }
+    }
+    catch (Exception ex)
+    {
+        AnsiConsole.MarkupLine($"[yellow]Could not migrate instructions files into the Vault:[/] {Markup.Escape(ex.Message)}");
+    }
 }
 
 var foremanDirectory = new ForemanDirectory(foremenSeed);
@@ -485,7 +511,7 @@ async Task<bool> HandleBossLine(string input)
 
     if (command.Equals("/help", StringComparison.OrdinalIgnoreCase))
     {
-        AnsiConsole.MarkupLine("[grey]/chat  /tasks  /monitor  /memory  /hire  /fire  /foreman <Name>  /view <path>  /drive <Foreman>  /settings  /exit -- anything else is sent to the GC (or the driven Foreman) as a message.[/]");
+        AnsiConsole.MarkupLine("[grey]/chat  /tasks  /monitor  /memory  /hire  /fire  /foreman <Name>  /view <path>  /drive <Foreman>  /settings  /migrate  /exit -- anything else is sent to the GC (or the driven Foreman) as a message.[/]");
         AnsiConsole.Markup("[grey]Press enter to continue...[/]");
         Console.ReadLine();
         return true;
@@ -560,6 +586,44 @@ async Task<bool> HandleBossLine(string input)
 
         AnsiConsole.Write(table);
         AnsiConsole.MarkupLine($"[grey]Cached to {Markup.Escape(Path.Combine(settings.StateDirectory, "tools.json"))}.[/]");
+        AnsiConsole.Markup("[grey]Press enter to continue...[/]");
+        Console.ReadLine();
+        state.View = TuiView.Chat;
+        return true;
+    }
+
+    if (command.Equals("/migrate", StringComparison.OrdinalIgnoreCase))
+    {
+        AnsiConsole.Clear();
+        AnsiConsole.Write(new Rule("[bold yellow]migrate instructions into the vault[/]").LeftJustified());
+
+        if (string.IsNullOrWhiteSpace(settings.VaultRoot) || !Directory.Exists(settings.VaultRoot))
+        {
+            AnsiConsole.MarkupLine("[yellow]No Vault configured -- nothing to migrate into.[/]");
+        }
+        else
+        {
+            // Same routine the startup self-heal runs; this is just an on-demand
+            // re-trigger for a Boss who wants to confirm the roster is current
+            // without restarting the app.
+            var migration = InstructionsMigration.MigrateToVault(
+                repoRoot, settings.VaultRoot, settings.ForemenConfigPath, foremanDirectory.All().ToList());
+
+            foreach (var updated in migration.Foremen)
+            {
+                foremanDirectory.Add(updated);
+            }
+
+            if (migration.TemplatesEnsured.Count > 0)
+            {
+                AnsiConsole.MarkupLine($"[green]Seeded templates:[/] {Markup.Escape(string.Join(", ", migration.TemplatesEnsured))}");
+            }
+
+            AnsiConsole.MarkupLine(migration.MigratedForemen.Count > 0
+                ? $"[green]Migrated:[/] {Markup.Escape(string.Join(", ", migration.MigratedForemen))}"
+                : "[grey]Already up to date -- nothing to migrate.[/]");
+        }
+
         AnsiConsole.Markup("[grey]Press enter to continue...[/]");
         Console.ReadLine();
         state.View = TuiView.Chat;
