@@ -40,6 +40,15 @@ public class FirstRunWizardTests
     }
 
     [Fact]
+    public void ExpandPath_StripsWrappingQuotes_SameResultAsUnquoted()
+    {
+        var quoted = FirstRunWizard.ExpandPath("\"C:\\foo\\bar\"");
+        var unquoted = FirstRunWizard.ExpandPath("C:\\foo\\bar");
+
+        Assert.Equal(unquoted, quoted);
+    }
+
+    [Fact]
     public void BuildGcConfig_WithNoDisplayName_LeavesItNull()
     {
         var config = FirstRunWizard.BuildGcConfig("GC", "claude", "/vault", "/repo/GC.md", "/repo", displayName: null);

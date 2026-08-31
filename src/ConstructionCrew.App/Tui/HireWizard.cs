@@ -405,14 +405,14 @@ public static class HireWizard
         {
             var input = AnsiConsole.Prompt(
                 new TextPrompt<string>(
-                    "[bold]Repo path[/] -- an existing local clone, or a new folder to create it as an empty project ('cancel' to stop hiring):"));
+                    "[bold]Repo path[/] -- an existing local clone, or a new folder to create it as an empty project (quotes optional, forward or back slash both work; 'cancel' to stop hiring):"));
 
             if (IsCancel(input))
             {
                 return null;
             }
 
-            var candidate = input.Trim();
+            var candidate = input.Trim().Trim('"');
             if (string.IsNullOrEmpty(candidate))
             {
                 AnsiConsole.MarkupLine("[red]Path can't be empty.[/]");

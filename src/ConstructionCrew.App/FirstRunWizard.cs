@@ -259,7 +259,7 @@ public static class FirstRunWizard
         if (choice == useExisting)
         {
             var existing = AnsiConsole.Prompt(
-                new TextPrompt<string>("[bold]Vault path[/] -- an existing directory:")
+                new TextPrompt<string>("[bold]Vault path[/] -- an existing directory (quotes optional; ~ expands to your home folder):")
                     .Validate(p => Directory.Exists(ExpandPath(p))
                         ? ValidationResult.Success()
                         : ValidationResult.Error($"'{p}' doesn't exist.")));
@@ -268,7 +268,7 @@ public static class FirstRunWizard
         }
 
         var target = AnsiConsole.Prompt(
-            new TextPrompt<string>("[bold]New Vault path[/] -- created if it isn't there yet:")
+            new TextPrompt<string>("[bold]New Vault path[/] -- created if it isn't there yet (quotes optional; ~ expands to your home folder):")
                 .Validate(p => string.IsNullOrWhiteSpace(p)
                     ? ValidationResult.Error("Path can't be empty.")
                     : ValidationResult.Success()));
@@ -297,7 +297,7 @@ public static class FirstRunWizard
     /// </summary>
     internal static string ExpandPath(string input)
     {
-        var trimmed = input.Trim();
+        var trimmed = input.Trim().Trim('"');
 
         if (trimmed == "~" || trimmed.StartsWith("~/", StringComparison.Ordinal) || trimmed.StartsWith(@"~\", StringComparison.Ordinal))
         {
