@@ -8,6 +8,7 @@ using ConstructionCrew.Core.Runtime;
 using ConstructionCrew.Git;
 using ConstructionCrew.Graph;
 using ConstructionCrew.Providers;
+using ConstructionCrew.Providers.Activity;
 using ConstructionCrew.HomeOffice;
 using Spectre.Console;
 
@@ -325,6 +326,15 @@ _ = PumpJobStatusAsync(statusSink.Reader, events.Writer, cts.Token);
 // thread-pool thread while the loop may already be starting another.
 var passiveRefreshInFlight = 0;
 
+// A second guard, not a shared one: a slow transcript read must never hold up
+// the git read, or the other way round.
+var activityRefreshInFlight = 0;
+
+// Which engines keep a session transcript this app can tail. Built once: the
+// lookup is pure, and /watch consults it before setting a watch that could
+// only ever render blank.
+var activityReaders = ForemanActivityReaders.Default();
+
 // Starts true so the first render is followed immediately by the first prompt.
 var wantsInput = true;
 var running = true;
@@ -399,7 +409,12 @@ while (running)
                 state.Passive = refreshed.Snapshot;
                 break;
 
+            case BossEvent.ActivityRefreshed refreshedActivity:
+                state.Activity = refreshedActivity.Snapshot;
+                break;
+
             case BossEvent.InputLine line:
+                var watchedBefore = state.WatchSubject;
                 var drivenBefore = state.DrivenForeman;
                 try
                 {
@@ -418,7 +433,11 @@ while (running)
                     wantsInput = true;
                 }
 
-                if (!string.Equals(drivenBefore, state.DrivenForeman, StringComparison.OrdinalIgnoreCase))
+                // Either changing tells the side panel to re-read: /watch moves
+                // the panel's subject without touching who is driven, and
+                // /drive moves it without an explicit watch existing.
+                if (!string.Equals(drivenBefore, state.DrivenForeman, StringComparison.OrdinalIgnoreCase) ||
+                    !string.Equals(watchedBefore, state.WatchSubject, StringComparison.OrdinalIgnoreCase))
                 {
                     refreshPassive = true;
                 }
@@ -432,11 +451,21 @@ while (running)
         }
     }
 
-    // Not triggered by PassiveRefreshed itself: that would loop forever without idling.
-    if (running && refreshPassive && state.DrivenForeman is not null &&
-        Interlocked.CompareExchange(ref passiveRefreshInFlight, 1, 0) == 0)
+    // Not triggered by PassiveRefreshed/ActivityRefreshed themselves: that would
+    // loop forever without idling. The subject is whoever the panel is about,
+    // which is the explicit /watch when there is one and the driven Foreman
+    // otherwise -- so both halves of the panel always describe one crew member.
+    if (running && refreshPassive && state.WatchSubject is { } watchSubject)
     {
-        _ = RefreshPassiveAsync(ResolveWorktreePath(jobRegistry, state.DrivenForeman));
+        if (Interlocked.CompareExchange(ref passiveRefreshInFlight, 1, 0) == 0)
+        {
+            _ = RefreshPassiveAsync(ResolveWorktreePath(jobRegistry, watchSubject));
+        }
+
+        if (Interlocked.CompareExchange(ref activityRefreshInFlight, 1, 0) == 0)
+        {
+            _ = RefreshActivityAsync(watchSubject);
+        }
     }
 }
 
@@ -465,6 +494,13 @@ async Task<bool> HandleBossLine(string input)
             return false;
         case BossCommandResult.Handled:
             return true;
+    }
+
+    // After drive routing, before the rest: /watch is the read-only sibling of
+    // /drive and must not fall through to the stub handler either.
+    if (WatchCommand.Apply(state, command, foremanDirectory.Find, activityReaders) == BossCommandResult.Handled)
+    {
+        return true;
     }
 
     if (command.Equals("/chat", StringComparison.OrdinalIgnoreCase))
@@ -499,7 +535,8 @@ async Task<bool> HandleBossLine(string input)
 
     if (command.Equals("/help", StringComparison.OrdinalIgnoreCase))
     {
-        AnsiConsole.MarkupLine("[grey]/chat  /tasks  /monitor  /memory  /hire  /fire  /foreman <Name>  /view <path>  /preferences [add]  /inbox  /drive <Foreman>  /settings  /migrate  /exit (bare \"quit\" or \"exit\" also work) -- anything else is sent to the GC (or the driven Foreman) as a message.[/]");
+        AnsiConsole.MarkupLine("[grey]/chat  /tasks  /monitor  /memory  /hire  /fire  /foreman <Name>  /view <path>  /preferences [add]  /inbox  /watch <Name>  /drive <Foreman>  /settings  /migrate  /exit (bare \"quit\" or \"exit\" also work) -- anything else is sent to the GC (or the driven Foreman) as a message.[/]");
+        AnsiConsole.MarkupLine("[grey]/watch shows what someone is doing without changing where your typing goes; /drive redirects it and shows the same feed.[/]");
         AnsiConsole.Markup("[grey]Press enter to continue...[/]");
         Console.ReadLine();
         return true;
@@ -753,6 +790,55 @@ async Task RefreshPassiveAsync(string? worktreePath)
     {
         Interlocked.Exchange(ref passiveRefreshInFlight, 0);
     }
+}
+
+// The activity half of the side panel: resolve the name's engine and session
+// id, pick the reader that understands that engine, and post what it read.
+// Same shape as RefreshPassiveAsync deliberately -- read external state off the
+// loop, report back as a BossEvent, let the next redraw pick it up.
+async Task RefreshActivityAsync(string foremanName)
+{
+    try
+    {
+        var snapshot = ReadActivity(foremanName);
+        await events.Writer.WriteAsync(new BossEvent.ActivityRefreshed(snapshot), cts.Token);
+    }
+    catch (OperationCanceledException)
+    {
+    }
+    catch (ChannelClosedException)
+    {
+    }
+    finally
+    {
+        Interlocked.Exchange(ref activityRefreshInFlight, 0);
+    }
+}
+
+ForemanActivitySnapshot? ReadActivity(string foremanName)
+{
+    // Nothing dispatched to this name yet, so there is no conversation to read.
+    // Said plainly rather than left blank: an empty panel reads as "idle".
+    var info = jobRegistry.GetActivityInfo(foremanName);
+    if (info is null)
+    {
+        return new ForemanActivitySnapshot("no turns yet", null, "nothing dispatched to this one yet");
+    }
+
+    var reader = activityReaders.For(info.Value.Engine);
+    if (reader is null)
+    {
+        return new ForemanActivitySnapshot(
+            "no activity feed", null, $"{info.Value.Engine} keeps no readable transcript");
+    }
+
+    if (string.IsNullOrWhiteSpace(info.Value.SessionId))
+    {
+        return new ForemanActivitySnapshot("starting up", null, "its first turn has not reported a session yet");
+    }
+
+    var workingDirectory = foremanDirectory.Find(foremanName)?.WorkingDirectory ?? string.Empty;
+    return reader.Read(info.Value.SessionId!, workingDirectory);
 }
 
 static async Task PumpInputAsync(ChannelReader<string> source, ChannelWriter<BossEvent> sink, CancellationToken ct)

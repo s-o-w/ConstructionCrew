@@ -1,4 +1,5 @@
 using ConstructionCrew.Git;
+using ConstructionCrew.Providers.Activity;
 
 namespace ConstructionCrew.App.Tui;
 
@@ -63,11 +64,37 @@ public sealed class DashboardState
     public string? DrivenForeman { get; set; }
 
     /// <summary>
+    /// An explicit <c>/watch</c> override: whose activity the side panel shows
+    /// while Boss input keeps going wherever it was already going.
+    ///
+    /// <para>
+    /// Null means "follow whoever is being driven", which is why driving
+    /// implies watching but not the reverse. <c>/drive</c> and <c>/exit</c>
+    /// both clear it, so the panel never ends up describing one Foreman while
+    /// the Boss types to another.
+    /// </para>
+    /// </summary>
+    public string? WatchedForeman { get; set; }
+
+    /// <summary>
+    /// Who the side panel is about: the explicit watch if there is one,
+    /// otherwise whoever is being driven. Null means no panel at all.
+    /// </summary>
+    public string? WatchSubject => WatchedForeman ?? DrivenForeman;
+
+    /// <summary>
     /// The passive column's last <c>git status</c>/<c>git log</c> read of the
-    /// driven Foreman's worktree. Null when nothing has been read yet, or when
+    /// watched Foreman's worktree. Null when nothing has been read yet, or when
     /// that Foreman has no worktree.
     /// </summary>
     public GitWorkspaceSnapshot? Passive { get; set; }
+
+    /// <summary>
+    /// The watched Foreman's last known activity, read off its engine's own
+    /// session transcript. Null before the first read, or when that engine
+    /// keeps no readable transcript.
+    /// </summary>
+    public ForemanActivitySnapshot? Activity { get; set; }
 
     /// <summary>The transcript the output pane is currently showing.</summary>
     public List<TranscriptLine> ActiveTranscript => TranscriptFor(DrivenForeman);

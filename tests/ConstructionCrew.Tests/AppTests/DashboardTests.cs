@@ -5,6 +5,7 @@ using ConstructionCrew.Core.Models;
 using ConstructionCrew.Core.Runtime;
 using ConstructionCrew.HomeOffice;
 using ConstructionCrew.Providers;
+using ConstructionCrew.Providers.Activity;
 using ConstructionCrew.Tests.Fakes;
 
 namespace ConstructionCrew.Tests.AppTests;
@@ -118,9 +119,69 @@ public class DashboardTests
         Assert.Contains("/drive <Name>", footer);
         Assert.DoesNotContain("<Foreman>", footer);
 
+        Assert.Contains("/watch <Name>", footer);
+
         var driving = Dashboard.FooterFor("Frontend");
         Assert.Contains("Frontend", driving);
         Assert.DoesNotContain("/foreman", driving);
+    }
+
+    /// <summary>
+    /// Watching without driving is the state most worth spelling out: the panel
+    /// is full of Casey's activity while typed input still goes to GC, and
+    /// nothing else on screen says so.
+    /// </summary>
+    [Fact]
+    public void Footer_WatchingWithoutDriving_SaysInputStillGoesToGc()
+    {
+        var footer = Dashboard.FooterFor(null, watchedForeman: "Casey");
+
+        Assert.Contains("watching", footer);
+        Assert.Contains("Casey", footer);
+        Assert.Contains("still talking to GC", footer);
+    }
+
+    /// <summary>Driving one crew member while watching another names both, so the panel's subject is never a mystery.</summary>
+    [Fact]
+    public void Footer_DrivingOneAndWatchingAnother_NamesBoth()
+    {
+        var footer = Dashboard.FooterFor("Casey", watchedForeman: "Dana");
+
+        Assert.Contains("driving", footer);
+        Assert.Contains("Casey", footer);
+        Assert.Contains("watching", footer);
+        Assert.Contains("Dana", footer);
+    }
+
+    /// <summary>Before the first read there is no answer yet, and that is different from "idle".</summary>
+    [Fact]
+    public void BuildActivityRows_BeforeTheFirstRead_SaysItIsStillReading()
+    {
+        Assert.Single(Dashboard.BuildActivityRows(null));
+    }
+
+    /// <summary>
+    /// "Could not look" and "nothing happening" are different answers. An
+    /// unreadable transcript reports itself rather than rendering as a blank
+    /// panel the Boss would read as an idle Foreman.
+    /// </summary>
+    [Fact]
+    public void BuildActivityRows_AnErrorSnapshot_RendersTheReasonAndNoClock()
+    {
+        var rows = Dashboard.BuildActivityRows(
+            new ForemanActivitySnapshot("no activity yet", null, "no transcript on disk yet"));
+
+        Assert.Single(rows);
+    }
+
+    /// <summary>A real reading gets its own clock line, so a stalled feed is visibly stale rather than silently wrong.</summary>
+    [Fact]
+    public void BuildActivityRows_ARealReading_RendersTheSummaryAndAClock()
+    {
+        var rows = Dashboard.BuildActivityRows(
+            new ForemanActivitySnapshot("running: Bash", DateTimeOffset.UtcNow));
+
+        Assert.Equal(2, rows.Count);
     }
 
     /// <summary>

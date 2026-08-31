@@ -1,6 +1,7 @@
 using ConstructionCrew.Config;
 using ConstructionCrew.Core.Models;
 using ConstructionCrew.HomeOffice;
+using ConstructionCrew.Providers.Activity;
 using Spectre.Console;
 using Spectre.Console.Rendering;
 
@@ -56,7 +57,7 @@ public static class Dashboard
         // footer's second line stays blank: it's where the Boss prompt is
         // positioned next, so nothing after this scrolls the pinned header out of view.
         root["footer"].Update(new Rows(
-            new Markup(FooterFor(state.DrivenForeman, state.Inbox.Count(i => !i.Read))),
+            new Markup(FooterFor(state.DrivenForeman, state.Inbox.Count(i => !i.Read), state.WatchedForeman)),
             Text.Empty));
 
         AnsiConsole.Write(root);
@@ -67,15 +68,27 @@ public static class Dashboard
     /// The one-line command hint under the board. Named rather than inlined
     /// so a test can assert the command list without scraping a rendered layout.
     /// </summary>
-    internal static string FooterFor(string? drivenForeman, int unreadInboxCount = 0)
+    internal static string FooterFor(string? drivenForeman, int unreadInboxCount = 0, string? watchedForeman = null)
     {
         if (drivenForeman is not null)
         {
-            return $"[grey]driving [/][yellow]{Markup.Escape(drivenForeman)}[/][grey] -- /exit returns to GC[/]";
+            var alsoWatching = watchedForeman is null
+                ? string.Empty
+                : $"[grey], watching [/][yellow]{Markup.Escape(watchedForeman)}[/]";
+            return $"[grey]driving [/][yellow]{Markup.Escape(drivenForeman)}[/]{alsoWatching}[grey] -- /exit returns to GC[/]";
+        }
+
+        // Watching without driving is the state most worth spelling out: input
+        // is still going to GC, which is not obvious from a panel full of
+        // somebody else's activity.
+        if (watchedForeman is not null)
+        {
+            return $"[grey]watching [/][yellow]{Markup.Escape(watchedForeman)}[/]" +
+                   "[grey] -- you are still talking to GC; /watch stops, /drive redirects[/]";
         }
 
         var badge = unreadInboxCount > 0 ? $"  [yellow]{unreadInboxCount} new in /inbox[/]" : string.Empty;
-        return "[grey]/tasks /monitor /memory /hire /fire /foreman <Name> /view <path> /preferences /inbox /chat /drive <Name> /settings /migrate /help /exit (or bare \"quit\"/\"exit\")[/]" + badge;
+        return "[grey]/tasks /monitor /memory /hire /fire /foreman <Name> /view <path> /preferences /inbox /chat /watch <Name> /drive <Name> /settings /migrate /help /exit (or bare \"quit\"/\"exit\")[/]" + badge;
     }
 
     private static void PositionCursorOnPromptRow()
@@ -223,15 +236,15 @@ public static class Dashboard
     }
 
     /// <summary>
-    /// In drive mode the chat pane gets a passive column beside it: a
-    /// read-only <c>git status</c>/<c>git log</c> of the Foreman's worktree.
-    /// A Grid, not a nested Layout: Layout always renders the full console
-    /// height, wrong for a cell inside the shell.
+    /// Watching or driving gets the chat pane a side column: what that crew
+    /// member is doing right now, over a read-only <c>git status</c>/
+    /// <c>git log</c> of its worktree. A Grid, not a nested Layout: Layout
+    /// always renders the full console height, wrong for a cell inside the shell.
     /// </summary>
     private static IRenderable BuildChatPane(DashboardState state)
     {
         var chat = BuildChat(state);
-        if (state.DrivenForeman is null)
+        if (state.WatchSubject is null)
         {
             return chat;
         }
@@ -246,6 +259,13 @@ public static class Dashboard
     private static IRenderable BuildPassiveColumn(DashboardState state)
     {
         var rows = new List<IRenderable>();
+
+        // Activity first: it is the thing that changes every few seconds and
+        // the reason to be watching at all. Git state sits under it as the
+        // slower-moving context.
+        rows.AddRange(BuildActivityRows(state.Activity));
+        rows.Add(Text.Empty);
+
         var snapshot = state.Passive;
 
         if (snapshot is null)
@@ -269,10 +289,41 @@ public static class Dashboard
                 : snapshot.RecentCommits.Select(c => (IRenderable)new Markup($"[grey]{Markup.Escape(Truncate(c, 34))}[/]")));
         }
 
+        // The header is the watched-or-driven name either way, so driving and
+        // watching the same Foreman render identically.
         return new Panel(new Rows(rows))
-            .Header($"[bold]{Markup.Escape(state.DrivenForeman ?? "")}[/]")
+            .Header($"[bold]{Markup.Escape(state.WatchSubject ?? "")}[/]")
             .Border(BoxBorder.Rounded)
             .Expand();
+    }
+
+    /// <summary>
+    /// The activity line, and the clock reading for it. Split out so a test can
+    /// assert what each of the three states renders without scraping a layout.
+    /// </summary>
+    internal static IReadOnlyList<IRenderable> BuildActivityRows(ForemanActivitySnapshot? activity)
+    {
+        if (activity is null)
+        {
+            return [new Markup("[grey]reading activity...[/]")];
+        }
+
+        // An unreadable transcript is reported, not hidden: "nothing to show"
+        // and "could not look" are different answers, and only one of them
+        // means the Foreman is idle.
+        if (activity.Error is not null)
+        {
+            return [new Markup($"[grey]{Markup.Escape(Truncate(activity.Error, 34))}[/]")];
+        }
+
+        var rows = new List<IRenderable> { new Markup($"[white]{Markup.Escape(Truncate(activity.Summary, 34))}[/]") };
+
+        if (activity.At is { } at)
+        {
+            rows.Add(new Markup($"[grey]{at.ToLocalTime():HH:mm:ss}[/]"));
+        }
+
+        return rows;
     }
 
     private static IRenderable BuildChat(DashboardState state)

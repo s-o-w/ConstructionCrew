@@ -91,7 +91,13 @@ internal static class DriveCommands
         // config.Name, not the raw argument: the transcript key must be the
         // canonical roster name so "frontend" and "Frontend" are one pane.
         state.DrivenForeman = config.Name;
+
+        // Driving takes the side panel over. Leaving an earlier /watch in place
+        // would describe one Foreman in the panel while the Boss types to
+        // another, which is worse than showing nothing.
+        state.WatchedForeman = null;
         state.Passive = null;
+        state.Activity = null;
 
         var notice = QueuedNotice(jobs, config.Name);
         state.ActiveTranscript.Add(new TranscriptLine(
@@ -103,11 +109,13 @@ internal static class DriveCommands
         return BossCommandResult.Handled;
     }
 
-    /// <summary>Clears the drive target and the passive column with it: a stale <c>git status</c> is worse than none.</summary>
+    /// <summary>Clears the drive target and the side panel with it: a stale <c>git status</c> is worse than none.</summary>
     internal static void StopDriving(DashboardState state)
     {
         state.DrivenForeman = null;
+        state.WatchedForeman = null;
         state.Passive = null;
+        state.Activity = null;
         state.View = TuiView.Chat;
     }
 
@@ -115,17 +123,26 @@ internal static class DriveCommands
     /// Parses <c>/drive Frontend</c>. <paramref name="target"/> comes back empty
     /// for a bare <c>/drive</c>; <c>/driveby</c> is not a drive command at all.
     /// </summary>
-    internal static bool TryParseDrive(string command, out string target)
+    internal static bool TryParseDrive(string command, out string target) =>
+        TryParseVerb(command, DriveVerb, out target);
+
+    /// <summary>
+    /// One verb, one optional argument. Shared with <c>/watch</c> so the two
+    /// commands cannot drift on what counts as the verb: a near miss like
+    /// <c>/driveby</c> or <c>/watchdog</c> is not the verb at all, and a bare
+    /// verb yields an empty argument rather than failing to parse.
+    /// </summary>
+    internal static bool TryParseVerb(string command, string verb, out string target)
     {
         target = string.Empty;
 
         var trimmed = command.Trim();
-        if (!trimmed.StartsWith(DriveVerb, StringComparison.OrdinalIgnoreCase))
+        if (!trimmed.StartsWith(verb, StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
 
-        var rest = trimmed[DriveVerb.Length..];
+        var rest = trimmed[verb.Length..];
         if (rest.Length > 0 && !char.IsWhiteSpace(rest[0]))
         {
             return false;

@@ -1,5 +1,6 @@
 using ConstructionCrew.Core.Models;
 using ConstructionCrew.Git;
+using ConstructionCrew.Providers.Activity;
 
 namespace ConstructionCrew.App.Tui;
 
@@ -24,6 +25,14 @@ internal abstract record BossEvent
     /// <summary>One job status transition, drained from <c>IJobStatusSink.Reader</c>.</summary>
     internal sealed record JobTransition(JobRecord Record) : BossEvent;
 
-    /// <summary>A finished passive-column refresh. Null when the driven Foreman has no worktree.</summary>
+    /// <summary>A finished passive-column refresh. Null when the watched Foreman has no worktree.</summary>
     internal sealed record PassiveRefreshed(GitWorkspaceSnapshot? Snapshot) : BossEvent;
+
+    /// <summary>
+    /// A finished activity read of the watched Foreman's session transcript.
+    /// Separate from <see cref="PassiveRefreshed"/> on purpose: the two read
+    /// different things at different speeds, and one must never make the
+    /// other wait.
+    /// </summary>
+    internal sealed record ActivityRefreshed(ForemanActivitySnapshot? Snapshot) : BossEvent;
 }
