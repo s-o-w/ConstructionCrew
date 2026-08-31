@@ -114,6 +114,28 @@ public class InstructionsComposerTests
         Assert.Equal("Foreman:XINFRA", InstructionsComposer.AuthoredBy(CrewRole.Foreman, "XINFRA"));
     }
 
+    /// <summary>
+    /// The DefaultBranch token is substituted into a `gh pr create --base ...`
+    /// example, so its fallback has to be a branch name and nothing else. Prose
+    /// there renders as a broken shell command a Foreman would run verbatim.
+    /// </summary>
+    [Fact]
+    public void Compose_NoDefaultBranch_RendersBareMainInsideThePrCommand()
+    {
+        var rendered = InstructionsComposer.Compose(
+            "Frontend",
+            CrewRole.Foreman,
+            "You are the Frontend Foreman.",
+            Jobsite() with { DefaultBranch = null },
+            ["Notes/XINFRA"],
+            ["claude"],
+            RepoRoot,
+            "/home/shawn/Vault");
+
+        Assert.Contains("--base main", rendered);
+        Assert.DoesNotContain("(no defaultBranch configured)", rendered);
+    }
+
     [Fact]
     public void Compose_MissingTemplate_ThrowsNamingThePath()
     {
@@ -131,5 +153,65 @@ public class InstructionsComposerTests
         {
             Directory.Delete(emptyRepoRoot, recursive: true);
         }
+    }
+
+    [Fact]
+    public void ExtractBriefing_RoundTripsAComposedForemanFile()
+    {
+        var briefing = string.Join(
+            Environment.NewLine,
+            "You are the Frontend Foreman.",
+            "You care about the TUI more than anyone else on the crew.");
+
+        var rendered = InstructionsComposer.Compose(
+            "Frontend",
+            CrewRole.Foreman,
+            briefing,
+            Jobsite(),
+            ["Notes/XINFRA"],
+            ["claude"],
+            RepoRoot,
+            "/home/shawn/Vault");
+
+        Assert.Equal(briefing, InstructionsComposer.ExtractBriefing(rendered));
+    }
+
+    [Fact]
+    public void ExtractBriefing_GcFile_ReturnsEmpty()
+    {
+        var rendered = InstructionsComposer.Compose(
+            "GC",
+            CrewRole.GC,
+            briefing: string.Empty,
+            jobsite: null,
+            vaultFolders: ["AI/Context"],
+            availableEngines: ["claude"],
+            repoRoot: RepoRoot,
+            vaultRoot: "/home/shawn/Vault");
+
+        Assert.Equal(string.Empty, InstructionsComposer.ExtractBriefing(rendered));
+    }
+
+    [Fact]
+    public void ExtractBriefing_UnrecognizedShape_ReturnsEmpty()
+    {
+        Assert.Equal(string.Empty, InstructionsComposer.ExtractBriefing(string.Empty));
+        Assert.Equal(
+            string.Empty,
+            InstructionsComposer.ExtractBriefing("Some briefing\n\n# You are Frontend, a Foreman\n\nbody"));
+        Assert.Equal(
+            string.Empty,
+            InstructionsComposer.ExtractBriefing("Some briefing\n\n---\n\n# Something else entirely\n"));
+    }
+
+    [Fact]
+    public void BriefingFilePath_SitsBesideTheInstructionsFile()
+    {
+        var briefingPath = InstructionsComposer.BriefingFilePath("/repo", "Frontend");
+
+        Assert.Equal(Path.Combine("/repo", "config", "instructions", "Frontend.briefing.md"), briefingPath);
+        Assert.Equal(
+            Path.Combine("/repo", "config", "instructions"),
+            Path.GetDirectoryName(briefingPath));
     }
 }

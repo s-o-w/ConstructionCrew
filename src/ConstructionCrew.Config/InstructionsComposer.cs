@@ -41,6 +41,49 @@ public static class InstructionsComposer
             ? "AI/Context/crew-preferences.md (relative to the Vault root, once one is configured)"
             : Path.Combine(vaultRoot, "AI", "Context", "crew-preferences.md");
 
+    /// <summary>Where a crew member's raw briefing is kept, verbatim, so its
+    /// instructions can be re-rendered later without asking the Boss again.</summary>
+    public static string BriefingFilePath(string repoRoot, string name) =>
+        Path.Combine(repoRoot, "config", "instructions", $"{name}.briefing.md");
+
+    /// <summary>
+    /// The briefing back out of an already-rendered Foreman instructions file, for a
+    /// crew member hired before the sidecar existed. The template puts the briefing
+    /// first, then a line that is exactly "---", a blank line, and a "# You are"
+    /// heading (config/templates/foreman-instructions.md:1-5). Returns "" when that
+    /// shape is not found -- a GC file, or a hand-rewritten one.
+    /// </summary>
+    public static string ExtractBriefing(string renderedInstructions)
+    {
+        if (string.IsNullOrWhiteSpace(renderedInstructions))
+        {
+            return string.Empty;
+        }
+
+        // Split on any line ending; the file may have been written or hand-edited
+        // on either platform.
+        var lines = renderedInstructions.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
+
+        for (var i = 0; i + 2 < lines.Length; i++)
+        {
+            var isSeparator =
+                lines[i] == "---" &&
+                string.IsNullOrWhiteSpace(lines[i + 1]) &&
+                lines[i + 2].StartsWith("# You are", StringComparison.Ordinal);
+
+            if (!isSeparator)
+            {
+                continue;
+            }
+
+            // Everything above the separator is the briefing, exactly as Compose
+            // trimmed it on the way in.
+            return string.Join(Environment.NewLine, lines.Take(i)).Trim();
+        }
+
+        return string.Empty;
+    }
+
     public static string Compose(
         string name,
         CrewRole role,
@@ -68,7 +111,10 @@ public static class InstructionsComposer
             ["JobsiteDescription"] = string.IsNullOrWhiteSpace(jobsite?.Description)
                 ? "(no description was given for this jobsite)"
                 : jobsite!.Description.Trim(),
-            ["DefaultBranch"] = Fallback(jobsite?.DefaultBranch, "main (no defaultBranch configured)"),
+            // Plain "main", never a parenthetical: this token is substituted into
+            // a `gh pr create --base {{DefaultBranch}}` example in the template,
+            // and any prose here renders as a literally broken shell command.
+            ["DefaultBranch"] = Fallback(jobsite?.DefaultBranch, "main"),
             ["BuildCommand"] = Fallback(jobsite?.BuildCommand, "(no build command configured -- ask the Boss before guessing one)"),
             ["TestCommand"] = Fallback(jobsite?.TestCommand, "(no test command configured -- ask the Boss before guessing one)"),
             ["Upstream"] = RenderMap(jobsite?.Upstream),

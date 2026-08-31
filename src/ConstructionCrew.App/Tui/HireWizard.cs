@@ -117,6 +117,12 @@ public static class HireWizard
         var instructionsDir = Path.Combine(repoRoot, "config", "instructions");
         Directory.CreateDirectory(instructionsDir);
         var instructionsFilePath = Path.Combine(instructionsDir, $"{name}.md");
+
+        // The briefing is kept verbatim beside the rendered file. Nothing else on
+        // disk holds it -- ForemanConfig has no briefing field -- so without this
+        // sidecar a later re-render would have to ask the Boss for it again.
+        File.WriteAllText(InstructionsComposer.BriefingFilePath(repoRoot, name), briefing);
+
         File.WriteAllText(
             instructionsFilePath,
             InstructionsComposer.Compose(
@@ -213,6 +219,38 @@ public static class HireWizard
             ? [$"Notes/{jobsiteName}", $"Plans/{jobsiteName}"]
             : null;
 
+    /// <summary>Blank means "main" -- never the literal fallback prose. That token
+    /// lands inside a `gh pr create --base ...` command.</summary>
+    internal static string NormalizeBranch(string? input) =>
+        string.IsNullOrWhiteSpace(input) ? "main" : input.Trim();
+
+    /// <summary>Blank stays null so InstructionsComposer's "ask the Boss" prose
+    /// renders -- that fallback is correct when the command is genuinely unknown.</summary>
+    internal static string? NormalizeOptionalCommand(string? input) =>
+        string.IsNullOrWhiteSpace(input) ? null : input.Trim();
+
+    /// <summary>
+    /// The derived Notes/&lt;Jobsite&gt; + Plans/&lt;Jobsite&gt; default is a DEFAULT, not a
+    /// rule -- real projects live elsewhere in a vault. Show it and let the Boss take
+    /// it or replace it. An unrecognized layout has nothing to show and asks outright.
+    /// </summary>
+    internal static IReadOnlyList<string> ResolveVaultFolders(string vaultRoot, string jobsiteName)
+    {
+        var derived = DeriveVaultFolders(vaultRoot, jobsiteName);
+        if (derived is null)
+        {
+            return PromptForVaultFolders(jobsiteName);
+        }
+
+        AnsiConsole.MarkupLine(
+            $"[bold]Vault folders[/] -- where '{Markup.Escape(jobsiteName)}' lives in the vault. " +
+            $"Default: [grey]{Markup.Escape(string.Join(", ", derived))}[/]");
+
+        return AnsiConsole.Confirm("Use these?", true)
+            ? derived
+            : PromptForVaultFolders(jobsiteName);
+    }
+
     private static IReadOnlyList<string> PromptForVaultFolders(string jobsiteName)
     {
         AnsiConsole.MarkupLine(
@@ -274,6 +312,15 @@ public static class HireWizard
         var repoUrl = AnsiConsole.Prompt(
             new TextPrompt<string>("[bold]Repo URL[/] (optional, blank to skip):").AllowEmpty());
 
+        var defaultBranch = NormalizeBranch(AnsiConsole.Prompt(
+            new TextPrompt<string>("[bold]Default branch[/] (blank for [grey]main[/]):").AllowEmpty()));
+
+        var buildCommand = NormalizeOptionalCommand(AnsiConsole.Prompt(
+            new TextPrompt<string>("[bold]Build command[/] (blank if you don't know yet):").AllowEmpty()));
+
+        var testCommand = NormalizeOptionalCommand(AnsiConsole.Prompt(
+            new TextPrompt<string>("[bold]Test command[/] (blank if you don't know yet):").AllowEmpty()));
+
         AnsiConsole.MarkupLine("[bold]Description[/] -- what this jobsite is, for the Foreman's context. Blank line to finish:");
         var descriptionLines = new List<string>();
         while (true)
@@ -302,12 +349,16 @@ public static class HireWizard
             descriptionLines.Count > 0 ? string.Join('\n', descriptionLines) : string.Empty,
             string.IsNullOrWhiteSpace(repoUrl) ? null : repoUrl,
             colorName,
-            // Derived here, where the Jobsite name is first known, so a
-            // recognized layout never has to ask. An unrecognized layout leaves
-            // this null and Run() prompts once, on the Foreman. Named, not
-            // positional -- DefaultBranch/BuildCommand/TestCommand/Upstream now
-            // sit between ColorName and VaultFolders.
-            VaultFolders: DeriveVaultFolders(vaultRoot, jobsiteName));
+            DefaultBranch: defaultBranch,
+            BuildCommand: buildCommand,
+            TestCommand: testCommand,
+            // Resolved here, where the Jobsite name is first known, and the
+            // answer has to be on the config before AppendJobsite writes it.
+            // A recognized layout shows its derived default and takes a yes; a
+            // no, or an unrecognized layout, asks outright. Named, not
+            // positional -- DefaultBranch/BuildCommand/TestCommand/Upstream sit
+            // between ColorName and VaultFolders.
+            VaultFolders: ResolveVaultFolders(vaultRoot, jobsiteName));
 
         var jobsitesYamlPath = Path.Combine(repoRoot, "config", "jobsites.yaml");
         JobsiteConfigWriter.AppendJobsite(jobsitesYamlPath, jobsite, repoRoot);

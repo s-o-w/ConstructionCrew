@@ -489,9 +489,13 @@ $RECYCLE.BIN/
 
 # Personal Foreman/Jobsite config -- real local repo paths, hired-Foreman
 # rosters, and their instructions files. Never commit these; copy the
-# .example files to get started (see README). Only the generic GC template
-# ships, since it's the one instructions file every install needs.
+# .example files to get started (see README).
+#
+# config/instructions/ is entirely per-install state. Nothing in it ships:
+# every file there, GC.md included, is rendered locally from the templates in
+# config/templates/ (first-run setup renders GC.md, /hire renders a Foreman's).
+# A checked-in copy would go stale against its template and silently win, since
+# an existing file is never overwritten.
 /config/foremen.yaml
 /config/jobsites.yaml
 /config/instructions/*.md
-!/config/instructions/GC.md

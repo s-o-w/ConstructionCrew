@@ -55,7 +55,8 @@ shape first-run setup itself writes, not a manual setup step.
 On a genuinely fresh clone (no `config/foremen.yaml`), the app runs guided
 first-run setup instead: point it at an existing Vault or let it scaffold a new
 one, then hire the GC. This writes `config/foremen.yaml`, `appsettings.json`
-(the Vault path), and `config/instructions/GC.md`.
+(the Vault path), and `config/instructions/GC.md` (rendered locally from
+`config/templates/gc-instructions.md`; no instructions file ships with the repo).
 
 (`foremen.yaml`/`jobsites.yaml` are git-ignored -- personal to whoever's
 running the tool, never committed. `jobsites.yaml` doesn't need any setup; it's
@@ -82,8 +83,9 @@ config/foremen.yaml.example    # Reference only -- what first-run setup writes; 
 config/jobsites.yaml.example   # Reference only -- jobsites.yaml self-creates
 config/foremen.yaml            # Your hired Foremen + the GC (git-ignored)
 config/jobsites.yaml           # Your Jobsites (git-ignored)
-config/instructions/GC.md      # The one generic instructions file every install needs
-config/instructions/*.md       # Per-Foreman instructions, written by /hire (git-ignored, except GC.md)
+config/templates/*.md          # The GC/Foreman instructions templates (these ship)
+config/instructions/GC.md      # GC's instructions, rendered at first run (git-ignored)
+config/instructions/*.md       # Per-Foreman instructions, written by /hire (git-ignored)
 config/generated/              # MCP config ConstructionCrew writes at startup (git-ignored)
 sandbox/                       # Scratch working directory (git-ignored)
 state/                         # Runtime state (git-ignored)

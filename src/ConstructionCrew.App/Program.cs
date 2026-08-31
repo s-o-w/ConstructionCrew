@@ -493,7 +493,7 @@ async Task<bool> HandleBossLine(string input)
     {
         AnsiConsole.Clear();
         ForemanDetailsCommand.Run(
-            foremanDirectory, jobsiteDirectory, settings.ForemenConfigPath, settings.JobsitesConfigPath,
+            foremanDirectory, jobsiteDirectory, jobRegistry, settings.ForemenConfigPath, settings.JobsitesConfigPath,
             repoRoot, settings.VaultRoot, availableProviderIds, foremanDetailsTarget);
         state.View = TuiView.Chat;
         return true;

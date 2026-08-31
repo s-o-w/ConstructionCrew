@@ -1,5 +1,6 @@
 using ConstructionCrew.Config;
 using ConstructionCrew.Core.Models;
+using ConstructionCrew.HomeOffice;
 using ConstructionCrew.Providers;
 using Spectre.Console;
 
@@ -75,9 +76,12 @@ public static class ForemanDetailsCommand
     private static readonly string[] EditableJobsiteFields =
         ["description", "repo url", "color", "default branch", "build command", "test command", "upstream", "vault folders"];
 
+    private const string RerenderInstructionsAction = "re-render instructions";
+
     public static void Run(
         ForemanDirectory foremen,
         JobsiteDirectory jobsites,
+        JobRegistry jobs,
         string foremenConfigPath,
         string jobsitesConfigPath,
         string repoRoot,
@@ -119,6 +123,7 @@ public static class ForemanDetailsCommand
                 choices.AddRange(EditableJobsiteFields.Select(f => $"jobsite: {f}"));
             }
 
+            choices.Add(RerenderInstructionsAction);
             choices.Add("done");
 
             var choice = AnsiConsole.Prompt(
@@ -127,6 +132,12 @@ public static class ForemanDetailsCommand
             if (choice == "done")
             {
                 return;
+            }
+
+            if (choice == RerenderInstructionsAction)
+            {
+                RerenderInstructions(foreman, jobsite, availableProviderIds, repoRoot, vaultRoot, jobs);
+                continue;
             }
 
             if (choice.StartsWith("jobsite: ", StringComparison.Ordinal) && jobsite is not null)
@@ -276,6 +287,80 @@ public static class ForemanDetailsCommand
             default:
                 return foreman;
         }
+    }
+
+    /// <summary>
+    /// Re-renders this crew member's instructions file from the CURRENT template and
+    /// the CURRENT Jobsite config. The briefing comes from the sidecar written at
+    /// hire time; for a crew member hired before that existed, it is recovered from
+    /// the file about to be overwritten and the sidecar is written on the way past.
+    /// </summary>
+    private static void RerenderInstructions(
+        ForemanConfig foreman,
+        JobsiteConfig? jobsite,
+        IReadOnlyList<string> availableProviderIds,
+        string repoRoot,
+        string? vaultRoot,
+        JobRegistry jobs)
+    {
+        var briefingPath = InstructionsComposer.BriefingFilePath(repoRoot, foreman.Name);
+
+        string briefing;
+        if (File.Exists(briefingPath))
+        {
+            briefing = File.ReadAllText(briefingPath);
+        }
+        else
+        {
+            briefing = File.Exists(foreman.InstructionsFilePath)
+                ? InstructionsComposer.ExtractBriefing(File.ReadAllText(foreman.InstructionsFilePath))
+                : string.Empty;
+
+            if (!string.IsNullOrWhiteSpace(briefing))
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(briefingPath)!);
+                File.WriteAllText(briefingPath, briefing);
+            }
+        }
+
+        try
+        {
+            File.WriteAllText(
+                foreman.InstructionsFilePath,
+                InstructionsComposer.Compose(
+                    foreman.Name,
+                    foreman.Role,
+                    briefing,
+                    jobsite,
+                    foreman.VaultFolders,
+                    availableProviderIds,
+                    repoRoot,
+                    vaultRoot));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            AnsiConsole.MarkupLine($"[red]Could not re-render the instructions file:[/] {Markup.Escape(ex.Message)}");
+            AnsiConsole.Markup("[grey]Press enter to continue...[/]");
+            Console.ReadLine();
+            return;
+        }
+
+        AnsiConsole.MarkupLine($"[green]Re-rendered[/] {Markup.Escape(foreman.InstructionsFilePath)}");
+
+        // LocalCliAgent only prepends the instructions file on a crew member's
+        // FIRST message, so a live agent keeps running on what it was told at
+        // spawn time. Dropping it is the only way the rewrite takes effect
+        // before the app restarts -- at the cost of that conversation's history.
+        if (AnsiConsole.Confirm(
+                $"Drop {foreman.Name}'s live conversation so the new instructions take effect on its next turn? Its current chat history is lost.",
+                false))
+        {
+            jobs.ForgetLiveAgent(foreman.Name);
+            AnsiConsole.MarkupLine($"[yellow]Dropped[/] {Markup.Escape(foreman.Name)}'s live conversation.");
+        }
+
+        AnsiConsole.Markup("[grey]Press enter to continue...[/]");
+        Console.ReadLine();
     }
 
     /// <summary>

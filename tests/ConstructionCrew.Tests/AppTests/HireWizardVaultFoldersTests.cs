@@ -87,6 +87,30 @@ public class HireWizardVaultFoldersTests
         }
     }
 
+    [Fact]
+    public void NormalizeBranch_Blank_IsMain()
+    {
+        // Never the fallback prose: this value lands inside `gh pr create --base ...`.
+        Assert.Equal("main", HireWizard.NormalizeBranch(null));
+        Assert.Equal("main", HireWizard.NormalizeBranch(""));
+        Assert.Equal("main", HireWizard.NormalizeBranch("   "));
+    }
+
+    [Fact]
+    public void NormalizeBranch_TrimsInput()
+    {
+        Assert.Equal("develop", HireWizard.NormalizeBranch("  develop  "));
+    }
+
+    [Fact]
+    public void NormalizeOptionalCommand_Blank_IsNull()
+    {
+        // Null, so InstructionsComposer's "ask the Boss" prose renders instead.
+        Assert.Null(HireWizard.NormalizeOptionalCommand(null));
+        Assert.Null(HireWizard.NormalizeOptionalCommand("   "));
+        Assert.Equal("dotnet build", HireWizard.NormalizeOptionalCommand("  dotnet build  "));
+    }
+
     private static string NewRecognizedVault(string? path = null)
     {
         path ??= Path.Combine(Path.GetTempPath(), "ccrew-hire-test-" + Guid.NewGuid().ToString("n")[..8]);

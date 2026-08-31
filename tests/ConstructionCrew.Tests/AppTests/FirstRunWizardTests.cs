@@ -199,6 +199,29 @@ public class FirstRunWizardTests
         Assert.Equal(["/somewhere/else", "/repo"], updated.AddDirs);
     }
 
+    /// <summary>
+    /// EnsureGcInstructions is private and returns early when the file already
+    /// exists, so the thing worth pinning is what it would render: the CURRENT
+    /// gc-instructions.md template, not the stale copy this repo used to ship.
+    /// Both of these were missing from that deleted file.
+    /// </summary>
+    [Fact]
+    public void ComposedGcInstructions_CarryTheSectionsTheStaleShippedFileLacked()
+    {
+        var rendered = InstructionsComposer.Compose(
+            "GC",
+            CrewRole.GC,
+            briefing: string.Empty,
+            jobsite: null,
+            vaultFolders: ["AI/Context"],
+            availableEngines: ["claude"],
+            repoRoot: RepoPaths.FindRepoRoot(AppContext.BaseDirectory),
+            vaultRoot: "/vault");
+
+        Assert.Contains("Closing out a Feature", rendered);
+        Assert.Contains("file_sitrep", rendered);
+    }
+
     private static string NewTempDir()
     {
         var path = Path.Combine(Path.GetTempPath(), "ccrew-firstrun-test-" + Guid.NewGuid().ToString("n")[..8]);
