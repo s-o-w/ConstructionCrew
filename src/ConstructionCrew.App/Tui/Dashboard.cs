@@ -56,7 +56,7 @@ public static class Dashboard
         // footer's second line stays blank: it's where the Boss prompt is
         // positioned next, so nothing after this scrolls the pinned header out of view.
         root["footer"].Update(new Rows(
-            new Markup(FooterFor(state.DrivenForeman)),
+            new Markup(FooterFor(state.DrivenForeman, state.Inbox.Count(i => !i.Read))),
             Text.Empty));
 
         AnsiConsole.Write(root);
@@ -67,10 +67,16 @@ public static class Dashboard
     /// The one-line command hint under the board. Named rather than inlined
     /// so a test can assert the command list without scraping a rendered layout.
     /// </summary>
-    internal static string FooterFor(string? drivenForeman) =>
-        drivenForeman is null
-            ? "[grey]/tasks /monitor /memory /hire /fire /foreman <Name> /view <path> /preferences /chat /drive <Name> /settings /migrate /help /exit (or bare \"quit\"/\"exit\")[/]"
-            : $"[grey]driving [/][yellow]{Markup.Escape(drivenForeman)}[/][grey] -- /exit returns to GC[/]";
+    internal static string FooterFor(string? drivenForeman, int unreadInboxCount = 0)
+    {
+        if (drivenForeman is not null)
+        {
+            return $"[grey]driving [/][yellow]{Markup.Escape(drivenForeman)}[/][grey] -- /exit returns to GC[/]";
+        }
+
+        var badge = unreadInboxCount > 0 ? $"  [yellow]{unreadInboxCount} new in /inbox[/]" : string.Empty;
+        return "[grey]/tasks /monitor /memory /hire /fire /foreman <Name> /view <path> /preferences /inbox /chat /drive <Name> /settings /migrate /help /exit (or bare \"quit\"/\"exit\")[/]" + badge;
+    }
 
     private static void PositionCursorOnPromptRow()
     {
@@ -286,7 +292,7 @@ public static class Dashboard
         // that true even when the newest entry alone exceeds the budget.
         var budget = Math.Max(4, AnsiConsole.Profile.Height - 8);
         var windowed = WindowToBudget(transcript, budget, line =>
-            ViewCommand.EstimateLines(RenderLine(line)));
+            Pager.EstimateLines(RenderLine(line)));
 
         return new Rows(windowed.Select(RenderLine));
     }

@@ -84,6 +84,7 @@ public sealed class FileSitrepTool
                 // Same JobRegistry.AskGc ask_gc uses: one GC conversation, not a
                 // separate one.
                 var gcReply = await _jobs.AskGc(jobId, MilestoneSummary(caller.Name, jobId, body, path), cancellationToken);
+                _jobs.NotifyMilestone(jobId, caller.Name, $"{MilestoneSummary(caller.Name, jobId, body, path)}{Environment.NewLine}GC replied: {gcReply}");
                 return $"sitrep filed: {path}{Environment.NewLine}GC: {gcReply}";
 
             case "pr-opened":

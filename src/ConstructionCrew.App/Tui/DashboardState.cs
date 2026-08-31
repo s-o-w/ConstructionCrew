@@ -14,6 +14,14 @@ public enum TuiView
 public sealed record TranscriptLine(string Speaker, string Text, bool IsError = false);
 
 /// <summary>
+/// A message from a Foreman that arrived while the Boss was doing something
+/// else (a milestone sitrep) -- queued here rather than spliced into
+/// <see cref="DashboardState.Transcript"/>, so it never rewrites what's
+/// currently on screen. Read via <c>/inbox</c>.
+/// </summary>
+public sealed record InboxItem(string From, string Text, DateTimeOffset ReceivedAt, bool Read = false);
+
+/// <summary>
 /// Everything the TUI renders that is not read straight off the registries.
 ///
 /// <para>
@@ -35,6 +43,12 @@ public sealed class DashboardState
 
     /// <summary>The GC conversation: what the Boss sees when not driving anyone.</summary>
     public List<TranscriptLine> Transcript { get; } = new();
+
+    /// <summary>
+    /// Messages from Foremen queued for later reading -- see <see cref="InboxItem"/>.
+    /// Never touched by chat rendering; only <c>/inbox</c> reads or mutates it.
+    /// </summary>
+    public List<InboxItem> Inbox { get; } = new();
 
     public required string HomeOfficeAddress { get; init; }
 

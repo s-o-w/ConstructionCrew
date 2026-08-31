@@ -829,6 +829,40 @@ public class JobRegistryTests
     }
 
     /// <summary>
+    /// The Inbox route: NotifyMilestone must publish a JobRecord the Boss loop
+    /// can recognize by its "milestone:" JobId prefix and route into
+    /// DashboardState.Inbox rather than the ordinary tracked-job pipeline.
+    /// </summary>
+    [Fact]
+    public async Task NotifyMilestone_PublishesAMarkedJobRecordAndFiresTheNotification()
+    {
+        var notifications = new NotificationSpyRunner();
+        var factory = new RecordingAgentFactory();
+        var sink = new JobStatusSink();
+        var registry = BuildRegistry(
+            new FakeForemanDirectory(Foreman("Frontend")), factory, sink, new LiveAgentRegistry(factory), "GC",
+            cliProcessRunner: notifications,
+            notificationsCommand: "notify-send 'cc: {event} {jobId} {foreman}'");
+
+        registry.NotifyMilestone("job-77", "Frontend", "Sitewalk complete -- GC replied: got it");
+
+        await notifications.FirstInvocation.WaitAsync(TimeSpan.FromSeconds(5));
+        var invocation = Assert.Single(notifications.Invocations);
+        Assert.Equal("notify-send 'cc: milestone job-77 Frontend'", invocation.Arguments[1]);
+
+        var published = new List<JobRecord>();
+        while (sink.Reader.TryRead(out var next))
+        {
+            published.Add(next);
+        }
+
+        var record = Assert.Single(published, r => r.JobId.StartsWith("milestone:", StringComparison.Ordinal));
+        Assert.Equal("Frontend", record.ForemanName);
+        Assert.Equal(JobStatus.Completed, record.Status);
+        Assert.Equal("Sitewalk complete -- GC replied: got it", record.Summary);
+    }
+
+    /// <summary>
     /// Coarse smoke test: several jobs completing at once, all against ONE
     /// RUN-LOG.md, must produce one whole entry each -- nothing partial, nothing
     /// interleaved. Driven through the real RunLogWriter and a real file.

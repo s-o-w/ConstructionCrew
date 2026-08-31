@@ -252,6 +252,28 @@ public sealed class JobRegistry
     }
 
     /// <summary>
+    /// A milestone sitrep landing, called by FileSitrepTool's milestone branch
+    /// after AskGc has already delivered it into GC's own conversation. That
+    /// leaves the Boss with nothing to see -- this fires the same desktop
+    /// notification pr-opened/parked already get, and publishes a synthetic
+    /// JobRecord whose "milestone:" JobId prefix tells the Boss loop
+    /// (Program.cs) to route it into DashboardState.Inbox rather than treat it
+    /// as an ordinary tracked-or-untracked job transition.
+    /// </summary>
+    public void NotifyMilestone(string jobId, string foremanName, string summary)
+    {
+        FireNotification("milestone", jobId, foremanName);
+        _statusSink.Publish(new JobRecord(
+            JobId: $"milestone:{Guid.NewGuid()}",
+            ForemanName: foremanName,
+            Task: "milestone escalation",
+            Status: JobStatus.Completed,
+            CreatedAt: DateTimeOffset.UtcNow,
+            CompletedAt: DateTimeOffset.UtcNow,
+            Summary: summary));
+    }
+
+    /// <summary>
     /// Substitutes {event}/{jobId}/{foreman} into NotificationsCommand and shells
     /// it fire-and-forget through the shared ICliProcessRunner.
     ///

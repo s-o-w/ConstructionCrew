@@ -364,10 +364,19 @@ while (running)
         switch (bossEvent)
         {
             case BossEvent.JobTransition transition:
-                // Every drained record is checked against the pending set; a
+                // A milestone sitrep's synthetic record (JobRegistry.NotifyMilestone)
+                // is never a Boss-dispatched job -- it queues into the Inbox
+                // instead of the chat transcript, so an unrelated background
+                // message never rewrites what's currently on screen.
+                if (transition.Record.JobId.StartsWith("milestone:", StringComparison.Ordinal))
+                {
+                    state.Inbox.Add(new InboxItem(
+                        transition.Record.ForemanName, transition.Record.Summary ?? string.Empty, transition.Record.CreatedAt));
+                }
+                // Every other drained record is checked against the pending set; a
                 // tracked id gone terminal becomes a transcript line in the
                 // Boss's addressed conversation.
-                if (pendingBossTurns.TryTakeCompletion(transition.Record, out var speaker, out var completion))
+                else if (pendingBossTurns.TryTakeCompletion(transition.Record, out var speaker, out var completion))
                 {
                     state.TranscriptFor(speaker).Add(completion);
                 }
@@ -483,7 +492,7 @@ async Task<bool> HandleBossLine(string input)
 
     if (command.Equals("/help", StringComparison.OrdinalIgnoreCase))
     {
-        AnsiConsole.MarkupLine("[grey]/chat  /tasks  /monitor  /memory  /hire  /fire  /foreman <Name>  /view <path>  /preferences [add]  /drive <Foreman>  /settings  /migrate  /exit (bare \"quit\" or \"exit\" also work) -- anything else is sent to the GC (or the driven Foreman) as a message.[/]");
+        AnsiConsole.MarkupLine("[grey]/chat  /tasks  /monitor  /memory  /hire  /fire  /foreman <Name>  /view <path>  /preferences [add]  /inbox  /drive <Foreman>  /settings  /migrate  /exit (bare \"quit\" or \"exit\" also work) -- anything else is sent to the GC (or the driven Foreman) as a message.[/]");
         AnsiConsole.Markup("[grey]Press enter to continue...[/]");
         Console.ReadLine();
         return true;
@@ -624,6 +633,14 @@ async Task<bool> HandleBossLine(string input)
         var preferencesArgument = command.Length > "/preferences".Length ? command["/preferences".Length..].Trim() : null;
         AnsiConsole.Clear();
         PreferencesCommand.Run(preferencesArgument, settings.VaultRoot, repoRoot);
+        state.View = TuiView.Chat;
+        return true;
+    }
+
+    if (command.Equals("/inbox", StringComparison.OrdinalIgnoreCase))
+    {
+        AnsiConsole.Clear();
+        InboxCommand.Run(state);
         state.View = TuiView.Chat;
         return true;
     }

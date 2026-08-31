@@ -144,6 +144,45 @@ public class FileSitrepToolTests
     }
 
     /// <summary>
+    /// A milestone must also queue into the Boss's Inbox (via
+    /// JobRegistry.NotifyMilestone), not just update GC's own conversation --
+    /// otherwise the Boss never sees that it landed at all.
+    /// </summary>
+    [Fact]
+    public async Task FileSitrep_KindMilestone_AlsoPublishesAMarkedJobRecordForTheInbox()
+    {
+        var vaultRoot = NewVault();
+        try
+        {
+            var foremen = new FakeForemanDirectory(Foreman(), Gc());
+            var factory = new RecordingAgentFactory();
+            factory.For("GC").Reply = "go ahead";
+            var sink = new JobStatusSink();
+            var registry = NewRegistry(foremen, factory, sink);
+            var jobId = registry.StartJob("Frontend", "work");
+            var tool = new FileSitrepTool(foremen, new HomeOfficeVaultOptions(vaultRoot), registry, new SitrepWriter());
+
+            await tool.FileSitrep(
+                "Frontend", jobId, "summary", "milestone", "plan settled after two review rounds", CancellationToken.None);
+
+            var published = new List<JobRecord>();
+            while (sink.Reader.TryRead(out var next))
+            {
+                published.Add(next);
+            }
+
+            var record = Assert.Single(published, r => r.JobId.StartsWith("milestone:", StringComparison.Ordinal));
+            Assert.Equal("Frontend", record.ForemanName);
+            Assert.Contains("plan settled after two review rounds", record.Summary);
+            Assert.Contains("go ahead", record.Summary);
+        }
+        finally
+        {
+            Directory.Delete(vaultRoot, recursive: true);
+        }
+    }
+
+    /// <summary>
     /// pr-opened frees the Foreman's workorder slot -- identified by JOB ID, not by
     /// Foreman name -- and raises exactly one notification. It never asks the GC:
     /// the GC learns of a PR opportunistically.
