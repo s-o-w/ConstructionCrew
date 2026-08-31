@@ -87,6 +87,29 @@ public class InstructionsComposerTests
         Assert.Contains("sitewalk recorded; graph export failed", rendered);
     }
 
+    /// <summary>
+    /// Phase 8: a Foreman dispatched against an empty directory has to stand the
+    /// repo up before it cuts a branch. That is template prose, and every token
+    /// in it ({{JobsitePath}}, {{DefaultBranch}}, {{Name}}) must actually
+    /// substitute -- an unreplaced token there renders as a broken git command.
+    /// </summary>
+    [Fact]
+    public void Compose_ForemanTemplate_CarriesTheRepoBootstrapStep()
+    {
+        var rendered = InstructionsComposer.Compose(
+            "Frontend",
+            CrewRole.Foreman,
+            "You are the Frontend Foreman.",
+            Jobsite(),
+            ["Notes/XINFRA", "Plans/XINFRA"],
+            ["claude", "codex"],
+            RepoRoot,
+            "/home/shawn/Vault");
+
+        Assert.Contains("rev-parse --git-dir", rendered);
+        Assert.DoesNotContain("{{", rendered);
+    }
+
     [Fact]
     public void Compose_Gc_RendersTheWorkorderHandoff()
     {

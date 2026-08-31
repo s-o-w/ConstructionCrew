@@ -1,4 +1,5 @@
 using ConstructionCrew.Config;
+using ConstructionCrew.Core;
 using ConstructionCrew.Core.Models;
 using ConstructionCrew.HomeOffice;
 using ConstructionCrew.Providers;
@@ -114,6 +115,23 @@ public static class HireWizard
             return null;
         }
 
+        // Vault folders first, so the paths shown on the confirm panel a moment
+        // ago all resolve on disk by the time the hire reports success.
+        var rejectedFolders = EnsureVaultFolders(vaultRoot, vaultFolders);
+        var createdFolders = vaultFolders.Except(rejectedFolders, StringComparer.Ordinal).ToList();
+        if (createdFolders.Count > 0)
+        {
+            AnsiConsole.MarkupLine(
+                $"[green]Vault folders ready:[/] {Markup.Escape(string.Join(", ", createdFolders))}");
+        }
+
+        foreach (var rejected in rejectedFolders)
+        {
+            AnsiConsole.MarkupLine(
+                $"[yellow]Vault folder '{Markup.Escape(rejected)}' resolves outside the vault -- not created.[/] " +
+                "It stays in this Foreman's write scope, but nothing will be able to write there.");
+        }
+
         var instructionsDir = Path.Combine(repoRoot, "config", "instructions");
         Directory.CreateDirectory(instructionsDir);
         var instructionsFilePath = Path.Combine(instructionsDir, $"{name}.md");
@@ -212,6 +230,51 @@ public static class HireWizard
         VaultLayout.Recognize(vaultRoot) == VaultRecognition.Recognized
             ? [$"Notes/{jobsiteName}", $"Plans/{jobsiteName}"]
             : null;
+
+    /// <summary>
+    /// Creates the Foreman's vault folders at hire time. Not required for
+    /// correctness (SitrepWriter and every agent Write already create parents) --
+    /// this exists so an overridden or mistyped path is visible in the vault the
+    /// moment the hire completes, rather than at the first write. Any entry that
+    /// resolves outside vaultRoot is skipped and reported, never created.
+    /// </summary>
+    internal static IReadOnlyList<string> EnsureVaultFolders(string vaultRoot, IReadOnlyList<string> folders)
+    {
+        var rejected = new List<string>();
+
+        if (string.IsNullOrWhiteSpace(vaultRoot) || folders.Count == 0)
+        {
+            return rejected;
+        }
+
+        var vaultRootFull = Path.GetFullPath(vaultRoot);
+        var rootWithSeparator = vaultRootFull.EndsWith(Path.DirectorySeparatorChar)
+            ? vaultRootFull
+            : vaultRootFull + Path.DirectorySeparatorChar;
+
+        foreach (var folder in folders)
+        {
+            if (string.IsNullOrWhiteSpace(folder))
+            {
+                continue;
+            }
+
+            var full = Path.GetFullPath(Path.Combine(vaultRootFull, folder));
+
+            // The same prefix guard SitrepWriter.RequireInside uses: an entry
+            // carrying ".." (or an absolute path) resolves out of the vault and
+            // is refused rather than created somewhere unexpected.
+            if (!full.StartsWith(rootWithSeparator, PathComparison.ForPathPrefix))
+            {
+                rejected.Add(folder);
+                continue;
+            }
+
+            Directory.CreateDirectory(full);
+        }
+
+        return rejected;
+    }
 
     /// <summary>Blank means "main" -- never the literal fallback prose. That token
     /// lands inside a `gh pr create --base ...` command.</summary>

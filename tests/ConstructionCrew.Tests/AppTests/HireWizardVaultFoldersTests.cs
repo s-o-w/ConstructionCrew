@@ -111,6 +111,73 @@ public class HireWizardVaultFoldersTests
         Assert.Equal("dotnet build", HireWizard.NormalizeOptionalCommand("  dotnet build  "));
     }
 
+    [Fact]
+    public void EnsureVaultFolders_CreatesMissingFolders()
+    {
+        var vaultRoot = NewRecognizedVault();
+        try
+        {
+            var rejected = HireWizard.EnsureVaultFolders(vaultRoot, ["Notes/Frontend", "Plans/Frontend"]);
+
+            Assert.Empty(rejected);
+            Assert.True(Directory.Exists(Path.Combine(vaultRoot, "Notes", "Frontend")));
+            Assert.True(Directory.Exists(Path.Combine(vaultRoot, "Plans", "Frontend")));
+        }
+        finally
+        {
+            Directory.Delete(vaultRoot, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void EnsureVaultFolders_ExistingFolder_IsLeftAlone()
+    {
+        var vaultRoot = NewRecognizedVault();
+        try
+        {
+            var existing = Path.Combine(vaultRoot, "Notes", "Frontend");
+            Directory.CreateDirectory(existing);
+            var note = Path.Combine(existing, "Sitewalk.md");
+            File.WriteAllText(note, "# Sitewalk");
+
+            var rejected = HireWizard.EnsureVaultFolders(vaultRoot, ["Notes/Frontend"]);
+
+            Assert.Empty(rejected);
+            Assert.True(File.Exists(note));
+            Assert.Equal("# Sitewalk", File.ReadAllText(note));
+        }
+        finally
+        {
+            Directory.Delete(vaultRoot, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void EnsureVaultFolders_EscapingEntry_IsRejectedAndReported()
+    {
+        var vaultRoot = NewRecognizedVault();
+        var outside = Path.GetFullPath(Path.Combine(vaultRoot, "..", "outside"));
+        try
+        {
+            var rejected = HireWizard.EnsureVaultFolders(vaultRoot, ["../outside", "Notes/Frontend"]);
+
+            // Reported back, and nothing created outside the vault.
+            Assert.Equal(["../outside"], rejected);
+            Assert.False(Directory.Exists(outside));
+
+            // The good entry beside it is still created.
+            Assert.True(Directory.Exists(Path.Combine(vaultRoot, "Notes", "Frontend")));
+        }
+        finally
+        {
+            Directory.Delete(vaultRoot, recursive: true);
+            if (Directory.Exists(outside))
+            {
+                Directory.Delete(outside, recursive: true);
+            }
+        }
+    }
+
     private static string NewRecognizedVault(string? path = null)
     {
         path ??= Path.Combine(Path.GetTempPath(), "ccrew-hire-test-" + Guid.NewGuid().ToString("n")[..8]);
