@@ -121,5 +121,19 @@ public static class FireWizard
         {
             File.Delete(fullPath);
         }
+
+        // The paired briefing sidecar (InstructionsComposer.BriefingFilePath)
+        // is written alongside every rendered instructions file so it can be
+        // re-rendered later without re-asking the Boss -- but nothing else
+        // removes it, so it was left behind forever after a fire. Same
+        // boundary check as above; the name comes from the file we just
+        // deleted, not a new parameter, so every existing call site is
+        // unaffected.
+        var foremanName = Path.GetFileNameWithoutExtension(fullPath);
+        var briefingPath = Path.GetFullPath(InstructionsComposer.BriefingFilePath(vaultRoot, foremanName));
+        if (File.Exists(briefingPath) && briefingPath.StartsWith(instructionsDir, PathComparison.ForPathPrefix))
+        {
+            File.Delete(briefingPath);
+        }
     }
 }

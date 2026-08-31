@@ -35,6 +35,30 @@ public class FireWizardSafetyTests
     }
 
     [Fact]
+    public void DeleteGeneratedInstructionsFile_WithBriefingSidecar_DeletesBothFiles()
+    {
+        var vaultRoot = Path.Combine(Path.GetTempPath(), "ccrew-fire-test-" + Guid.NewGuid().ToString("n")[..8]);
+        var instructionsDir = Path.Combine(vaultRoot, "AI", "ConstructionCrew", "Instructions");
+        Directory.CreateDirectory(instructionsDir);
+        var path = Path.Combine(instructionsDir, "Fred.md");
+        File.WriteAllText(path, "You are Fred.");
+        var briefingPath = Path.Combine(instructionsDir, "Fred.briefing.md");
+        File.WriteAllText(briefingPath, "You are the Fred Foreman.");
+
+        try
+        {
+            FireWizard.DeleteGeneratedInstructionsFile(path, vaultRoot);
+
+            Assert.False(File.Exists(path));
+            Assert.False(File.Exists(briefingPath));
+        }
+        finally
+        {
+            Directory.Delete(vaultRoot, recursive: true);
+        }
+    }
+
+    [Fact]
     public void DeleteGeneratedInstructionsFile_OutsideInstructionsDir_NeverDeletesIt()
     {
         // The critical case: even if a ForemanConfig's InstructionsFilePath were
