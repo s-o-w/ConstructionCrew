@@ -12,8 +12,8 @@ namespace ConstructionCrew.App.Tui;
 ///
 /// HARD INVARIANT, never to be relaxed: this only ever edits/deletes files
 /// this tool itself generated (foremen.yaml, jobsites.yaml, a Foreman's
-/// config/instructions/<name>.md). It NEVER touches tracked working-tree
-/// content in a Jobsite repo, with exactly one exception:
+/// AI/ConstructionCrew/Instructions/<name>.md in the Vault). It NEVER touches
+/// tracked working-tree content in a Jobsite repo, with exactly one exception:
 /// <c>git worktree remove</c>/<c>prune</c>, which only ever rewrite
 /// <c>.git/worktrees/</c> bookkeeping for worktrees ConstructionCrew itself
 /// opened. Those repos are the Boss's, not this tool's to touch.
@@ -25,6 +25,7 @@ public static class FireWizard
         JobsiteDirectory jobsites,
         JobRegistry jobs,
         string repoRoot,
+        string? vaultRoot,
         IWorktreeManager worktreeManager,
         CancellationToken cancellationToken)
     {
@@ -84,7 +85,7 @@ public static class FireWizard
         foremen.Remove(foreman.Name);
         jobs.ForgetLiveAgent(foreman.Name);
 
-        DeleteGeneratedInstructionsFile(foreman.InstructionsFilePath, repoRoot);
+        DeleteGeneratedInstructionsFile(foreman.InstructionsFilePath, vaultRoot);
 
         if (jobsite is not null)
         {
@@ -105,13 +106,20 @@ public static class FireWizard
         AnsiConsole.MarkupLine($"[bold green]{Markup.Escape(name)} is fired.[/] Config removed. The jobsite's repo was not touched.");
     }
 
-    /// <summary>Public so the "never deletes outside config/instructions" invariant can be tested directly, not just code-reviewed.</summary>
-    public static void DeleteGeneratedInstructionsFile(string instructionsFilePath, string repoRoot)
+    /// <summary>Public so the "never deletes outside AI/ConstructionCrew/Instructions" invariant can be tested directly, not just code-reviewed.</summary>
+    public static void DeleteGeneratedInstructionsFile(string instructionsFilePath, string? vaultRoot)
     {
+        // No Vault, no boundary to check against -- never delete, same as any
+        // other unresolvable path below.
+        if (string.IsNullOrWhiteSpace(vaultRoot))
+        {
+            return;
+        }
+
         // Only ever delete a file that's actually inside this tool's own
-        // generated-config directory -- never trust the path blindly, even
+        // generated-instructions directory -- never trust the path blindly, even
         // though it should always point there for a Foreman hired via /hire.
-        var instructionsDir = Path.GetFullPath(Path.Combine(repoRoot, "config", "instructions"));
+        var instructionsDir = Path.GetFullPath(Path.Combine(vaultRoot, "AI", "ConstructionCrew", "Instructions"));
         var fullPath = Path.GetFullPath(instructionsFilePath);
 
         if (File.Exists(fullPath) && fullPath.StartsWith(instructionsDir, PathComparison.ForPathPrefix))

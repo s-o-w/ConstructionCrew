@@ -611,7 +611,7 @@ async Task<bool> HandleBossLine(string input)
     if (command.Equals("/fire", StringComparison.OrdinalIgnoreCase))
     {
         AnsiConsole.Clear();
-        await FireWizard.Run(foremanDirectory, jobsiteDirectory, jobRegistry, repoRoot, worktreeManager, cts.Token);
+        await FireWizard.Run(foremanDirectory, jobsiteDirectory, jobRegistry, repoRoot, settings.VaultRoot, worktreeManager, cts.Token);
 
         // A fired Foreman must not stay the drive target.
         if (state.DrivenForeman is not null && foremanDirectory.Find(state.DrivenForeman) is null)
