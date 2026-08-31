@@ -139,7 +139,7 @@ vm:audience a owl:ObjectProperty ;
 
 vm:authoredBy a owl:DatatypeProperty ;
     rdfs:label "authored by" ;
-    rdfs:comment "Which role/persona actually wrote this note - GC, a named Foreman, a Worker, or the Boss directly. Free-text identifier (\"GC\", \"Foreman:<Jobsite>\", \"Worker:<Jobsite>/worker-<id>\", \"Boss\"), not a linked concept, since these are agent instances rather than a fixed taxonomy." ;
+    rdfs:comment "Which role/persona actually wrote this note - GC, a named Foreman, a Worker, or the Boss directly. Free-text identifier (\"GC\", \"Foreman:<ForemanName>:<Jobsite>\", \"Worker:<Jobsite>/worker-<id>\", \"Boss\"), not a linked concept, since these are agent instances rather than a fixed taxonomy. A Jobsite can carry more than one Foreman, so the Foreman's own name is load-bearing here, not decorative." ;
     rdfs:range xsd:string .
 
 vm:clarizenCode a owl:DatatypeProperty ;
