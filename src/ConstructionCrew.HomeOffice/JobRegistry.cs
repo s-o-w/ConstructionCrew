@@ -6,7 +6,7 @@ namespace ConstructionCrew.HomeOffice;
 
 /// <summary>
 /// Tracks dispatched jobs. Every Start* method returns a job id immediately;
-/// the actual run happens on a tracked background Task -- dispatch_task and
+/// the actual run happens on a tracked background Task: dispatch_task and
 /// spawn_worker must never block the caller's tool-calling turn.
 /// </summary>
 public sealed class JobRegistry
@@ -14,19 +14,16 @@ public sealed class JobRegistry
     private readonly ConcurrentDictionary<string, JobRecord> _jobs = new();
 
     /// <summary>
-    /// foremanName -> jobId. Answers "is this Foreman busy with a workorder, and
-    /// which job holds it". Case-insensitive to match ForemanDirectory and
-    /// LiveAgentRegistry, both of which key by Foreman name the same way; every
-    /// write path here still keys off the resolved canonical ForemanConfig.Name,
-    /// never the raw caller-supplied string.
+    /// foremanName -> jobId: is this Foreman busy, and with which job. Case-insensitive
+    /// to match ForemanDirectory/LiveAgentRegistry. Every write here keys off the
+    /// resolved ForemanConfig.Name, never the raw caller-supplied string.
     /// </summary>
     private readonly ConcurrentDictionary<string, string> _workorderSlots = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
-    /// jobId -> ActiveWorkorder. Answers "which specific job's workorder do I log
-    /// against". Deliberately NOT cleared by ReleaseWorkorder: a pr-opened release
-    /// frees the Foreman to take new work long before the job itself completes,
-    /// and the completing job still has to know what it was working on.
+    /// jobId -> ActiveWorkorder: which workorder a job logs against. Not cleared by
+    /// ReleaseWorkorder: a pr-opened release frees the Foreman early, but the
+    /// completing job still needs to know what it worked on.
     /// </summary>
     private readonly ConcurrentDictionary<string, ActiveWorkorder> _jobWorkorders = new();
 
@@ -47,33 +44,18 @@ public sealed class JobRegistry
     /// </summary>
     private static readonly TimeSpan DefaultAskGcTimeout = TimeSpan.FromMinutes(5);
 
-    /// <summary>
-    /// Every (jobId, foreman) NotifyPrOpened was called with. Kept alongside the
-    /// real NotificationsCommand hook, because it is what makes "notified exactly
-    /// once" testable from a caller (FileSitrepTool) that has no view of the
-    /// notification command at all.
-    /// </summary>
+    /// <summary>Every (jobId, foreman) pair NotifyPrOpened was called with: lets a caller with no view of NotificationsCommand assert "notified exactly once".</summary>
     private readonly ConcurrentQueue<(string JobId, string ForemanName)> _prOpenedNotifications = new();
 
     /// <summary>
-    /// <paramref name="liveAgents"/> is injected, never self-constructed: exactly
-    /// one LiveAgentRegistry exists per process, shared with the Boss loop, or GC
-    /// ends up with two divergent conversations. <paramref name="worktreeManager"/>
-    /// is the same shared instance HomeOfficeHost registers -- one instance, two
-    /// consumers.
-    ///
-    /// <paramref name="agentFactory"/> is still taken (and still the factory the
-    /// composition root builds LiveAgentRegistry from) even though every dispatch
-    /// path now routes through LiveAgentRegistry: its position anchors the
-    /// parameter order later phases append to.
-    ///
-    /// <paramref name="cliProcessRunner"/> is the same CliProcessRunner instance
-    /// the composition root already built for agentFactory and WorktreeManager --
-    /// reused for the NotificationsCommand shell-out, never a second
-    /// process-spawning seam. <paramref name="runLogWriter"/> and
-    /// <paramref name="jobsLogWriter"/> are plain-constructed by Program.cs (both
-    /// live in Config, which this project does not reference) and only ever seen
-    /// here through their Core interfaces.
+    /// <paramref name="liveAgents"/> must be the one shared instance (also used by
+    /// the Boss loop), or GC ends up with two divergent conversations.
+    /// <paramref name="cliProcessRunner"/> reuses the same instance already built
+    /// for agentFactory and WorktreeManager, for the NotificationsCommand
+    /// shell-out, rather than opening a second process-spawning seam.
+    /// <paramref name="runLogWriter"/> and <paramref name="jobsLogWriter"/> live in
+    /// Config, which this project doesn't reference, so only their Core interfaces
+    /// are visible here.
     /// </summary>
     public JobRegistry(
         IForemanDirectory foremen,
@@ -91,7 +73,7 @@ public sealed class JobRegistry
     {
         _foremen = foremen;
         _jobsiteDirectory = jobsiteDirectory;
-        _ = agentFactory;
+        _ = agentFactory; // Unused: every dispatch path now routes through LiveAgentRegistry.
         _statusSink = statusSink;
         _liveAgents = liveAgents;
         GcForemanName = gcForemanName;
@@ -103,48 +85,43 @@ public sealed class JobRegistry
         _jobsLogWriter = jobsLogWriter;
     }
 
-    /// <summary>The reserved name GC is hired under. Phase 7's AskGc resolves GC's own config through it.</summary>
+    /// <summary>The reserved name GC is hired under; AskGc resolves GC's config through it.</summary>
     public string GcForemanName { get; }
 
     /// <summary>
-    /// GC (or another Foreman) dispatching to a named, hired Foreman.
-    /// Continuation-aware.
+    /// Dispatches to a named, hired Foreman. Continuation-aware.
     ///
-    /// <paramref name="workorder"/> is null for an ordinary ad-hoc task, which
-    /// claims nothing and can never be rejected as busy. A non-null workorder
-    /// claims the Foreman's one workorder slot, and throws if it is already
-    /// held. This method does no parsing and no path validation -- DispatchTaskTool
-    /// hands it an already-validated typed value.
+    /// <paramref name="workorder"/> null means an ordinary ad-hoc task that claims
+    /// nothing and is never rejected as busy. Non-null claims the Foreman's one
+    /// workorder slot and throws if already held. Does no parsing or validation --
+    /// DispatchTaskTool hands in an already-validated value.
     /// </summary>
     public string StartJob(string foremanName, string task, ActiveWorkorder? workorder = null)
     {
         var config = FindForemanOrThrow(foremanName);
-        // config.Name, not foremanName: the slot is keyed off the canonical,
-        // resolved name so "Frontend" and "frontend" are one Foreman.
+        // config.Name, not foremanName: keeps "Frontend" and "frontend" as one slot.
         return StartTrackedJob(
             config.Name,
             task,
-            // The job id rides in on the task text, not in a separate channel: it is
-            // the only way the Foreman can name its own job back to ask_gc /
-            // file_sitrep. LocalCliAgent.ComposeInitialPrompt renders
-            // instructions + "---" + message, so this line always lands after the
-            // instructions block, never ahead of it.
+            // Job id rides in the task text: the only channel a Foreman has to name
+            // its own job back to ask_gc/file_sitrep. LocalCliAgent.ComposeInitialPrompt
+            // renders instructions + "---" + message, so this always lands after the
+            // instructions block.
             (jobId, onStarted, ct) =>
                 _liveAgents.SendAsync(foremanName, config, WithJobId(jobId, task), ct, onStarted),
             workorder);
     }
 
     /// <summary>
-    /// A Foreman spawning an ephemeral, unnamed Worker for one piece of work.
-    /// Never continuation-aware -- a Worker is a fresh one-shot run, not a
-    /// persistent identity. Runs in the parent's engine unless overridden.
+    /// Spawns an ephemeral, unnamed Worker for one piece of work. Never
+    /// continuation-aware: a Worker is a fresh one-shot run. Runs in the
+    /// parent's engine unless overridden.
     ///
-    /// The Worker gets its OWN git worktree, cut from the parent's active
+    /// The Worker gets its own git worktree cut from the parent's active
     /// workorder's feature branch, so two Workers on the same Jobsite never share
-    /// a working tree. Opening it is awaited before the job id is minted -- a
-    /// deliberate, narrow exception to "return immediately, track in background":
-    /// what stays backgrounded is the slow part (the Worker's CLI turn), not
-    /// `git worktree add`, a bounded metadata operation.
+    /// a working tree. Opening it is awaited before the job id is minted: what
+    /// stays backgrounded is the Worker's slow CLI turn, not the bounded
+    /// `git worktree add`.
     /// </summary>
     public async Task<string> StartWorkerJob(
         string parentForemanName, string task, string? engineOverride, CancellationToken cancellationToken)
@@ -154,8 +131,8 @@ public sealed class JobRegistry
         var shortId = Guid.NewGuid().ToString("n")[..6];
         var workerLabel = $"{parent.Name}/worker-{shortId}";
 
-        // parent.Name, not parentForemanName: the slot is keyed off the canonical
-        // resolved name everywhere else too.
+        // parent.Name, not parentForemanName: keyed off the canonical resolved
+        // name, same as elsewhere.
         if (!_workorderSlots.TryGetValue(parent.Name, out var parentJobId) ||
             !_jobWorkorders.TryGetValue(parentJobId, out var activeWorkorder))
         {
@@ -179,7 +156,7 @@ public sealed class JobRegistry
         var handle = await _worktreeManager.OpenAsync(
             repoPath, activeWorkorder.FeatureBranch, workerBranch, worktreePath, cancellationToken);
 
-        // WorkingDirectory is the worktree, NOT the parent's -- that is the whole
+        // WorkingDirectory is the worktree, NOT the parent's: that is the whole
         // point of the isolation.
         var workerConfig = parent with
         {
@@ -199,11 +176,7 @@ public sealed class JobRegistry
             onCompleted: () => _liveAgents.Remove(workerLabel));
     }
 
-    /// <summary>
-    /// A Worker (or anyone) asking a named Foreman a question mid-task. Synchronous
-    /// from the caller's point of view -- this re-invokes the Foreman's own
-    /// persistent conversation and returns its answer directly, not a job id.
-    /// </summary>
+    /// <summary>Asks a named Foreman a question mid-task. Synchronous: re-invokes the Foreman's persistent conversation and returns its answer, not a job id.</summary>
     public async Task<string> AskForeman(string foremanName, string question, CancellationToken cancellationToken)
     {
         var config = FindForemanOrThrow(foremanName);
@@ -212,12 +185,11 @@ public sealed class JobRegistry
     }
 
     /// <summary>
-    /// A Foreman or Worker escalating to the GC (and through it, the Boss) mid-job.
-    /// Returns GC's answer if it comes back inside the timeout; otherwise parks
-    /// <paramref name="jobId"/> and returns "parked: waiting on Boss" so the caller's
-    /// turn ends cleanly instead of hanging on a human.
+    /// Escalates to the GC mid-job. Returns GC's answer if it arrives inside the
+    /// timeout; otherwise parks <paramref name="jobId"/> and returns "parked:
+    /// waiting on Boss" so the caller's turn ends instead of hanging on a human.
     ///
-    /// Both ask_gc and a kind:"milestone" file_sitrep land here -- one method, one
+    /// Both ask_gc and a kind:"milestone" file_sitrep land here: one method, one
     /// GC conversation.
     /// </summary>
     public async Task<string> AskGc(string jobId, string question, CancellationToken cancellationToken)
@@ -232,9 +204,9 @@ public sealed class JobRegistry
         var gcConfig = FindForemanOrThrow(GcForemanName);
         var timeout = _runtimeOptions.AskGcTimeout ?? DefaultAskGcTimeout;
 
-        // Started, but deliberately NOT awaited directly: only this method's own
-        // wait is bounded. A linked CancellationTokenSource would cancel GC's
-        // in-flight turn on expiry and destroy the resume path below.
+        // Not awaited directly: only this method's wait is bounded. A linked
+        // CancellationTokenSource would cancel GC's in-flight turn on expiry and
+        // break the resume path below.
         var reply = _liveAgents.SendAsync(GcForemanName, gcConfig, question, cancellationToken);
 
         try
@@ -246,9 +218,8 @@ public sealed class JobRegistry
             var parkedAt = DateTimeOffset.UtcNow;
             Transition(jobId, JobStatus.Parked, null);
 
-            // GC answering IS the resume -- no second timeout, no polling. If GC
-            // never answers, the job stays Parked until the Boss redirects the
-            // Foreman or the job's own turn ends.
+            // GC answering is the resume itself: no second timeout, no polling. If
+            // GC never answers, the job stays Parked until the Boss redirects it.
             _ = reply.ContinueWith(
                 antecedent =>
                 {
@@ -266,13 +237,13 @@ public sealed class JobRegistry
     }
 
     /// <summary>
-    /// Raises the "a PR is open" notification for a job -- called by
-    /// FileSitrepTool's pr-opened branch, immediately after ReleaseWorkorder(jobId).
-    /// The PR itself is opened by the Foreman shelling `gh`, which C# never
-    /// observes, so this sitrep is the only way the Home Office learns of it.
+    /// Raises the "PR is open" notification, called by FileSitrepTool's pr-opened
+    /// branch right after ReleaseWorkorder(jobId). The Foreman opens the PR by
+    /// shelling `gh`, which C# never observes, so this sitrep is the only way Home
+    /// Office learns of it.
     ///
-    /// Fires the configured NotificationsCommand with {event} = "pr-opened", and is
-    /// a no-op (no process spawned) when no command is configured.
+    /// Fires NotificationsCommand with {event} = "pr-opened"; a no-op when no
+    /// command is configured.
     /// </summary>
     public void NotifyPrOpened(string jobId, string foremanName)
     {
@@ -281,16 +252,13 @@ public sealed class JobRegistry
     }
 
     /// <summary>
-    /// Substitutes {event}/{jobId}/{foreman} into the Boss's NotificationsCommand
-    /// template and shells it, fire-and-forget, through the same ICliProcessRunner
-    /// every other process spawn goes through.
+    /// Substitutes {event}/{jobId}/{foreman} into NotificationsCommand and shells
+    /// it fire-and-forget through the shared ICliProcessRunner.
     ///
-    /// Everything about this is best-effort and disposable. A null or empty command
-    /// spawns nothing at all (checked synchronously, before any task is started);
-    /// a broken command can neither block nor fail the transition that triggered
-    /// it. The catch inside the task body is deliberately terminal -- it calls
-    /// nothing further, so there is no statement left inside it that could throw
-    /// on a thread-pool thread with no one to catch it.
+    /// Best-effort: a null/empty command spawns nothing (checked before any task
+    /// starts), and a broken command can't block or fail the triggering
+    /// transition. The inner catch is deliberately terminal, calling nothing that
+    /// could itself throw unobserved on a thread-pool thread.
     /// </summary>
     private void FireNotification(string eventName, string jobId, string foremanName)
     {
@@ -309,18 +277,17 @@ public sealed class JobRegistry
         {
             try
             {
-                // Environment.CurrentDirectory: this is a housekeeping command
-                // (notify-send and friends), not one that needs to run inside a
-                // Jobsite repo or the Vault -- and CliInvocation.WorkingDirectory
-                // is non-nullable.
+                // Environment.CurrentDirectory: a housekeeping command (notify-send
+                // and friends) has no need to run inside a Jobsite repo or the
+                // Vault, and CliInvocation.WorkingDirectory is non-nullable.
                 await _cliProcessRunner.RunAsync(
                     new CliInvocation("/bin/sh", ["-c", command], Environment.CurrentDirectory),
                     CancellationToken.None);
             }
             catch
             {
-                // Deliberately empty, and deliberately terminal: a notification is
-                // never worth surfacing an unobserved task exception for.
+                // Deliberately empty and terminal: never worth surfacing an
+                // unobserved task exception for a notification.
             }
         });
     }
@@ -333,21 +300,13 @@ public sealed class JobRegistry
 
     public IReadOnlyCollection<JobRecord> GetAllJobs() => _jobs.Values.OrderBy(j => j.CreatedAt).ToList();
 
-    /// <summary>
-    /// True if the named Foreman has a job running directly, or any worker job it
-    /// spawned is running. Parked is deliberately NOT busy -- a parked Foreman is
-    /// waiting on the Boss and can still take a sitrep or a redirect.
-    /// </summary>
+    /// <summary>True if the Foreman or any Worker it spawned is running. Parked is not busy: a parked Foreman can still take a sitrep or a redirect.</summary>
     public bool IsForemanBusy(string foremanName) =>
         _jobs.Values.Any(j => j.Status is JobStatus.Pending or JobStatus.Running &&
                                (j.ForemanName.Equals(foremanName, StringComparison.OrdinalIgnoreCase) ||
                                 j.ForemanName.StartsWith(foremanName + "/", StringComparison.OrdinalIgnoreCase)));
 
-    /// <summary>
-    /// True if the named Foreman (or one of its Workers) is parked waiting on the
-    /// Boss. Deliberately disjoint from IsForemanBusy: a parked Foreman is not
-    /// busy, but it is not free either, and the roster has to show the difference.
-    /// </summary>
+    /// <summary>True if the Foreman (or a Worker) is parked waiting on the Boss. Disjoint from IsForemanBusy: parked is neither busy nor free.</summary>
     public bool IsForemanParked(string foremanName) =>
         _jobs.Values.Any(j => j.Status is JobStatus.Parked &&
                               (j.ForemanName.Equals(foremanName, StringComparison.OrdinalIgnoreCase) ||
@@ -357,14 +316,12 @@ public sealed class JobRegistry
     public void ForgetLiveAgent(string foremanName) => _liveAgents.Remove(foremanName);
 
     /// <summary>
-    /// Frees the Foreman holding <paramref name="jobId"/>'s workorder slot, so it
-    /// can accept new work immediately -- called when a PR opens, well before the
-    /// job itself completes. Never touches _jobWorkorders: the job still needs its
-    /// ActiveWorkorder when it finishes.
+    /// Frees the Foreman's workorder slot for <paramref name="jobId"/>, called
+    /// when a PR opens, well before the job completes. Never touches
+    /// _jobWorkorders: the job still needs its ActiveWorkorder when it finishes.
     ///
-    /// The clear is conditional on the slot still pointing at this exact job (see
-    /// <see cref="TryClearSlotIfOwnedBy"/>). A false result is a no-op, not an
-    /// error: the slot had already moved on.
+    /// Conditional on the slot still pointing at this job (<see
+    /// cref="TryClearSlotIfOwnedBy"/>); a false result is a no-op, not an error.
     /// </summary>
     public void ReleaseWorkorder(string jobId)
     {
@@ -377,13 +334,12 @@ public sealed class JobRegistry
     }
 
     /// <summary>
-    /// Removes the slot entry if, and only if, the key is still present AND its
-    /// current value still equals <paramref name="jobId"/> -- atomically, in one
-    /// BCL call. A check-then-remove (read the slot, compare, TryRemove by key)
-    /// leaves a window in which a stale release can evict a slot a NEXT job has
-    /// already claimed, because TryRemove(key) only checks the key exists.
+    /// Removes the slot entry only if it's still present and still equals
+    /// <paramref name="jobId"/>, atomically in one BCL call. A check-then-remove
+    /// would leave a window where a stale release evicts a slot a NEXT job already
+    /// claimed, since TryRemove(key) alone only checks the key exists.
     ///
-    /// Shared by ReleaseWorkorder and (Phase 10) the completion safety-net clear.
+    /// Shared by ReleaseWorkorder and the completion safety-net clear.
     /// </summary>
     internal bool TryClearSlotIfOwnedBy(string foremanName, string jobId) =>
         ((ICollection<KeyValuePair<string, string>>)_workorderSlots)
@@ -391,17 +347,13 @@ public sealed class JobRegistry
 
     /// <summary>
     /// The single atomic claim. GetOrAdd adds the key if absent and returns the
-    /// value just added, or returns the already-present value -- one call, with no
-    /// window in between for a second caller to observe an empty slot. A
-    /// check-then-set (or TryAdd-then-read) would let two concurrent claims for the
-    /// same Foreman both see the slot empty, or would need an unbounded retry loop
-    /// to cope with the slot being vacated between the failed add and the read.
+    /// value just added, or the already-present value: one call, no window for a
+    /// second caller to observe an empty slot. A check-then-set could let two
+    /// concurrent claims both see the slot empty.
     ///
-    /// internal, not public: there is no public path that creates two genuinely
-    /// concurrent claims against the same in-process dictionary, because StartJob
-    /// runs synchronously up to the point it schedules RunJobAsync. The claim has
-    /// to be exercised directly. See ConstructionCrew.HomeOffice.csproj's
-    /// InternalsVisibleTo.
+    /// internal, not public: StartJob runs synchronously up to scheduling
+    /// RunJobAsync, so no public path creates two genuinely concurrent claims; this
+    /// has to be exercised directly (see the csproj's InternalsVisibleTo).
     /// </summary>
     internal bool TryClaimWorkorderSlot(
         string foremanName, string jobId, ActiveWorkorder workorder, out string? busyOwnerJobId)
@@ -430,20 +382,15 @@ public sealed class JobRegistry
             ?? throw new InvalidOperationException(
                 $"No Foreman named '{foremanName}' is hired. Known Foremen: {string.Join(", ", _foremen.All().Select(f => f.Name))}.");
 
-    /// <summary>
-    /// Prepends the job id to a task's text. The Foreman has to be able to name its
-    /// own job back to ask_gc / file_sitrep, and the task text is the only channel
-    /// a provider-agnostic CLI invocation has.
-    /// </summary>
+    /// <summary>Prepends the job id to the task text: the only channel a provider-agnostic CLI invocation has for the Foreman to name its own job back.</summary>
     private static string WithJobId(string jobId, string task) => $"ConstructionCrew job id: {jobId}\n\n{task}";
 
     /// <summary>
-    /// <paramref name="run"/> receives the job id (to stamp into the message it
-    /// sends) and an <c>onStarted</c> callback to hand to
-    /// LiveAgentRegistry.SendAsync: it fires when the turn actually acquires that
-    /// agent's semaphore, which is what stamps StartedAt and moves the job out of
-    /// Pending. Queue time (CreatedAt -> StartedAt) is visible but never charged --
-    /// which is exactly why nothing else may transition a job to Running.
+    /// <paramref name="run"/> receives the job id and an <c>onStarted</c> callback
+    /// for LiveAgentRegistry.SendAsync, firing when the turn acquires the agent's
+    /// semaphore: that's what stamps StartedAt and moves the job out of Pending.
+    /// Queue time (CreatedAt -> StartedAt) is visible but never charged, which is
+    /// why nothing else may transition a job to Running.
     /// </summary>
     private string StartTrackedJob(
         string displayName,
@@ -479,10 +426,10 @@ public sealed class JobRegistry
     }
 
     /// <summary>
-    /// Names the feature the busy owner is on, for the rejection message only.
-    /// The winner writes _jobWorkorders strictly after its own GetOrAdd returns,
-    /// so this lookup can (rarely) run first -- that changes the wording of the
-    /// message, never the exclusivity, which GetOrAdd alone decides.
+    /// Names the busy owner's feature for the rejection message only. The winner
+    /// writes _jobWorkorders after its own GetOrAdd returns, so this lookup can
+    /// (rarely) run first: that only changes the message wording, never the
+    /// exclusivity GetOrAdd alone decides.
     /// </summary>
     private string DescribeInFlight(string? busyOwnerJobId) =>
         busyOwnerJobId is not null && _jobWorkorders.TryGetValue(busyOwnerJobId, out var inFlight)
@@ -490,14 +437,13 @@ public sealed class JobRegistry
             : $"job {busyOwnerJobId}";
 
     /// <summary>
-    /// <paramref name="onCompleted"/> runs however the job ends -- a Worker's live
-    /// agent has to be evicted on a failure just as much as on a success.
+    /// <paramref name="onCompleted"/> runs regardless of outcome: a Worker's
+    /// live agent must be evicted on failure just as much as success.
     ///
-    /// There is deliberately NO transition to Running here. A job stays Pending
-    /// until agent dispatch actually begins -- i.e. until the per-Foreman semaphore
-    /// is acquired inside <c>run</c>, which is what fires the onStarted callback
-    /// StartTrackedJob threaded in. Stamping Running up front would erase the queue
-    /// time the whole StartedAt design exists to measure.
+    /// No transition to Running here: a job stays Pending until the per-Foreman
+    /// semaphore is acquired inside <c>run</c>, firing the onStarted callback.
+    /// Stamping Running up front would erase the queue time StartedAt exists to
+    /// measure.
     /// </summary>
     private async Task RunJobAsync(string jobId, Func<CancellationToken, Task<CliRunResult>> run, Action? onCompleted)
     {
@@ -522,11 +468,11 @@ public sealed class JobRegistry
     }
 
     /// <summary>
-    /// GC's reply landing is the resume. Folds the elapsed park interval into
-    /// ParkedDuration and puts the job back to Running -- but only if it is STILL
-    /// Parked. A job that reached Completed or Failed while parked is left exactly
-    /// as it is: no transition, no throw, no error log. Transition itself does not
-    /// block a terminal-status regression, so the guard has to live here.
+    /// GC's reply is the resume: folds the elapsed park interval into
+    /// ParkedDuration and moves the job back to Running, only if it's still
+    /// Parked. A job that reached Completed/Failed while parked is left alone --
+    /// Transition itself doesn't block a terminal-status regression, so the guard
+    /// lives here.
     /// </summary>
     private void ResumeFromPark(string jobId, DateTimeOffset parkedAt)
     {
@@ -540,18 +486,16 @@ public sealed class JobRegistry
     }
 
     /// <summary>
-    /// <paramref name="startedAt"/> only ever lands on a transition into Running --
-    /// it is the "agent dispatch began" stamp actual-hours accounting is built on,
-    /// and re-stamping it on a later transition would erase the queue-time signal.
-    /// <paramref name="usage"/> arrives with the finished run's own result and is
-    /// never cleared by a later transition that has none of its own.
+    /// <paramref name="startedAt"/> only lands on a transition into Running: the
+    /// "dispatch began" stamp actual-hours accounting is built on; re-stamping it
+    /// later would erase the queue-time signal. <paramref name="usage"/> arrives
+    /// with the finished run and is never cleared by a later transition.
     ///
-    /// This method's ONLY job is to update _jobs[jobId] and publish it. Every
-    /// side-effect write below it (the run log, state/jobs.jsonl, the notification
-    /// shell-out) is best-effort and disposable, isolated behind TryRunSideEffect:
-    /// RunJobAsync wraps the whole run-and-transition sequence in one try whose
-    /// catch re-invokes Transition(..., Failed, ...) for ANY exception, so an
-    /// unguarded I/O failure in here would misreport a completed job as failed.
+    /// This method's only real job is updating and publishing _jobs[jobId]. Every
+    /// side-effect write below (run log, jobs.jsonl, notification) is isolated
+    /// behind TryRunSideEffect: RunJobAsync's outer catch re-invokes
+    /// Transition(..., Failed, ...) on ANY exception, so an unguarded I/O failure
+    /// here would misreport a completed job as failed.
     /// </summary>
     private void Transition(
         string jobId, JobStatus status, string? summary, DateTimeOffset? startedAt = null, CliUsage? usage = null)
@@ -575,9 +519,9 @@ public sealed class JobRegistry
 
         if (status is JobStatus.Completed or JobStatus.Failed)
         {
-            // _jobWorkorders, NOT _workorderSlots: a pr-opened release freed the
-            // Foreman long ago, and this job still has to know what it was working
-            // on. An ad-hoc dispatch has no entry here and logs nothing.
+            // _jobWorkorders, not _workorderSlots: a pr-opened release freed the
+            // Foreman already, but this job still needs to know what it worked
+            // on. An ad-hoc dispatch has no entry and logs nothing.
             if (_jobWorkorders.TryGetValue(jobId, out var workorder))
             {
                 try
@@ -590,15 +534,14 @@ public sealed class JobRegistry
                 }
             }
 
-            // Safety net for a job that finished without ever filing a pr-opened
-            // sitrep. Conditional and atomic, through the same helper
-            // ReleaseWorkorder uses -- a check-then-remove here would reintroduce
-            // the identical stale-release race from the other direction.
+            // Safety net for a job that finished without filing a pr-opened sitrep.
+            // Uses the same atomic helper as ReleaseWorkorder: a check-then-remove
+            // here would reintroduce the same stale-release race.
             TryClearSlotIfOwnedBy(updated.ForemanName, jobId);
         }
 
-        // Into Parked from anywhere else. A re-park of an already-parked job is not
-        // a transition and raises nothing.
+        // Only fires entering Parked from elsewhere; re-parking an already-parked
+        // job raises nothing.
         if (status is JobStatus.Parked && current.Status is not JobStatus.Parked)
         {
             TryRunSideEffect(() => FireNotification("parked", jobId, updated.ForemanName), "parked notification");
@@ -610,13 +553,10 @@ public sealed class JobRegistry
     /// <summary>
     /// Runs one of Transition's side-effect writes, swallowing anything it throws.
     ///
-    /// The two-level try/catch is what makes this airtight rather than just
-    /// relocated: the inner catch can only ever execute one statement,
-    /// Console.Error.WriteLine, and that statement is itself guarded by a catch
-    /// with an empty body. There is no remaining statement inside this method
-    /// capable of throwing past it, so RunJobAsync's outer catch can never be
-    /// triggered by any side-effect write Transition performs, however badly it
-    /// fails.
+    /// The nested try/catch is what makes this airtight: the inner catch can only
+    /// run Console.Error.WriteLine, itself guarded by an empty catch. Nothing here
+    /// can throw past it, so RunJobAsync's outer catch can never be triggered by a
+    /// side-effect write, however badly it fails.
     /// </summary>
     private static void TryRunSideEffect(Action sideEffect, string label)
     {
@@ -632,8 +572,7 @@ public sealed class JobRegistry
             }
             catch
             {
-                // Even reporting the failure must never propagate -- this is the last line of
-                // defense inside Transition. Deliberately empty: there is nothing left to safely do.
+                // Even error reporting must not propagate: the last line of defense.
             }
         }
     }

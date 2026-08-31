@@ -6,14 +6,11 @@ namespace ConstructionCrew.Config;
 
 /// <summary>
 /// Appends one JSON line per JobRegistry.Transition call to state/jobs.jsonl.
-/// Append-only, machine-local crash recovery only -- nothing reads it back as a
-/// resume source of truth.
+/// Crash-recovery only: nothing reads it back as a resume source of truth.
 ///
-/// A single fixed lock, deliberately not RunLogWriter's keyed dictionary: this
-/// writer targets exactly one path, resolved once at construction, for the whole
-/// lifetime of the process. There is no "which file" question to key a lock by, so
-/// one lock guarding the one file that could ever contend is both correct and
-/// strictly simpler.
+/// Uses one fixed lock, not RunLogWriter's keyed dictionary: this writer
+/// targets exactly one path for the process lifetime, so there is no "which
+/// file" to key a lock by.
 /// </summary>
 public sealed class JobsLogWriter : IJobsLogWriter
 {

@@ -4,13 +4,12 @@ using ModelContextProtocol.Server;
 namespace ConstructionCrew.HomeOffice.Tools;
 
 /// <summary>
-/// A thin MCP wrapper over <see cref="JobRegistry.AskGc"/>. All of the round
-/// trip, the timeout and the park/resume logic live there, because a
-/// kind:"milestone" file_sitrep has to take exactly the same path -- one
-/// method, one GC conversation.
+/// Thin MCP wrapper over <see cref="JobRegistry.AskGc"/>; the round trip,
+/// timeout, and park/resume logic all live there so a kind:"milestone"
+/// file_sitrep takes the same path.
 ///
-/// There is deliberately no timeout parameter on the signature: the bound is
-/// the Home Office's to set, not a Foreman's to argue with.
+/// No timeout parameter here on purpose: the bound is Home Office's to set,
+/// not a Foreman's to argue with.
 /// </summary>
 [McpServerToolType]
 public sealed class AskGcTool
@@ -30,8 +29,8 @@ public sealed class AskGcTool
         [Description("The question, with enough context that the GC can answer without seeing your work directly.")] string question,
         CancellationToken cancellationToken)
     {
-        // Named, hard error -- never a silent fallback to "your most recent job".
-        // Which job is asking is what decides which job gets parked.
+        // Hard error, never a silent fallback to "your most recent job": which
+        // job is asking decides which job gets parked.
         if (string.IsNullOrWhiteSpace(jobId) || _jobs.GetJob(jobId) is null)
         {
             throw new InvalidOperationException(

@@ -8,12 +8,12 @@ internal sealed record TermDefinition(string Id, string? Coercion);
 
 /// <summary>
 /// A composed JSON-LD @context: prefix map, short-name term definitions, and any
-/// keyword aliases ("type": "@type", "id": "@id" -- JSON-LD 1.1 keyword aliasing).
+/// keyword aliases ("type": "@type", "id": "@id", JSON-LD 1.1 keyword aliasing).
 ///
-/// A direct port of vault_to_rdf.py's Context/merge_context/context_base, including
-/// the composition rule that matters most here: a context a document *references*
-/// contributes vocabulary but never a base, so each ontology folder keeps its own
-/// scoped @base.
+/// A direct port of vault_to_rdf.py's Context/merge_context/context_base,
+/// including the composition rule that matters most: a context a document
+/// *references* contributes vocabulary but never a base, so each ontology
+/// folder keeps its own scoped @base.
 /// </summary>
 internal sealed class JsonLdContext
 {
@@ -110,7 +110,7 @@ internal sealed class JsonLdContext
     /// <summary>
     /// The @base an ontology/vocabulary context declares, or null. Read in
     /// isolation (never merged into the root) so each ontology keeps its own
-    /// scoped base -- the namespace its members mint under.
+    /// scoped base, the namespace its members mint under.
     /// </summary>
     public static string? ScopedBase(string path)
     {

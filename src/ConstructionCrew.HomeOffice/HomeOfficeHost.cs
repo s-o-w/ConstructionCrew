@@ -8,7 +8,7 @@ namespace ConstructionCrew.HomeOffice;
 
 /// <summary>
 /// Hosts the Home Office MCP server over HTTP. GC and every Foreman are
-/// independent concurrent CLI processes, not one stdio pipe each -- HTTP is
+/// independent concurrent CLI processes, not one stdio pipe each: HTTP is
 /// what lets them all reach the same control plane at once.
 /// </summary>
 public sealed class HomeOfficeHost : IAsyncDisposable
@@ -23,11 +23,10 @@ public sealed class HomeOfficeHost : IAsyncDisposable
     public Uri BaseAddress => new(_app.Urls.First());
 
     /// <summary>
-    /// <paramref name="vaultGraph"/> is always the last parameter before
-    /// <paramref name="port"/>; every later feature's parameter inserts ahead of
-    /// it. Cross-project implementations arrive already constructed (Program.cs
-    /// is the only place allowed to new them) and are registered as instances,
-    /// never as types -- HomeOffice references only Core.
+    /// Cross-project implementations arrive already constructed (only Program.cs
+    /// news them) and register as instances, never as types, because HomeOffice
+    /// references only Core. <paramref name="vaultGraph"/> stays the last
+    /// parameter before <paramref name="port"/>; later features insert ahead of it.
     /// </summary>
     public static async Task<HomeOfficeHost> StartAsync(
         JobRegistry jobRegistry,
@@ -50,15 +49,13 @@ public sealed class HomeOfficeHost : IAsyncDisposable
         builder.Services.AddSingleton(foremen);
         builder.Services.AddSingleton(jobsites);
         builder.Services.AddSingleton(vaultOptions);
-        // The INSTANCE, never AddSingleton<WorkorderReader>(): naming the concrete
-        // type would force a ProjectReference to Config that this project does not
-        // have, and must not gain.
+        // Registered as the INSTANCE, never AddSingleton<WorkorderReader>(): naming
+        // the concrete type would force a ProjectReference to Config this project
+        // must not have.
         builder.Services.AddSingleton(workorderReader);
-        // Same rule again: the INSTANCE. WorktreeManager lives in
-        // ConstructionCrew.Git, which this project does not reference.
+        // Same reasoning: WorktreeManager lives in ConstructionCrew.Git.
         builder.Services.AddSingleton(worktreeManager);
-        // Same rule once more: SitrepWriter lives in Config. file_sitrep only ever
-        // sees ISitrepWriter.
+        // Same reasoning: SitrepWriter lives in Config.
         builder.Services.AddSingleton(sitrepWriter);
         builder.Services.AddSingleton(vaultGraph);
         builder.Services.AddMcpServer()

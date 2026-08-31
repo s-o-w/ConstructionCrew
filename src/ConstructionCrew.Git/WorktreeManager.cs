@@ -4,8 +4,8 @@ namespace ConstructionCrew.Git;
 
 /// <summary>
 /// Shells the real <c>git</c> binary through the existing
-/// <see cref="ICliProcessRunner"/> seam -- the choice already made against
-/// LibGit2Sharp. No new process-spawning code path enters the app here.
+/// <see cref="ICliProcessRunner"/> seam, the choice already made against
+/// LibGit2Sharp. No new process-spawning path enters the app here.
 ///
 /// Every call runs with the repo as its working directory, so nothing depends on
 /// the process-wide current directory (Workers run concurrently).
@@ -25,8 +25,8 @@ public sealed class WorktreeManager : IWorktreeManager
         string repoPath, string featureBranch, string workerBranch, string worktreePath, CancellationToken ct)
     {
         // git refuses to create a worktree in a directory that already exists and
-        // is non-empty, but it will happily create the leaf itself -- so only the
-        // parent is pre-created.
+        // is non-empty, but happily creates the leaf itself, so only the parent
+        // is pre-created.
         var parent = Path.GetDirectoryName(Path.GetFullPath(worktreePath));
         if (!string.IsNullOrEmpty(parent))
         {
@@ -51,9 +51,9 @@ public sealed class WorktreeManager : IWorktreeManager
     /// <summary>
     /// Checks the main worktree out onto <paramref name="featureBranch"/> first: a
     /// merge lands on whatever HEAD points at, and the Foreman's own worktree is
-    /// the only place the feature branch is allowed to move.
+    /// the only place the feature branch may move.
     ///
-    /// A failed merge is aborted rather than left half-applied -- the caller gets
+    /// A failed merge is aborted rather than left half-applied: the caller gets
     /// false and a clean repo, not a repo mid-conflict it never asked for.
     /// </summary>
     public async Task<bool> MergeAsync(string repoPath, string featureBranch, string workerBranch, CancellationToken ct)
@@ -76,12 +76,12 @@ public sealed class WorktreeManager : IWorktreeManager
     }
 
     /// <summary>
-    /// Removes the worktree, then deletes its branch. Both are best effort: a
-    /// Worker that already had its worktree cleaned up by hand must not turn
-    /// close_worktree into an error the Foreman has to work around.
+    /// Removes the worktree, then deletes its branch. Both best effort: a Worker
+    /// whose worktree was already cleaned up by hand must not turn close_worktree
+    /// into an error the Foreman has to work around.
     ///
-    /// <c>--force</c> is scoped to the WORKER's own worktree directory, which this
-    /// tool created -- never a Jobsite's real working tree.
+    /// <c>--force</c> is scoped to the worker's own worktree directory, which this
+    /// tool created, never a Jobsite's real working tree.
     /// </summary>
     public async Task CloseAsync(WorktreeHandle handle, CancellationToken ct)
     {
@@ -107,9 +107,9 @@ public sealed class WorktreeManager : IWorktreeManager
     }
 
     /// <summary>
-    /// A WorktreeHandle only carries the worktree path, so close has to find its
-    /// way back to the main repo. <c>--git-common-dir</c> points at the shared
-    /// .git of the main worktree from inside any linked one.
+    /// A WorktreeHandle only carries the worktree path, so close must find its way
+    /// back to the main repo. <c>--git-common-dir</c> points at the shared .git of
+    /// the main worktree from inside any linked one.
     /// </summary>
     private async Task<string?> ResolveMainRepoAsync(string worktreePath, CancellationToken ct)
     {

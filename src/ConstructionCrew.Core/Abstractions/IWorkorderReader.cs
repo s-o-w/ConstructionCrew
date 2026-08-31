@@ -1,9 +1,9 @@
 namespace ConstructionCrew.Core.Abstractions;
 
 /// <summary>
-/// Reads a WORKORDER.md GC wrote into the Vault. The interface lives in Core so
-/// HomeOffice can depend on it without referencing Config (where the YamlDotNet
-/// implementation lives) -- see Architecture §3.7.
+/// Reads a WORKORDER.md GC wrote into the Vault. Lives in Core so HomeOffice can
+/// depend on it without referencing Config, where the YamlDotNet implementation
+/// lives (Architecture §3.7).
 /// </summary>
 public interface IWorkorderReader
 {

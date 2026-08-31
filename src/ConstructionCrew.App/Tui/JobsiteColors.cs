@@ -4,10 +4,10 @@ using Spectre.Console;
 namespace ConstructionCrew.App.Tui;
 
 /// <summary>
-/// Maps a JobsiteColorPalette name (plain data, no UI dependency) to an actual
-/// Spectre.Console.Color. Built from explicit RGB triples rather than Spectre's
-/// named-color constants/markup keywords -- deliberately not depending on
-/// which exact extended color names Spectre exposes.
+/// Maps a JobsiteColorPalette name (plain data, no UI dependency) to an
+/// actual Spectre.Console.Color. Built from explicit RGB triples rather than
+/// Spectre's named-color constants, so it doesn't depend on which extended
+/// color names Spectre exposes.
 /// </summary>
 public static class JobsiteColors
 {

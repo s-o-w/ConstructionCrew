@@ -1,10 +1,10 @@
 namespace ConstructionCrew.Core.Models;
 
 /// <summary>
-/// Which seat on the crew a config fills. Metadata only -- Name stays the
-/// canonical lookup key everywhere ("GC" is the reserved name). Role is used
-/// for exactly three things: picking the instructions template, deriving the
-/// authoredBy string, and load-time validation.
+/// Which seat on the crew a config fills. Metadata only: Name is the canonical
+/// lookup key everywhere ("GC" is the reserved name). Role is used for exactly
+/// three things: picking the instructions template, deriving the authoredBy
+/// string, and load-time validation.
 /// </summary>
 public enum CrewRole
 {
@@ -17,7 +17,7 @@ public enum CrewRole
 /// </summary>
 public sealed record ForemanConfig(
     string Name,                                            // canonical key. "GC" for the GC. Never localized.
-    CrewRole Role,                                          // positional, after Name -- a GC silently defaulting to Foreman is worth a compiler error
+    CrewRole Role,                                          // positional after Name: a GC silently defaulting to Foreman is worth a compiler error
     string Provider,
     string WorkingDirectory,
     string InstructionsFilePath,

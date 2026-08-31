@@ -5,7 +5,7 @@ namespace ConstructionCrew.HomeOffice;
 /// <summary>
 /// What a provider needs in order to reach the Home Office: the config file written
 /// for it, plus the ProviderOptions entries to stamp onto every Foreman running that
-/// provider. The options differ per CLI because the CLIs differ -- Claude Code and
+/// provider. The options differ per CLI because the CLIs differ: Claude Code and
 /// Copilot take a config file path, Codex has no config-file flag at all and takes the
 /// server URL as a `-c` TOML override instead.
 /// </summary>
@@ -15,13 +15,13 @@ public sealed record McpWiring(string ConfigPath, IReadOnlyDictionary<string, st
 /// Writes the config that points a hired CLI at the Home Office, one writer per
 /// ProviderId. Each shape was verified against the real CLI rather than assumed:
 ///
-/// - claude:  `--mcp-config &lt;file&gt;` with {"mcpServers":{...}} -- verified 2026-08-28
+/// - claude:  `--mcp-config &lt;file&gt;` with {"mcpServers":{...}}: verified 2026-08-28
 ///            via a scratch `claude mcp add --transport http` probe.
-/// - codex:   `[mcp_servers.&lt;name&gt;] url = "..."` in TOML -- verified by running
+/// - codex:   `[mcp_servers.&lt;name&gt;] url = "..."` in TOML: verified by running
 ///            `codex mcp add cc_probe --url ...` and reading ~/.codex/config.toml back.
 ///            Codex has no file flag, so the URL also rides in as a `-c` override.
 /// - copilot: `--additional-mcp-config @&lt;file&gt;` with
-///            {"mcpServers":{"&lt;name&gt;":{"type":"http","url":"..."}}} -- shape read out
+///            {"mcpServers":{"&lt;name&gt;":{"type":"http","url":"..."}}}: shape read out
 ///            of the CLI's own bundled validation schema, not guessed.
 /// </summary>
 public static class McpConfigWriter
@@ -67,11 +67,10 @@ public static class McpConfigWriter
     }
 
     /// <summary>
-    /// Codex's MCP servers live in TOML, and it has no flag that points at an
-    /// alternate config file -- so this file is written as the human-readable record
-    /// of what got wired (and as something that can be pasted into
-    /// $CODEX_HOME/config.toml), while the URL is what actually reaches the CLI, via
-    /// CodexProvider's `-c mcp_servers.home_office.url="..."` override.
+    /// Codex has no flag for an alternate config file, so this TOML is written as
+    /// a human-readable record (pasteable into $CODEX_HOME/config.toml) while the
+    /// URL actually reaches the CLI via CodexProvider's
+    /// `-c mcp_servers.home_office.url="..."` override.
     /// </summary>
     public static McpWiring WriteCodexConfig(string generatedConfigDirectory, Uri homeOfficeBaseAddress, string fileName = "codex-mcp-config.toml")
     {
@@ -101,7 +100,7 @@ public static class McpConfigWriter
             mcpServers = new Dictionary<string, object>
             {
                 // Copilot's schema requires the server name to be alphanumeric,
-                // underscores and hyphens only -- "home_office" qualifies.
+                // underscores and hyphens only: "home_office" qualifies.
                 [HomeOfficeServerName] = new
                 {
                     type = "http",

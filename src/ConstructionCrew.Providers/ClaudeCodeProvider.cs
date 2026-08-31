@@ -6,7 +6,7 @@ namespace ConstructionCrew.Providers;
 /// <summary>
 /// Drives the Claude Code CLI non-interactively. Flags verified via `claude --help`
 /// and a live `claude mcp add --transport http` probe on 2026-08-28 (see
-/// IMPLEMENTATION-PLAN.md) -- not guessed from memory.
+/// IMPLEMENTATION-PLAN.md): not guessed from memory.
 /// </summary>
 public sealed class ClaudeCodeProvider : ICliToolProvider
 {
@@ -19,18 +19,17 @@ public sealed class ClaudeCodeProvider : ICliToolProvider
 
     /// <summary>
     /// providerOptions key that opts a Foreman into `--output-format json`. Opt-in,
-    /// not default: the JSON envelope is what fills CliRunResult.Usage, but it also
-    /// replaces the CLI's plain-text stdout, so a Foreman only gets it when the
-    /// Boss asked for the accounting.
+    /// not default: the JSON envelope fills CliRunResult.Usage, but it also replaces
+    /// the CLI's plain-text stdout, so a Foreman only gets it when the Boss asked
+    /// for the accounting.
     /// </summary>
     public const string OutputFormatOption = "outputFormat";
 
     /// <summary>
     /// providerOptions key that emits `--permission-mode &lt;value&gt;`. Per-crew-member
-    /// escape hatch only, set through `/foreman &lt;Name&gt;` -> provider options; there is
-    /// deliberately no global toggle for it. Real CLI choices, read off `claude --help`
-    /// on 2026-08-30: acceptEdits, auto, bypassPermissions, manual, dontAsk, plan.
-    /// Composes with an allowlist rather than replacing one.
+    /// only, set via `/foreman &lt;Name&gt;` -> provider options; no global toggle.
+    /// Valid values (`claude --help`, 2026-08-30): acceptEdits, auto, bypassPermissions,
+    /// manual, dontAsk, plan. Composes with an allowlist; does not replace one.
     /// </summary>
     public const string PermissionModeOption = "permissionMode";
 
@@ -58,10 +57,9 @@ public sealed class ClaudeCodeProvider : ICliToolProvider
             args.Add("--allowedTools");
             args.Add(allowedTools);
         }
-        // The three permission-related flags are independent of each other. They
-        // were once chained through an `else if`, which made
-        // --dangerously-skip-permissions unreachable for any crew member carrying
-        // an allowlist -- i.e. all of them.
+        // The three permission flags are independent. Chaining them with `else if`
+        // made --dangerously-skip-permissions unreachable for any crew member with
+        // an allowlist, i.e. all of them.
         if (request.ProviderOptions.TryGetValue(PermissionModeOption, out var permissionMode) && !string.IsNullOrWhiteSpace(permissionMode))
         {
             args.Add("--permission-mode");
@@ -74,9 +72,9 @@ public sealed class ClaudeCodeProvider : ICliToolProvider
             args.Add("--dangerously-skip-permissions");
         }
 
-        // addDir stays supported as a single-value providerOptions escape hatch;
-        // AddDirs is the typed list (a Vault root plus this repo, for GC) and
-        // emits one --add-dir per entry.
+        // addDir stays as a single-value providerOptions escape hatch; AddDirs is
+        // the typed list (a Vault root plus this repo, for GC) and emits one
+        // --add-dir per entry.
         if (request.ProviderOptions.TryGetValue("addDir", out var addDir) && !string.IsNullOrWhiteSpace(addDir))
         {
             args.Add("--add-dir");
@@ -107,10 +105,9 @@ public sealed class ClaudeCodeProvider : ICliToolProvider
         }
 
         // "--" ends option parsing before the positional prompt. Without it,
-        // variadic options like --mcp-config/--allowedTools (which accept a
-        // space-separated list) greedily swallow the prompt text as one more
-        // value in their own list instead of leaving it as the prompt -- confirmed
-        // by direct repro against the real CLI on 2026-08-28.
+        // variadic options like --mcp-config/--allowedTools swallow the prompt as
+        // one more value in their own list instead of leaving it as the prompt.
+        // Confirmed against the real CLI on 2026-08-28.
         args.Add("--");
         args.Add(request.Prompt);
 
@@ -125,15 +122,14 @@ public sealed class ClaudeCodeProvider : ICliToolProvider
     ///      "usage":{"input_tokens":4,"cache_creation_input_tokens":0,
     ///               "cache_read_input_tokens":0,"output_tokens":100}}
     ///
-    /// Parsed into CliUsage, and the `result` text unwrapped back into
-    /// StandardOutput so everything downstream (a job's Summary, a sitrep, the
-    /// Boss's transcript) still sees the answer rather than a JSON blob. The raw
-    /// envelope is kept verbatim in CliUsage.RawJson.
+    /// Parsed into CliUsage, with `result` unwrapped back into StandardOutput so
+    /// everything downstream (a job's Summary, a sitrep, the Boss's transcript)
+    /// still sees the answer text, not a JSON blob. The raw envelope is kept
+    /// verbatim in CliUsage.RawJson.
     ///
-    /// Never throws and never changes Succeeded: a run whose stdout does not parse
-    /// (a crashed CLI, a non-JSON error dump) is handed back exactly as it came in,
-    /// with Usage still null. Accounting is best-effort; the turn's own result is
-    /// not.
+    /// Never throws and never changes Succeeded: stdout that fails to parse (a
+    /// crashed CLI, a non-JSON error dump) is passed through unchanged, with Usage
+    /// left null. Accounting is best-effort; the turn's own result is not.
     /// </summary>
     public CliRunResult PostProcess(CliTaskRequest request, CliRunResult result)
     {
@@ -157,9 +153,8 @@ public sealed class ClaudeCodeProvider : ICliToolProvider
 
             if (root.TryGetProperty("usage", out var usage) && usage.ValueKind == JsonValueKind.Object)
             {
-                // Every input-side counter summed: a cache read is still an input
-                // token the run was charged for, and reporting only input_tokens
-                // would understate a cached turn by an order of magnitude.
+                // Sum every input-side counter: a cache read is still a charged
+                // input token, and input_tokens alone would understate a cached turn.
                 inputTokens = Sum(
                     ReadLong(usage, "input_tokens"),
                     ReadLong(usage, "cache_creation_input_tokens"),
@@ -202,7 +197,7 @@ public sealed class ClaudeCodeProvider : ICliToolProvider
             ? parsed
             : null;
 
-    /// <summary>Null when every part is missing -- an absent counter is not a zero.</summary>
+    /// <summary>Null when every part is missing: an absent counter is not a zero.</summary>
     private static long? Sum(params long?[] parts) =>
         parts.Any(p => p.HasValue) ? parts.Sum(p => p ?? 0) : null;
 }

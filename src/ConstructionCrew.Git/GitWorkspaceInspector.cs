@@ -4,8 +4,8 @@ namespace ConstructionCrew.Git;
 
 /// <summary>
 /// What the passive column shows for a driven Foreman: which branch its worktree
-/// is on, how much is uncommitted, and the last few commits. Nothing here is
-/// interactive -- it is a read-only view of a working tree the Boss is not in.
+/// is on, how much is uncommitted, and the last few commits. Read-only; the Boss
+/// is not in this worktree.
 /// </summary>
 public sealed record GitWorkspaceSnapshot(
     string WorktreePath,
@@ -17,8 +17,8 @@ public sealed record GitWorkspaceSnapshot(
 /// <summary>
 /// Read-only <c>git status</c> / <c>git log</c> for one worktree, shelled through
 /// the same <see cref="ICliProcessRunner"/> seam <see cref="WorktreeManager"/>
-/// already uses. No new process-spawning code path enters the app here, and this
-/// type never writes to a repo.
+/// already uses. No new process-spawning path enters the app here, and this type
+/// never writes to a repo.
 /// </summary>
 public sealed class GitWorkspaceInspector
 {
@@ -35,9 +35,9 @@ public sealed class GitWorkspaceInspector
     }
 
     /// <summary>
-    /// Never throws for a git-level failure: a Worker whose worktree was already
-    /// removed must degrade to an <see cref="GitWorkspaceSnapshot.Error"/> line in
-    /// the passive column, not take the Boss loop down with it.
+    /// Never throws on a git-level failure: a Worker whose worktree was already
+    /// removed degrades to a <see cref="GitWorkspaceSnapshot.Error"/> line in the
+    /// passive column, not a crash of the Boss loop.
     /// </summary>
     public async Task<GitWorkspaceSnapshot> InspectAsync(string worktreePath, CancellationToken cancellationToken)
     {
@@ -78,8 +78,8 @@ public sealed class GitWorkspaceInspector
     /// <summary>
     /// Splits <c>git status --porcelain=v1 --branch</c> into (branch, changed file
     /// count). The header line is <c>## &lt;branch&gt;...&lt;upstream&gt; [ahead N]</c>;
-    /// a detached HEAD reports <c>## HEAD (no branch)</c>, which is passed through
-    /// as-is rather than guessed at. Every other line is one changed path.
+    /// a detached HEAD reports <c>## HEAD (no branch)</c>, passed through as-is.
+    /// Every other line is one changed path.
     /// </summary>
     internal static (string? Branch, int ChangedFiles) ParseStatus(string standardOutput)
     {

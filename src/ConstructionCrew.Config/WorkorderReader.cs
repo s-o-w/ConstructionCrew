@@ -6,11 +6,10 @@ using YamlDotNet.Serialization;
 namespace ConstructionCrew.Config;
 
 /// <summary>
-/// Reads GC's WORKORDER.md. Deliberately validates the file against ITSELF only
-/// -- path segments vs. frontmatter -- because that is the whole of what this
-/// file can be checked against without knowing who the work is being dispatched
-/// to. DispatchTaskTool owns the second half of the validation (workorder vs.
-/// dispatch target) and the SourceBranch fallback chain.
+/// Reads GC's WORKORDER.md and validates it against itself only (path segments
+/// vs. frontmatter): that's all this can check without knowing the dispatch
+/// target. DispatchTaskTool validates workorder vs. target and owns the
+/// SourceBranch fallback chain.
 /// </summary>
 public sealed class WorkorderReader : IWorkorderReader
 {
@@ -66,12 +65,7 @@ public sealed class WorkorderReader : IWorkorderReader
         return new ParsedWorkorder(feature, jobsite, sourceBranch);
     }
 
-    /// <summary>
-    /// The &lt;jobsite&gt;/&lt;feature&gt; pair the file's own location asserts.
-    /// Anything that is not exactly two segments under &lt;vaultRoot&gt;/Plans/
-    /// is a hard rejection -- a workorder outside the Plans tree has no jobsite
-    /// or feature to be checked against.
-    /// </summary>
+    /// <summary>The &lt;jobsite&gt;/&lt;feature&gt; pair the file's location asserts. Anything but exactly two segments under &lt;vaultRoot&gt;/Plans/ is rejected.</summary>
     private static (string Jobsite, string Feature) ResolvePlansSegments(string fullPath, string vaultRoot)
     {
         var plansRoot = Path.GetFullPath(Path.Combine(vaultRoot, "Plans"));
@@ -98,12 +92,7 @@ public sealed class WorkorderReader : IWorkorderReader
         return (segments[0], segments[1]);
     }
 
-    /// <summary>
-    /// The leading YAML frontmatter block, or null when there is none. Same
-    /// shape and size cap as the graph exporter's reader; duplicated rather than
-    /// shared because that one is internal to ConstructionCrew.Graph, which
-    /// Config does not reference.
-    /// </summary>
+    /// <summary>The leading YAML frontmatter block, or null if none. Duplicated from the graph exporter's reader (internal to ConstructionCrew.Graph, which Config doesn't reference) rather than shared.</summary>
     private static Dictionary<string, object?>? ReadFrontmatter(string path)
     {
         var text = File.ReadAllText(path);

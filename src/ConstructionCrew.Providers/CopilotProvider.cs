@@ -35,13 +35,13 @@ public sealed class CopilotProvider : ICliToolProvider
         if (request.ContinuePreviousConversation)
         {
             // --continue resumes the most recent session; --resume [sessionId] is the
-            // pick-one form we have no session id for yet.
+            // pick-one form, unusable without a session id.
             args.Add("--continue");
         }
 
-        // --allow-tool is variadic on the real CLI ("[tools...]"). One flag per tool
-        // keeps it from greedily eating whatever argument follows, the same failure
-        // mode already hit for real with Claude Code's --allowedTools.
+        // --allow-tool is variadic ("[tools...]"). One flag per tool avoids it
+        // swallowing the next argument, the same failure mode hit with Claude
+        // Code's --allowedTools.
         if (request.ProviderOptions.TryGetValue("allowedTools", out var allowedTools) && !string.IsNullOrWhiteSpace(allowedTools))
         {
             foreach (var tool in allowedTools.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
@@ -86,11 +86,11 @@ public sealed class CopilotProvider : ICliToolProvider
         }
 
         // Copilot has no --append-system-prompt equivalent; custom instructions come
-        // from AGENTS.md-style files on disk (see `copilot help config`), so an
-        // appendSystemPrompt option is deliberately not mapped onto any flag.
+        // from AGENTS.md-style files on disk (`copilot help config`). appendSystemPrompt
+        // is not mapped to any flag.
 
-        // The prompt is a flag VALUE here, not a positional, so there is no
-        // end-of-options terminator to add: -p takes exactly one argument.
+        // The prompt is a flag value here, not positional, so no end-of-options
+        // terminator is needed: -p takes exactly one argument.
         args.Add("-p");
         args.Add(request.Prompt);
 

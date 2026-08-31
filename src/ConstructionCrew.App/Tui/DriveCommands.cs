@@ -6,7 +6,7 @@ namespace ConstructionCrew.App.Tui;
 /// <summary>What the Boss loop should do with a line after drive routing has had a look at it.</summary>
 internal enum BossCommandResult
 {
-    /// <summary>Not a drive command -- carry on down the rest of the command table.</summary>
+    /// <summary>Not a drive command; carry on down the rest of the command table.</summary>
     NotHandled,
 
     /// <summary>Fully dealt with; re-render and take the next line.</summary>
@@ -21,11 +21,10 @@ internal enum BossCommandResult
 /// loop calls rather than a rule the loop re-implements inline.
 ///
 /// <para>
-/// Driving is a routing change only: subsequent Boss input goes to that Foreman's
-/// own persistent conversation instead of GC's, and the output pane shows that
-/// Foreman's transcript. There is no PTY and no live terminal attach -- it stays
-/// an in/out message relay through the one shared LiveAgentRegistry every other
-/// dispatch already goes through.
+/// Driving is a routing change only: subsequent Boss input goes to that
+/// Foreman's own persistent conversation instead of GC's. There is no PTY or
+/// live terminal attach; it stays an in/out message relay through the same
+/// shared LiveAgentRegistry every other dispatch goes through.
 /// </para>
 /// </summary>
 internal static class DriveCommands
@@ -47,8 +46,7 @@ internal static class DriveCommands
 
         if (IsExitVerb(trimmed))
         {
-            // /exit means "leave drive mode" while driving and "quit" otherwise.
-            // The Boss can always get out of a Foreman without leaving the app.
+            // /exit means "leave drive mode" while driving, "quit" otherwise.
             if (state.DrivenForeman is null)
             {
                 return BossCommandResult.Quit;
@@ -79,9 +77,9 @@ internal static class DriveCommands
             return BossCommandResult.Handled;
         }
 
-        // Driving GC is what the Boss is already doing. Silently landing in a
-        // second, parallel "GC" pane would be the divergent-conversation bug in
-        // UI form, so this returns to the one GC transcript instead.
+        // Driving GC is what the Boss is already doing. A second, parallel
+        // "GC" pane would be a divergent conversation, so return to the one
+        // GC transcript instead.
         if (config.Name.Equals(state.GcForemanName, StringComparison.OrdinalIgnoreCase))
         {
             StopDriving(state);
@@ -90,7 +88,7 @@ internal static class DriveCommands
             return BossCommandResult.Handled;
         }
 
-        // config.Name, not the raw argument: the transcript key has to be the
+        // config.Name, not the raw argument: the transcript key must be the
         // canonical roster name so "frontend" and "Frontend" are one pane.
         state.DrivenForeman = config.Name;
         state.Passive = null;
@@ -105,10 +103,7 @@ internal static class DriveCommands
         return BossCommandResult.Handled;
     }
 
-    /// <summary>
-    /// Clears the drive target and the passive column with it -- a stale
-    /// <c>git status</c> from the Foreman you just left is worse than none.
-    /// </summary>
+    /// <summary>Clears the drive target and the passive column with it: a stale <c>git status</c> is worse than none.</summary>
     internal static void StopDriving(DashboardState state)
     {
         state.DrivenForeman = null;
@@ -149,16 +144,15 @@ internal static class DriveCommands
     }
 
     /// <summary>
-    /// "queued behind ..., started HH:mm" for a Foreman that already has a turn in
+    /// "queued behind ..., started HH:mm" for a Foreman with a turn already in
     /// flight, or null when it is free.
     ///
     /// <para>
     /// The clock comes from <see cref="JobRecord.StartedAt"/>, never
     /// <see cref="JobRecord.CreatedAt"/>: StartedAt is stamped when the turn
-    /// actually acquires that Foreman's semaphore, so it is the only one of the two
-    /// that answers "how long has this really been running". A job that has not
-    /// started yet says so rather than quoting a start time it does not have --
-    /// that distinction is the whole point of tracking both stamps.
+    /// acquires that Foreman's semaphore, so it answers "how long has this
+    /// really been running". A job not yet started says so instead of
+    /// quoting a start time it doesn't have.
     /// </para>
     /// </summary>
     internal static string? QueuedNotice(IReadOnlyCollection<JobRecord> jobs, string foremanName)
@@ -181,8 +175,8 @@ internal static class DriveCommands
     }
 
     /// <summary>
-    /// A job belongs to a Foreman if it is theirs or one of the Workers they
-    /// spawned (<c>&lt;Foreman&gt;/worker-abc123</c>) -- the same ownership rule
+    /// A job belongs to a Foreman if it's theirs or one of the Workers they
+    /// spawned (<c>&lt;Foreman&gt;/worker-abc123</c>), the same rule
     /// <c>JobRegistry.IsForemanBusy</c> uses.
     /// </summary>
     internal static bool BelongsTo(string foremanName, string jobForemanName) =>

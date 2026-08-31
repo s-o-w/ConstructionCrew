@@ -16,19 +16,16 @@ var settings = AppSettingsLoader.Load(repoRoot, args);
 
 AnsiConsole.Write(new Rule("[bold yellow]ConstructionCrew[/]").LeftJustified());
 
-// Which CLIs this machine can actually hire: registered in code AND resolvable on
-// PATH. There is deliberately no "id != gemini" filter here -- GeminiProvider reports
-// IsImplemented == false itself, so it stays out even on a box where `gemini` is
-// installed. Results cache to state/tools.json; /settings re-probes.
-//
-// Resolved before the roster loads because first run needs the list to hire a GC with.
+// Registered CLIs resolvable on PATH. No "id != gemini" filter needed:
+// GeminiProvider reports IsImplemented == false itself. Cached to
+// state/tools.json; /settings re-probes. Resolved before the roster loads
+// because first run needs this list to hire a GC.
 var providerRegistry = ProviderRegistry.Default(settings.StateDirectory);
 var availableProviderIds = providerRegistry.AvailableIds();
 
-// No roster file at all is a fresh install, not a broken config -- run first-run
-// setup instead of failing. This is deliberately NOT the "gcConfig is null" branch
-// below: that one means a file that loads but has no GC-named entry, which is a
-// genuinely different failure and stays a hard fail.
+// A missing roster file means a fresh install, so run first-run setup instead
+// of failing. Distinct from the "gcConfig is null" branch below: that means an
+// existing file with no GC entry, which stays a hard fail.
 if (!File.Exists(settings.ForemenConfigPath))
 {
     string? resolvedVaultRoot;
@@ -38,10 +35,9 @@ if (!File.Exists(settings.ForemenConfigPath))
     }
     catch (Exception ex)
     {
-        // First run is the one wizard that runs before the TUI is up, so it is
-        // also the one that can be hit with no terminal at all (a piped run, CI).
-        // Spectre throws rather than degrades there; report it like every other
-        // startup failure instead of dumping a stack trace.
+        // First run is the one wizard that runs before the TUI is up, so a
+        // piped run or CI with no terminal can hit it. Spectre throws rather
+        // than degrading there; report it plainly instead of a stack trace.
         AnsiConsole.MarkupLine($"[red]First-run setup could not run:[/] {Markup.Escape(ex.Message)}");
         AnsiConsole.MarkupLine("[grey]It needs an interactive terminal. Copy config/foremen.yaml.example to config/foremen.yaml to set the roster up by hand instead.[/]");
         return 1;
@@ -53,22 +49,19 @@ if (!File.Exists(settings.ForemenConfigPath))
         return 1;
     }
 
-    // AppSettings is a record and `settings` is a plain local: nothing reloads it
-    // from disk. Without this reassignment the ${vaultRoot} the wizard just wrote
-    // would fail to expand on the very next line, and /hire's Vault guard would
-    // still see null for the rest of this process.
+    // AppSettings is a record; nothing reloads it from disk. Without this
+    // reassignment, ${vaultRoot} would fail to expand on the next line and
+    // /hire's Vault guard would still see null.
     settings = settings with { VaultRoot = resolvedVaultRoot };
 }
 
-// Both instructions templates tell every crew member to read the Boss's crew
-// preferences file, unconditionally. Scaffolding alone doesn't cover that: it only
-// runs when the Boss chose "scaffold a new Vault", and most Bosses point at an
-// existing one. So ensure the single file on every start, for whatever vault is
-// configured now (including one the first-run wizard just resolved).
+// Both instructions templates require every crew member to read the Boss's
+// crew preferences file. Scaffolding alone doesn't guarantee it exists (it
+// only runs for "scaffold a new Vault"), so ensure this one file on every
+// start for whatever vault is configured.
 //
-// Never fatal. A read-only vault, a permissions problem, a vault on a disconnected
-// share -- none of that is a reason to refuse to start. The crew reading a missing
-// preferences file is a correct outcome; not starting is not.
+// Never fatal: a missing preferences file is a valid outcome for the crew;
+// refusing to start is not.
 if (!string.IsNullOrWhiteSpace(settings.VaultRoot) && Directory.Exists(settings.VaultRoot))
 {
     try
@@ -85,13 +78,10 @@ if (!string.IsNullOrWhiteSpace(settings.VaultRoot) && Directory.Exists(settings.
     }
 }
 
-// GC.md is no longer shipped (Phase 4) -- it's rendered fresh, per install, the
-// first time it's needed. First run's own call to EnsureGcInstructions only
-// fires when foremen.yaml doesn't exist yet; an EXISTING roster (the far more
-// common case) already names this file's conventional path, so first run never
-// runs again to regenerate it. Ensure it here too, unconditionally, right before
-// the loader -- which hard-fails on a missing instructionsFilePath -- ever gets
-// a chance to see it missing.
+// GC.md is no longer shipped; it's rendered on first need. First run's call to
+// EnsureGcInstructions only fires when foremen.yaml is missing, so an existing
+// roster never re-triggers it. Ensure it here too, before the loader (which
+// hard-fails on a missing instructionsFilePath) can see it missing.
 if (!string.IsNullOrWhiteSpace(settings.VaultRoot) && Directory.Exists(settings.VaultRoot))
 {
     try
@@ -115,13 +105,11 @@ catch (Exception ex)
     return 1;
 }
 
-// A roster hired before instructions templates and rendered instructions files
-// moved into the Vault still names their old repoRoot/config/instructions/
-// locations. Migrate on every start -- a no-op once everyone's already on
-// AI/ConstructionCrew/Instructions/ -- and use the RETURNED list from here on:
-// foremenSeed itself is stale for anyone just migrated, since the file it named
-// has physically moved. Never fatal: a read-only repo or vault share is a
-// reason to keep running on the old paths, not to refuse to start.
+// A roster hired before instructions moved into the Vault still names the old
+// repoRoot/config/instructions/ path. Migrate on every start (a no-op once
+// migrated) and use the RETURNED list: foremenSeed is stale for anyone just
+// migrated, since the file it named has moved. Never fatal: a read-only vault
+// keeps running on old paths instead of refusing to start.
 if (!string.IsNullOrWhiteSpace(settings.VaultRoot) && Directory.Exists(settings.VaultRoot))
 {
     try
@@ -163,28 +151,25 @@ catch (Exception ex)
 var jobsiteDirectory = new JobsiteDirectory(jobsitesSeed);
 
 var runner = new CliProcessRunner();
-// The factory gets every registered provider, not just the available ones, so a
-// foremen.yaml naming an uninstalled CLI fails with that CLI's own error rather than
-// a misleading "no provider registered for 'codex'".
+// Every registered provider, not just available ones: a foremen.yaml naming an
+// uninstalled CLI then fails with that CLI's own error, not a misleading
+// "no provider registered" message.
 var agentFactory = new LocalCliAgentFactory(providerRegistry.Registered, runner);
-// Built before JobRegistry, not just before HomeOfficeHost.StartAsync: JobRegistry
-// needs this same instance for spawn_worker's worktree-per-Worker mechanism, and
-// HomeOfficeHost registers the very same one for the three worktree tools. One
-// instance, two consumers, reusing `runner` above.
+// Built before JobRegistry: JobRegistry needs this instance for spawn_worker's
+// worktree-per-Worker mechanism, and HomeOfficeHost registers the same
+// instance for the three worktree tools.
 var worktreeManager = new WorktreeManager(runner);
-// Exactly one LiveAgentRegistry per process. The Boss loop and JobRegistry both
-// route through it, so GC never ends up with two divergent conversations.
+// One LiveAgentRegistry per process, so GC never ends up with two divergent
+// conversations.
 var liveAgents = new LiveAgentRegistry(agentFactory);
 var statusSink = new JobStatusSink();
 var runtimeOptions = new JobRegistryRuntimeOptions(settings.StateDirectory);
-// The Boss's optional external-notification hook, and the two log writers -- all
-// three live outside HomeOffice's reference graph (or, for the options record,
-// have JobRegistry as their only consumer), so Program.cs constructs them and
-// hands JobRegistry the instances. No HomeOfficeHost registration for any of them.
+// These three live outside HomeOffice's reference graph, so Program.cs
+// constructs them and hands JobRegistry the instances directly.
 var notificationOptions = new HomeOfficeNotificationOptions(settings.NotificationsCommand);
 var runLogWriter = new RunLogWriter();
-// After runtimeOptions, deliberately: it reads StateDirectory, and its
-// constructor creates that directory so the very first append cannot throw.
+// After runtimeOptions: its constructor creates StateDirectory, so the first
+// append here cannot throw.
 var jobsLogWriter = new JobsLogWriter(Path.Combine(runtimeOptions.StateDirectory, "jobs.jsonl"));
 var jobRegistry = new JobRegistry(
     foremanDirectory,
@@ -200,15 +185,13 @@ var jobRegistry = new JobRegistry(
     runLogWriter,
     jobsLogWriter);
 // Program.cs is the one place allowed to construct a cross-project
-// implementation and hand HomeOffice an already-built instance -- HomeOffice
-// has no ProjectReference to ConstructionCrew.Graph and never names VaultGraph.
+// implementation and hand HomeOffice an instance: HomeOffice has no
+// ProjectReference to ConstructionCrew.Graph.
 var vaultGraph = new VaultGraph();
 var vaultOptions = new HomeOfficeVaultOptions(settings.VaultRoot);
-// Same rule: WorkorderReader lives in Config, which HomeOffice does not
-// reference. Program.cs news it; HomeOfficeHost registers the instance.
+// Same rule: WorkorderReader lives in Config, which HomeOffice doesn't reference.
 var workorderReader = new WorkorderReader();
-// Same rule again: SitrepWriter lives in Config, and file_sitrep only ever sees
-// the ISitrepWriter interface.
+// Same rule again: SitrepWriter lives in Config.
 var sitrepWriter = new SitrepWriter();
 
 Directory.CreateDirectory(settings.StateDirectory);
@@ -216,11 +199,9 @@ Directory.CreateDirectory(settings.StateDirectory);
 using var cts = new CancellationTokenSource();
 var homeOffice = await HomeOfficeHost.StartAsync(jobRegistry, foremanDirectory, jobsiteDirectory, vaultOptions, workorderReader, worktreeManager, sitrepWriter, vaultGraph, settings.HomeOfficePort, cts.Token);
 
-// --debug is deliberately not surfaced in the TUI itself (the Dashboard footer
-// used to always show this and it was just screen clutter) -- it's a one-time
-// plain-console line before the TUI takes over, for when a second instance
-// (e.g. built from a worktree, on an overridden port) needs to be told apart
-// from the live one.
+// Not surfaced in the TUI itself (it used to be, and was just footer clutter).
+// One plain-console line before the TUI takes over, for telling a second
+// instance (e.g. a worktree build, an overridden port) apart from the live one.
 var isDebug = args.Contains("--debug", StringComparer.OrdinalIgnoreCase);
 if (isDebug)
 {
@@ -229,17 +210,15 @@ if (isDebug)
     Console.ReadLine();
 }
 
-// Every Foreman needs the Home Office's MCP config to call list_foremen/dispatch_task/
-// spawn_worker/ask_foreman -- not just GC, and not just Claude Code. Each available
-// provider gets its own config written in its own shape, then everyone hired so far is
-// stamped with the wiring for the provider they actually run.
+// Every Foreman needs Home Office's MCP config to call list_foremen/dispatch_task/
+// spawn_worker/ask_foreman, not just GC. Each available provider gets its own
+// config in its own shape, then every hired Foreman is stamped with the wiring
+// for the provider it runs.
 var mcpOptionsByProvider = WriteMcpWiring(providerRegistry, settings.GeneratedConfigDirectory, homeOffice.BaseAddress);
 
-// A local function, not a straight-line loop, because /settings re-probes and
-// reassigns mcpOptionsByProvider: without re-stamping, the roster keeps pointing at
-// the config paths written before the re-probe. The capture is by reference (C#
-// closes over the VARIABLE, not a snapshot of its value), so the /settings call
-// below reads the freshly assigned dictionary, not the startup one.
+// A local function, not a straight-line loop: /settings re-probes and
+// reassigns mcpOptionsByProvider, and the closure captures the variable (not a
+// snapshot), so this always reads the current dictionary.
 void StampMcpWiring()
 {
     foreach (var foreman in foremanDirectory.All().ToList())
@@ -261,12 +240,11 @@ void StampMcpWiring()
             continue;
         }
 
-        // GC only: a roster that already exists (hand-written, or copied from an older
-        // foremen.yaml.example) never picks up a ProviderDefaults change, because
-        // GcToolPolicy is consulted at first-run hire and nowhere else. That is the
-        // actual cause of "GC stopped to ask for interactive approval on a Home Office
-        // tool": under `claude -p` a tool outside --allowedTools is auto-denied. Repair
-        // it here, and persist the repair so the next start is already correct.
+        // GC only. An existing roster never picks up a ProviderDefaults change,
+        // because GcToolPolicy is consulted only at first-run hire. That's why
+        // GC can stop to ask for interactive approval on a Home Office tool:
+        // under `claude -p` a tool outside --allowedTools is auto-denied.
+        // Repair and persist it here.
         if (foreman.Role == CrewRole.GC)
         {
             var repairs = new List<string>();
@@ -317,18 +295,17 @@ var state = new DashboardState
     GcForemanName = settings.GcForemanName,
 };
 
-// Boss turns dispatched but not yet reported back. See PendingBossTurns: this is
-// the whole completion-notice mechanism, and it exists so JobRegistry does not
-// have to grow a public completion callback for the TUI's benefit.
+// Boss turns dispatched but not yet reported back. Exists so JobRegistry
+// doesn't need a public completion callback for the TUI's benefit.
 var pendingBossTurns = new PendingBossTurns();
 
 // Read-only git for the passive column, on the same ICliProcessRunner
-// WorktreeManager already shells through -- no second process seam.
+// WorktreeManager uses. No second process seam.
 var gitInspector = new GitWorkspaceInspector(runner);
 
-// One event channel, three producers (the input pump, the IJobStatusSink pump,
-// and passive refreshes), exactly one consumer: this loop. Single-reader is what
-// lets every DashboardState mutation happen on one thread with no locking.
+// One channel, three producers (input pump, IJobStatusSink pump, passive
+// refresh), one consumer: this loop. Single-reader lets every DashboardState
+// mutation happen on one thread with no locking.
 var events = Channel.CreateUnbounded<BossEvent>(new UnboundedChannelOptions { SingleReader = true });
 
 var bossInput = new BossInputReader(Console.ReadLine);
@@ -337,12 +314,11 @@ bossInput.Start();
 _ = PumpInputAsync(bossInput.Reader, events.Writer, cts.Token);
 _ = PumpJobStatusAsync(statusSink.Reader, events.Writer, cts.Token);
 
-// 0 = no passive refresh in flight. Interlocked, because the refresh completes on
-// a thread pool thread while the loop may already be deciding to start another.
+// 0 = no passive refresh in flight. Interlocked: the refresh completes on a
+// thread-pool thread while the loop may already be starting another.
 var passiveRefreshInFlight = 0;
 
-// The input thread reads nothing until the loop asks for a line. Starts true so
-// the first render is followed immediately by the first prompt.
+// Starts true so the first render is followed immediately by the first prompt.
 var wantsInput = true;
 var running = true;
 
@@ -351,9 +327,8 @@ while (running)
     Dashboard.Render(foremanDirectory, jobsiteDirectory, jobRegistry, state);
     Console.Write(state.DrivenForeman is null ? "Boss> " : $"Boss[{state.DrivenForeman}]> ");
 
-    // Granted only after the render, and only once per line consumed: while a
-    // modal wizard owns the console, the input thread is parked on this gate
-    // rather than racing the wizard's own prompts for stdin.
+    // Granted only after render, once per line: while a modal wizard owns the
+    // console, input stays parked here instead of racing the wizard for stdin.
     if (wantsInput)
     {
         wantsInput = false;
@@ -374,8 +349,8 @@ while (running)
         break;
     }
 
-    // Drain whatever else is already queued and render once for the lot -- a
-    // burst of transitions from several Workers is one redraw, not five.
+    // Drain whatever's already queued and render once for the batch: a burst
+    // of Worker transitions is one redraw, not five.
     var batch = new List<BossEvent> { first };
     while (events.Reader.TryRead(out var next))
     {
@@ -389,9 +364,9 @@ while (running)
         switch (bossEvent)
         {
             case BossEvent.JobTransition transition:
-                // Every drained record is checked against the pending set. A
-                // tracked id that has gone terminal becomes a transcript line in
-                // whichever conversation the Boss addressed.
+                // Every drained record is checked against the pending set; a
+                // tracked id gone terminal becomes a transcript line in the
+                // Boss's addressed conversation.
                 if (pendingBossTurns.TryTakeCompletion(transition.Record, out var speaker, out var completion))
                 {
                     state.TranscriptFor(speaker).Add(completion);
@@ -416,15 +391,14 @@ while (running)
                 }
                 catch (Exception ex)
                 {
-                    // The loop is now the only thing keeping the Home Office up and
-                    // background jobs running: one bad command must not take those
-                    // with it. Report it in the transcript and carry on.
+                    // The loop is the only thing keeping Home Office and
+                    // background jobs running; one bad command must not take
+                    // those down. Report and continue.
                     state.ActiveTranscript.Add(new TranscriptLine("home office", ex.Message, IsError: true));
                 }
                 finally
                 {
-                    // Always, even if handling threw: skipping this parks the
-                    // input thread forever and the app looks hung.
+                    // Always, even on throw: skipping this parks input forever.
                     wantsInput = true;
                 }
 
@@ -442,8 +416,7 @@ while (running)
         }
     }
 
-    // Deliberately not triggered by PassiveRefreshed itself -- that would be a
-    // refresh loop that never idles.
+    // Not triggered by PassiveRefreshed itself: that would loop forever without idling.
     if (running && refreshPassive && state.DrivenForeman is not null &&
         Interlocked.CompareExchange(ref passiveRefreshInFlight, 1, 0) == 0)
     {
@@ -457,8 +430,8 @@ await homeOffice.DisposeAsync();
 return 0;
 
 // Returns false when the Boss asked to leave. Never awaits an agent turn: a
-// dispatch is JobRegistry.StartJob, which hands back a job id and runs the turn
-// in the background, so the Boss can keep typing while GC works.
+// dispatch is JobRegistry.StartJob, which returns a job id and runs in the
+// background so the Boss can keep typing.
 async Task<bool> HandleBossLine(string input)
 {
     if (string.IsNullOrWhiteSpace(input))
@@ -468,9 +441,8 @@ async Task<bool> HandleBossLine(string input)
 
     var command = input.Trim();
 
-    // Drive routing gets first look: /exit means "leave this Foreman" while
-    // driving and "quit" otherwise, and /drive must not fall through to the
-    // unknown-slash-command stub below.
+    // Drive routing first: /exit means "leave this Foreman" while driving,
+    // "quit" otherwise, and /drive must not fall through to the stub below.
     switch (DriveCommands.Apply(state, command, foremanDirectory.Find, jobRegistry.GetAllJobs()))
     {
         case BossCommandResult.Quit:
@@ -497,9 +469,9 @@ async Task<bool> HandleBossLine(string input)
         return true;
     }
 
-    // The tab is set first and cleared last, so the strip shows "memory" for as
-    // long as the modal browser owns the screen. The browser itself never leaves
-    // the crew's own vault folders -- see MemoryBrowser.Roots.
+    // Tab set first, cleared last, so the strip shows "memory" while the modal
+    // browser owns the screen. Browser stays within the crew's vault folders,
+    // see MemoryBrowser.Roots.
     if (command.Equals("/memory", StringComparison.OrdinalIgnoreCase))
     {
         state.View = TuiView.Memory;
@@ -522,8 +494,8 @@ async Task<bool> HandleBossLine(string input)
         AnsiConsole.Clear();
         AnsiConsole.Write(new Rule("[bold yellow]settings[/]").LeftJustified());
 
-        // No inline setup offer when a Vault is already configured -- reconfiguring
-        // isn't this command's job, only getting an unconfigured Boss unstuck is.
+        // No inline setup offer when a Vault is already configured: this
+        // command only unblocks an unconfigured Boss.
         if (string.IsNullOrWhiteSpace(settings.VaultRoot) || !Directory.Exists(settings.VaultRoot))
         {
             AnsiConsole.MarkupLine("[bold]Vault:[/] [yellow]not configured[/]");
@@ -552,15 +524,14 @@ async Task<bool> HandleBossLine(string input)
         AnsiConsole.WriteLine();
         AnsiConsole.Write(new Rule("[bold yellow]tool discovery[/]").LeftJustified());
 
-        // Re-probe PATH from scratch (a CLI installed since startup shows up here)
-        // and rewrite state/tools.json.
+        // Re-probes PATH (a CLI installed since startup shows up) and rewrites state/tools.json.
         var probes = providerRegistry.Refresh();
         availableProviderIds = providerRegistry.AvailableIds();
         mcpOptionsByProvider = WriteMcpWiring(providerRegistry, settings.GeneratedConfigDirectory, homeOffice.BaseAddress);
 
-        // The re-probe just rewrote the MCP configs (and may have wired a provider that
-        // was not installed at startup), so the roster's stamped paths are stale until
-        // this runs. It re-heals GC's tool policy on the way past, same as at startup.
+        // The re-probe just rewrote MCP configs and may have wired a new
+        // provider, so the roster's stamped paths are stale until this runs.
+        // Also re-heals GC's tool policy, same as startup.
         StampMcpWiring();
 
         var table = new Table().Border(TableBorder.Rounded);
@@ -603,8 +574,7 @@ async Task<bool> HandleBossLine(string input)
         }
         else
         {
-            // Same routine the startup self-heal runs; this is just an on-demand
-            // re-trigger for a Boss who wants to confirm the roster is current
+            // Same routine as the startup self-heal, re-triggered on demand
             // without restarting the app.
             var migration = InstructionsMigration.MigrateToVault(
                 repoRoot, settings.VaultRoot, settings.ForemenConfigPath, foremanDirectory.All().ToList());
@@ -650,9 +620,9 @@ async Task<bool> HandleBossLine(string input)
 
     if (command.Equals("/hire", StringComparison.OrdinalIgnoreCase))
     {
-        // Scoped to /hire, not app startup: before Phase 3's FirstRunWizard exists,
-        // VaultRoot is only ever set by hand, and a startup-level gate would make
-        // the app unusable standalone. Phase 3 makes this a pure backstop.
+        // Scoped to /hire, not startup: a startup-level gate would make the
+        // app unusable before a Vault is configured. Pure backstop now that
+        // FirstRunWizard exists.
         if (string.IsNullOrWhiteSpace(settings.VaultRoot) || !Directory.Exists(settings.VaultRoot))
         {
             AnsiConsole.MarkupLine("[yellow]No Vault is configured -- run [bold]/settings[/] (or set --vault-root) before hiring a Foreman.[/]");
@@ -697,11 +667,9 @@ async Task<bool> HandleBossLine(string input)
         return true;
     }
 
-    // The one dispatch path, for GC and for a driven Foreman alike. Both go
-    // through JobRegistry.StartJob, which sends on the single shared
-    // LiveAgentRegistry -- so GC never ends up with two divergent conversations,
-    // and a driven Foreman's turn queues behind its own in-flight work on that
-    // Foreman's semaphore exactly like any dispatched task.
+    // One dispatch path for GC and a driven Foreman alike. Both go through
+    // JobRegistry.StartJob on the single shared LiveAgentRegistry, so GC never
+    // ends up with two divergent conversations.
     var target = state.DrivenForeman ?? settings.GcForemanName;
 
     state.View = TuiView.Chat;
@@ -709,8 +677,8 @@ async Task<bool> HandleBossLine(string input)
 
     try
     {
-        // Returns immediately with a job id; the turn runs in the background and
-        // reports back through IJobStatusSink, which this loop is draining.
+        // Returns immediately with a job id; the turn runs in the background
+        // and reports back through IJobStatusSink, which this loop drains.
         pendingBossTurns.Track(jobRegistry.StartJob(target, input), target);
     }
     catch (Exception ex)
@@ -722,8 +690,8 @@ async Task<bool> HandleBossLine(string input)
 }
 
 // The most recent worktree belonging to this Foreman or one of its Workers.
-// Foremen themselves work in their configured directory; a worktree turns up
-// once they spawn a Worker, which is what the passive column is watching.
+// Foremen work in their configured directory; a worktree appears once they
+// spawn a Worker, which is what the passive column watches.
 static string? ResolveWorktreePath(JobRegistry jobs, string foremanName) =>
     jobs.GetAllJobs()
         .Where(j => j.WorktreePath is not null && DriveCommands.BelongsTo(foremanName, j.ForemanName))
@@ -772,9 +740,8 @@ static async Task PumpInputAsync(ChannelReader<string> source, ChannelWriter<Bos
     }
 }
 
-// IJobStatusSink has been published to since it was built and read by nothing.
-// This is the read side: every transition both re-renders the dashboard and gets
-// inspected against the pending Boss-turn set.
+// Read side of IJobStatusSink: every transition re-renders the dashboard and
+// is checked against the pending Boss-turn set.
 static async Task PumpJobStatusAsync(ChannelReader<JobRecord> source, ChannelWriter<BossEvent> sink, CancellationToken ct)
 {
     try
@@ -792,10 +759,10 @@ static async Task PumpJobStatusAsync(ChannelReader<JobRecord> source, ChannelWri
     }
 }
 
-// Writes each available provider's Home Office config in that provider's own shape and
-// returns the ProviderOptions to stamp onto Foremen running it. A provider with no
-// verified MCP shape is warned about, not fatal -- it still works, it just can't call
-// Home Office tools.
+// Writes each available provider's Home Office config in its own shape and
+// returns the ProviderOptions to stamp onto Foremen running it. A provider
+// with no verified MCP shape is warned about, not fatal: it still works, it
+// just can't call Home Office tools.
 static Dictionary<string, IReadOnlyDictionary<string, string>> WriteMcpWiring(
     ProviderRegistry registry,
     string generatedConfigDirectory,

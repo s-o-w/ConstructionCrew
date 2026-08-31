@@ -7,50 +7,48 @@ using Spectre.Console;
 namespace ConstructionCrew.App.Tui;
 
 /// <summary>
-/// The <c>/foreman [name]</c> command: view a hired Foreman's (or GC's -- GC
-/// is just a ForemanConfig with Role GC) details, and edit the fields that are
-/// safe to change after hire. Some fields are locked by design, not oversight:
+/// The <c>/foreman [name]</c> command: view a hired Foreman's (or GC's; GC
+/// is just a ForemanConfig with Role GC) details, and edit the fields safe
+/// to change after hire. Some fields are locked by design:
 ///
 /// <list type="bullet">
 /// <item>
-/// <b>Name</b> is the canonical lookup key everywhere -- <see cref="ForemanDirectory"/>,
-/// <c>LiveAgentRegistry</c>, <c>JobRegistry</c>'s workorder-slot map. Changing it
-/// after hire would orphan every one of those. GC's Name is additionally
-/// load-validated to be exactly the reserved <c>GcForemanName</c>; DisplayName
-/// is the "name" that's actually meant to change.
+/// <b>Name</b> is the canonical lookup key everywhere (<see cref="ForemanDirectory"/>,
+/// <c>LiveAgentRegistry</c>, <c>JobRegistry</c>'s workorder-slot map).
+/// Changing it after hire would orphan all of those. DisplayName is the
+/// "name" that's actually meant to change.
 /// </item>
 /// <item>
-/// <b>Role</b> determines which instructions template was rendered at hire time
-/// and is load-validated (exactly one GC, named GcForemanName) -- changing it
-/// in place would desync from both.
+/// <b>Role</b> determines which instructions template was rendered at hire
+/// time and is load-validated (exactly one GC, named GcForemanName);
+/// changing it in place would desync from both.
 /// </item>
 /// <item>
-/// <b>WorkingDirectory</b> is foundational to where the role actually operates (a
+/// <b>WorkingDirectory</b> is foundational to where the role operates (a
 /// Jobsite repo clone for a Foreman, the Vault for GC). GC's is managed by
-/// <c>/settings</c>' Vault setup flow specifically, not this generic editor.
+/// <c>/settings</c>' Vault setup flow, not this generic editor.
 /// </item>
 /// <item>
-/// <b>InstructionsFilePath</b> is tied to the template rendered at hire time --
-/// repointing it here would silently desync what the role was told from
+/// <b>InstructionsFilePath</b> is tied to the template rendered at hire
+/// time; repointing it here would desync what the role was told from
 /// what's on disk.
 /// </item>
 /// </list>
 ///
 /// A Foreman tied to a Jobsite also shows and can edit that Jobsite's own
-/// fields -- Description, RepoUrl, etc. More than one Foreman may be tied to
-/// the same Jobsite, so editing these fields through one Foreman's view edits
-/// the same shared Jobsite every other Foreman there sees too.
-/// <b>RepoPath</b> is excluded there for the same "foundational, not casually
-/// editable" reason WorkingDirectory is excluded above.
+/// fields (Description, RepoUrl, etc). More than one Foreman may share a
+/// Jobsite, so editing these through one Foreman's view edits the shared
+/// Jobsite every other Foreman there sees too. <b>RepoPath</b> is excluded
+/// for the same reason WorkingDirectory is excluded above.
 /// </summary>
 public static class ForemanDetailsCommand
 {
     private const string Verb = "/foreman";
 
     /// <summary>
-    /// Parses <c>/foreman Frontend</c>, matching <c>DriveCommands.TryParseDrive</c>'s
-    /// exact shape. <paramref name="target"/> comes back empty for a bare
-    /// <c>/foreman</c> (prompts a picker); <c>/foremanx</c> is not this command at all.
+    /// Parses <c>/foreman Frontend</c>. <paramref name="target"/> comes back
+    /// empty for a bare <c>/foreman</c> (prompts a picker); <c>/foremanx</c>
+    /// is not this command at all.
     /// </summary>
     internal static bool TryParse(string command, out string target)
     {
@@ -307,10 +305,11 @@ public static class ForemanDetailsCommand
     }
 
     /// <summary>
-    /// Re-renders this crew member's instructions file from the CURRENT template and
-    /// the CURRENT Jobsite config. The briefing comes from the sidecar written at
-    /// hire time; for a crew member hired before that existed, it is recovered from
-    /// the file about to be overwritten and the sidecar is written on the way past.
+    /// Re-renders this crew member's instructions file from the CURRENT
+    /// template and Jobsite config. The briefing comes from the sidecar
+    /// written at hire time; for a crew member hired before that existed,
+    /// it's recovered from the file about to be overwritten and the sidecar
+    /// is written on the way past.
     /// </summary>
     private static void RerenderInstructions(
         ForemanConfig foreman,
@@ -370,10 +369,10 @@ public static class ForemanDetailsCommand
 
         AnsiConsole.MarkupLine($"[green]Re-rendered[/] {Markup.Escape(foreman.InstructionsFilePath)}");
 
-        // LocalCliAgent only prepends the instructions file on a crew member's
-        // FIRST message, so a live agent keeps running on what it was told at
-        // spawn time. Dropping it is the only way the rewrite takes effect
-        // before the app restarts -- at the cost of that conversation's history.
+        // LocalCliAgent only prepends the instructions file on a crew
+        // member's FIRST message, so a live agent keeps running on what it
+        // was told at spawn time. Dropping it is the only way the rewrite
+        // takes effect before the app restarts, at the cost of history.
         if (AnsiConsole.Confirm(
                 $"Drop {foreman.Name}'s live conversation so the new instructions take effect on its next turn? Its current chat history is lost.",
                 false))
@@ -387,13 +386,12 @@ public static class ForemanDetailsCommand
     }
 
     /// <summary>
-    /// Why this crew member's sitewalk cannot be dispatched, or null when it can.
-    /// Extracted from <see cref="RunSitewalk"/> so the refusal rules are testable
-    /// without driving an interactive prompt loop.
+    /// Why this crew member's sitewalk cannot be dispatched, or null when it
+    /// can. Extracted from <see cref="RunSitewalk"/> so the refusal rules
+    /// are testable without driving an interactive prompt loop.
     ///
-    /// The GC has no Jobsite by construction -- it works out of the Vault -- so a
-    /// sitewalk is meaningless for it, not merely unassigned. A Foreman with no
-    /// JobsiteName has nothing to survey yet.
+    /// The GC works out of the Vault, not a Jobsite, so a sitewalk is
+    /// meaningless for it. A Foreman with no JobsiteName has nothing to survey yet.
     /// </summary>
     internal static string? SitewalkRefusalReason(ForemanConfig foreman)
     {
@@ -411,10 +409,9 @@ public static class ForemanDetailsCommand
     }
 
     /// <summary>
-    /// Dispatches the sitewalk the hire flow offers, for a Boss who declined it
-    /// then. Ordinary StartJob, exactly like the hire-time dispatch -- same board,
-    /// same job id, same file_sitrep reporting. HireWizard.SitewalkPrompt stays the
-    /// single source of the task text.
+    /// Dispatches the sitewalk the hire flow offers, for a Boss who declined
+    /// it then. Ordinary StartJob, exactly like the hire-time dispatch.
+    /// HireWizard.SitewalkPrompt stays the single source of the task text.
     /// </summary>
     private static void RunSitewalk(ForemanConfig foreman, JobRegistry jobs)
     {
@@ -436,8 +433,7 @@ public static class ForemanDetailsCommand
         }
         catch (Exception ex)
         {
-            // A failed dispatch is not a failed command: it is reported and the
-            // menu stays open, same as the hire-time dispatch never un-hires.
+            // A failed dispatch is not a failed command: it's reported and the menu stays open.
             AnsiConsole.MarkupLine(
                 $"[yellow]Sitewalk could not be dispatched:[/] {Markup.Escape(ex.Message)}");
         }
@@ -447,9 +443,9 @@ public static class ForemanDetailsCommand
     }
 
     /// <summary>
-    /// A Jobsite may have more than one Foreman assigned to it, so reassigning
-    /// to an already-claimed one is never refused -- just noted, so the Boss
-    /// knows who else is already there.
+    /// A Jobsite may have more than one Foreman assigned to it, so
+    /// reassigning to an already-claimed one is never refused, just noted,
+    /// so the Boss knows who else is already there.
     /// </summary>
     private static ForemanConfig ReassignJobsite(ForemanConfig foreman, ForemanDirectory foremen, JobsiteDirectory jobsites)
     {
@@ -535,7 +531,7 @@ public static class ForemanDetailsCommand
         }
     }
 
-    /// <summary>Null/blank collapses to null (the field's own "unset" state) -- never an empty, allocated list.</summary>
+    /// <summary>Null/blank collapses to null (the field's own "unset" state), never an empty, allocated list.</summary>
     internal static IReadOnlyList<string>? ParseList(string? input)
     {
         if (string.IsNullOrWhiteSpace(input))
@@ -550,9 +546,9 @@ public static class ForemanDetailsCommand
     internal static string FormatList(IReadOnlyList<string>? list) => list is null or { Count: 0 } ? string.Empty : string.Join(", ", list);
 
     /// <summary>
-    /// "key=value, key2=value2" -&gt; a dictionary. Null/blank collapses to null. An
-    /// entry with no "=" is skipped rather than thrown on -- a typo here should
-    /// cost one entry, not the whole edit.
+    /// "key=value, key2=value2" -&gt; a dictionary. Null/blank collapses to
+    /// null. An entry with no "=" is skipped rather than thrown on: a typo
+    /// here should cost one entry, not the whole edit.
     /// </summary>
     internal static IReadOnlyDictionary<string, string>? ParseDict(string? input)
     {

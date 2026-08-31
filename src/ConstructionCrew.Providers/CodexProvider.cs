@@ -31,9 +31,9 @@ public sealed class CodexProvider : ICliToolProvider
 
     public CliInvocation BuildInvocation(CliTaskRequest request)
     {
-        // `codex exec` is the non-interactive entry point; `codex exec resume --last`
-        // continues the newest recorded session for this cwd (verified in
-        // `codex exec resume --help`: "[SESSION_ID] [PROMPT]", --last picks newest).
+        // `codex exec` is the non-interactive entry point. `codex exec resume --last`
+        // continues the newest session for this cwd (`codex exec resume --help`:
+        // "[SESSION_ID] [PROMPT]", --last picks newest).
         var args = new List<string> { "exec" };
         if (request.ContinuePreviousConversation)
         {
@@ -41,8 +41,8 @@ public sealed class CodexProvider : ICliToolProvider
             args.Add("--last");
         }
 
-        // -c takes key=value where value is parsed as TOML, so the URL must be a
-        // quoted TOML string. This is the only per-invocation MCP transport Codex has.
+        // -c takes key=value parsed as TOML, so the URL must be a quoted TOML
+        // string. The only per-invocation MCP transport Codex has.
         if (request.ProviderOptions.TryGetValue("mcpServerUrl", out var mcpServerUrl) && !string.IsNullOrWhiteSpace(mcpServerUrl))
         {
             args.Add("-c");
@@ -55,9 +55,9 @@ public sealed class CodexProvider : ICliToolProvider
             args.Add(model);
         }
 
-        // Codex's permission model is a sandbox policy, not an allowlist of tool
-        // names, so `allowedTools` has no Codex equivalent and is deliberately
-        // ignored here rather than mapped onto a flag that does something else.
+        // Codex's permission model is a sandbox policy, not a tool allowlist.
+        // `allowedTools` has no Codex equivalent, so it's ignored rather than
+        // mapped onto an unrelated flag.
         if (request.ProviderOptions.TryGetValue("sandbox", out var sandbox) && !string.IsNullOrWhiteSpace(sandbox))
         {
             args.Add("--sandbox");
@@ -86,14 +86,13 @@ public sealed class CodexProvider : ICliToolProvider
             args.Add(dir);
         }
 
-        // A Jobsite clone is normally a git repo, but the Vault (GC's cwd) is not
-        // required to be one, and `codex exec` refuses to start outside a repo
-        // without this. Cheap and harmless when the cwd IS a repo.
+        // The Vault (GC's cwd) is not required to be a git repo, and `codex exec`
+        // refuses to start outside one without this flag. Harmless when the cwd
+        // is a repo.
         args.Add("--skip-git-repo-check");
 
-        // Same defence as ClaudeCodeProvider: `-i/--image` and `--add-dir` are
-        // multi-value on the real CLI, so end option parsing before the positional
-        // prompt rather than trusting argv order.
+        // Same defence as ClaudeCodeProvider: -i/--image and --add-dir are
+        // multi-value, so end option parsing before the positional prompt.
         args.Add("--");
         args.Add(request.Prompt);
 

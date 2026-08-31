@@ -12,12 +12,10 @@ public sealed class ForemanConfigLoader
         .Build();
 
     /// <summary>
-    /// Loads Foreman entries. Any "${repoRoot}" or "${vaultRoot}" token in a
-    /// path-shaped value is expanded first, so the sample config stays portable
-    /// across machines/clones. <paramref name="vaultRoot"/> is nullable because
-    /// first run legitimately has no Vault yet -- but a file that actually
-    /// *uses* the token with no Vault configured is a load error, never a silent
-    /// expansion to the empty string.
+    /// Loads Foreman entries, expanding "${repoRoot}"/"${vaultRoot}" tokens in
+    /// path values first. <paramref name="vaultRoot"/> is nullable (first run has
+    /// no Vault yet), but a value that uses the token with no Vault configured is
+    /// a load error, not a silent expansion to empty string.
     /// </summary>
     public IReadOnlyList<ForemanConfig> LoadFromFile(string path, string repoRoot, string? vaultRoot, string expectedGcName)
     {
@@ -30,9 +28,8 @@ public sealed class ForemanConfigLoader
         var document = _deserializer.Deserialize<ForemanFileDto>(yaml) ?? new ForemanFileDto();
 
         var configs = new List<ForemanConfig>();
-        // Same null-vs-empty-list deserialization gotcha as JobsiteConfigLoader --
-        // an empty "foremen:" key would otherwise NRE here. Note this guards the
-        // outer list only; each per-entry list field needs its own "?? []" below.
+        // An empty "foremen:" key deserializes to null, not []; guards the outer
+        // list only, each per-entry list field needs its own "?? []" below.
         foreach (var dto in document.Foremen ?? [])
         {
             dto.WorkingDirectory = ExpandTokens(dto.WorkingDirectory, repoRoot, vaultRoot, dto.Name, path);
@@ -80,13 +77,9 @@ public sealed class ForemanConfigLoader
     }
 
     /// <summary>
-    /// Collection-level invariants, run once after every entry is parsed. Per-DTO
-    /// <see cref="Validate"/> can't do this: it has no view of the whole file and
-    /// no access to AppSettings.GcForemanName.
-    ///
-    /// Zero GC entries is deliberately NOT an error here -- Program.cs's own
-    /// "no Foreman named GC" branch is the hard fail for that, and a config file
-    /// legitimately holds only Foremen in tests and in a partially-written roster.
+    /// Collection-level invariants that need a view of the whole file, not just
+    /// one entry. Zero GC entries is not an error here: Program.cs's own
+    /// "no Foreman named GC" check is the hard fail for that case.
     /// </summary>
     private static void ValidateCollection(IReadOnlyList<ForemanConfig> configs, string expectedGcName, string sourcePath)
     {

@@ -8,18 +8,14 @@ namespace ConstructionCrew.App.Tui;
 
 /// <summary>
 /// Renders the full-screen shell once per Boss turn: header, roster sidebar,
-/// tab strip, and the active view's content. Not a Live-updating region --
-/// each call clears and redraws, which is simple and matches a chat-driven
-/// (not raw-keyboard-driven) interaction model.
+/// tab strip, and the active view's content. Not a Live-updating region;
+/// each call clears and redraws, matching a chat-driven interaction model.
 /// </summary>
 public static class Dashboard
 {
-    // Every tab here is live. "memory" and "monitor" were the last two
-    // placeholders; "memory" is modal (the browser takes over the screen, like
-    // /view and the wizards) and its tab is what shows the Boss is in it, while
-    // "monitor" renders in place off the registries. "ask me"/"triggers"/
-    // "activity" were removed outright: first-commit scaffolding with no
-    // documented purpose behind any of them.
+    // "memory" is modal (the browser takes over the screen, like /view and
+    // the wizards) and its tab just shows the Boss is in it; "monitor"
+    // renders in place off the registries.
     private static readonly (string Id, string Label)[] Tabs =
     [
         ("chat", "chat"),
@@ -36,15 +32,11 @@ public static class Dashboard
     {
         ClearScreen();
 
-        // Spectre.Console's root Layout always renders exactly ConsoleSize.Height
-        // total lines, full stop -- confirmed by reading Layout.Render's source.
-        // Any .Size() on children only controls how that fixed total is divided,
-        // never the total itself, and leftover space still has to go somewhere
-        // whether or not I want it to. So: don't fight it -- leave "body" unsized
-        // (ratio-based) so it automatically absorbs whatever's left between
-        // header and footer. That's also what makes this scale on resize for
-        // free, since it's recomputed fresh from the real console size every
-        // render call.
+        // Spectre's root Layout always renders exactly ConsoleSize.Height total
+        // lines; .Size() on a child only divides that fixed total, it never
+        // shrinks it. Leave "body" unsized (ratio-based) so it absorbs
+        // whatever's left between header and footer, and rescales on resize
+        // since it's recomputed from the real console size every call.
         var root = new Layout("root").SplitRows(
             new Layout("header").Size(3),
             new Layout("body"),
@@ -61,10 +53,8 @@ public static class Dashboard
 
         root["body"].Update(body);
 
-        // footer's second line is deliberately left blank -- it's the one row
-        // the layout is guaranteed to have printed as blank, which is where the
-        // Boss prompt gets positioned next, so nothing after this ever needs an
-        // extra line (i.e. never scrolls the pinned header out of view).
+        // footer's second line stays blank: it's where the Boss prompt is
+        // positioned next, so nothing after this scrolls the pinned header out of view.
         root["footer"].Update(new Rows(
             new Markup(FooterFor(state.DrivenForeman)),
             Text.Empty));
@@ -74,13 +64,8 @@ public static class Dashboard
     }
 
     /// <summary>
-    /// The one-line command hint under the board. Two states: the GC-level command
-    /// list, and the reminder shown while the Boss is driving a Foreman directly.
-    /// Named rather than inlined so a test can assert the command list without
-    /// scraping a rendered layout.
-    ///
-    /// The placeholders are both &lt;Name&gt;, not &lt;Foreman&gt;: the line has to
-    /// survive a narrow console, and /foreman had to be added to it.
+    /// The one-line command hint under the board. Named rather than inlined
+    /// so a test can assert the command list without scraping a rendered layout.
     /// </summary>
     internal static string FooterFor(string? drivenForeman) =>
         drivenForeman is null
@@ -96,10 +81,8 @@ public static class Dashboard
 
         try
         {
-            // Same value Spectre's own Layout.Render just used internally to
-            // size "root" -- using anything else risks a 1-row mismatch between
-            // where the layout actually left its blank last row and where this
-            // moves the cursor to.
+            // Same value Spectre's Layout.Render used to size "root"; anything
+            // else risks a 1-row mismatch with the layout's blank last row.
             var lastRow = AnsiConsole.Profile.Height;
             Console.Out.Write($"\x1b[{lastRow};1H");
         }
@@ -117,15 +100,11 @@ public static class Dashboard
 
         try
         {
-            // Raw ANSI clear-screen + cursor-home, written directly rather than
-            // through System.Console.Clear()/AnsiConsole.Clear(). Those go
-            // through Win32 console APIs that don't reliably work under a
-            // pty-based terminal like mintty/Git Bash -- confirmed by testing:
-            // Console.Clear() there didn't actually clear the screen, and
-            // Console.WindowHeight reported values that didn't match what was
-            // visible. Raw ANSI is what every other bit of this app's colored
-            // output already goes through successfully, so it's the reliable
-            // path here too.
+            // Raw ANSI clear-screen + cursor-home, not Console.Clear()/
+            // AnsiConsole.Clear(): those go through Win32 console APIs that
+            // don't reliably work under a pty-based terminal like mintty/Git
+            // Bash (confirmed: Console.Clear() there did not actually clear
+            // the screen).
             Console.Out.Write("\x1b[2J\x1b[H");
         }
         catch (IOException)
@@ -171,9 +150,8 @@ public static class Dashboard
             new Markup($"[bold]{Markup.Escape(foreman.Name)}[/]  {StatusBadge(jobs.IsForemanBusy(foreman.Name), jobs.IsForemanParked(foreman.Name))}"),
             new Markup($"[grey]{Markup.Escape(foreman.Provider)}{Markup.Escape(jobsiteSuffix)}[/]"));
 
-        // Every Foreman is strictly assigned to one Jobsite (except GC, handled
-        // separately above) -- give it that jobsite's color as a small border,
-        // so at a glance the roster shows which site each Foreman belongs to.
+        // The jobsite's color as a small border, so the roster shows which
+        // site each Foreman belongs to at a glance.
         var jobsite = foreman.JobsiteName is null ? null : jobsites.Find(foreman.JobsiteName);
         if (jobsite is null)
         {
@@ -186,10 +164,9 @@ public static class Dashboard
     }
 
     /// <summary>
-    /// Three states, not two. A parked Foreman is NOT busy (IsForemanBusy is false
-    /// by design -- it can still take a sitrep or a redirect) but it is not free
-    /// either: it is blocked on the Boss, and rendering it as "idle" would hide the
-    /// one thing the Boss has to act on.
+    /// Three states, not two. A parked Foreman is NOT busy (it can still take
+    /// a sitrep or redirect) but isn't free either: it's blocked on the Boss,
+    /// and rendering it as "idle" would hide the thing the Boss has to act on.
     /// </summary>
     internal static string StatusBadge(bool busy, bool parked = false) =>
         busy ? "[bold black on yellow] working [/]"
@@ -240,11 +217,10 @@ public static class Dashboard
     }
 
     /// <summary>
-    /// In drive mode the chat pane gets a passive column beside it: a read-only
-    /// <c>git status</c>/<c>git log</c> of the worktree that Foreman (or one of its
-    /// Workers) is in. A Grid, not a nested Layout -- Layout always renders the
-    /// full console height, which is right for the shell and wrong for a cell
-    /// inside it.
+    /// In drive mode the chat pane gets a passive column beside it: a
+    /// read-only <c>git status</c>/<c>git log</c> of the Foreman's worktree.
+    /// A Grid, not a nested Layout: Layout always renders the full console
+    /// height, wrong for a cell inside the shell.
     /// </summary>
     private static IRenderable BuildChatPane(DashboardState state)
     {
@@ -322,9 +298,9 @@ public static class Dashboard
             .ToArray());
 
     /// <summary>
-    /// The task board's columns, in order. Split out from the rendering so the
-    /// membership rules (a Parked job is its own column, never "doing") can be
-    /// asserted directly.
+    /// The task board's columns, in order. Split out from rendering so the
+    /// membership rules (a Parked job is its own column, never "doing") can
+    /// be asserted directly.
     /// </summary>
     internal static IReadOnlyList<(string Title, string Color, IReadOnlyList<JobRecord> Jobs)> TaskColumns(
         IReadOnlyCollection<JobRecord> all) =>
@@ -347,17 +323,17 @@ public static class Dashboard
     }
 
     /// <summary>
-    /// The memory tab is a mode, not a pane: the browser itself is modal (it
-    /// takes the whole screen, like /view and the wizards), so the tab only ever
-    /// shows while the Boss is between browses.
+    /// The memory tab is a mode, not a pane: the browser is modal (it takes
+    /// the whole screen, like /view and the wizards), so this only shows
+    /// while the Boss is between browses.
     /// </summary>
     private static IRenderable BuildMemoryHint() =>
         new Markup("[grey]/memory opens the crew's vault folders -- pick a folder, walk down to a note, and it renders full width.[/]");
 
     /// <summary>
-    /// Who is working right now. Rebuilt from the registries on every render --
-    /// no Live region and no timer, because Render already redraws once per event
-    /// batch and a JobRegistry transition is one of those events.
+    /// Who is working right now. Rebuilt from the registries on every render:
+    /// no Live region or timer needed, since Render already redraws once per
+    /// event batch.
     /// </summary>
     private static IRenderable BuildMonitor(ForemanDirectory foremen, JobsiteDirectory jobsites, JobRegistry jobs)
     {
@@ -407,8 +383,8 @@ public static class Dashboard
     }
 
     /// <summary>
-    /// One monitor line. <paramref name="Elapsed"/> is already net of parked time,
-    /// so it is actual worked time, not wall-clock since dispatch.
+    /// One monitor line. <paramref name="Elapsed"/> is already net of parked
+    /// time: actual worked time, not wall-clock since dispatch.
     /// </summary>
     internal sealed record MonitorRow(
         string Who,
@@ -421,8 +397,8 @@ public static class Dashboard
 
     /// <summary>
     /// One row per hired crew member, plus one per Worker with a job still in
-    /// flight. Workers are transient by design -- they appear when spawned and
-    /// vanish when their job goes terminal, which is the whole point of the view.
+    /// flight. Workers are transient: they appear when spawned and vanish
+    /// when their job goes terminal.
     /// </summary>
     internal static IReadOnlyList<MonitorRow> MonitorRows(
         ForemanDirectory foremen, JobsiteDirectory jobsites, JobRegistry jobs, DateTimeOffset now) =>
@@ -430,10 +406,9 @@ public static class Dashboard
 
     /// <summary>
     /// The same view over a plain job list, for states a real JobRegistry only
-    /// ever reaches through a live agent (Parked, and a resumed job's
-    /// ParkedDuration). The two predicates are JobRegistry.IsForemanBusy and
-    /// IsForemanParked restated over the same list, through the ownership rule
-    /// <see cref="DriveCommands.BelongsTo"/> already mirrors -- not a second rule.
+    /// reaches through a live agent. The two predicates restate
+    /// JobRegistry.IsForemanBusy/IsForemanParked over that list, through the
+    /// same ownership rule <see cref="DriveCommands.BelongsTo"/> uses.
     /// </summary>
     internal static IReadOnlyList<MonitorRow> MonitorRows(
         ForemanDirectory foremen, JobsiteDirectory jobsites, IReadOnlyCollection<JobRecord> all, DateTimeOffset now) =>
@@ -456,18 +431,16 @@ public static class Dashboard
     {
         var rows = new List<MonitorRow>();
 
-        // GC first, then the Foremen in roster order. OrderBy is stable, so the
-        // roster's own order survives inside each group.
+        // GC first, then Foremen in roster order. OrderBy is stable, so
+        // roster order survives inside each group.
         var crew = foremen.All().OrderBy(f => f.Role == CrewRole.GC ? 0 : 1).ToList();
 
         foreach (var member in crew)
         {
-            // State is the registry's rule verbatim, which counts a Worker's job
-            // against its parent -- a Foreman whose only in-flight work is a
-            // Worker's is genuinely not free. Task/StartedAt deliberately do NOT
-            // follow a Worker's job up to the parent: that Worker has a row of its
-            // own further down, and repeating its task on the parent's line reads
-            // as two pieces of work when there is one.
+            // State counts a Worker's job against its parent (a Foreman whose
+            // only in-flight work is a Worker's is not free). Task/StartedAt
+            // deliberately do NOT follow a Worker's job up to the parent: that
+            // Worker gets its own row further down.
             var own = all
                 .Where(j => j.Status is JobStatus.Pending or JobStatus.Running &&
                             j.ForemanName.Equals(member.Name, StringComparison.OrdinalIgnoreCase))
@@ -505,34 +478,27 @@ public static class Dashboard
     /// <summary>The Worker label convention JobRegistry.StartWorkerJob mints: <c>&lt;Parent&gt;/worker-&lt;shortId&gt;</c>.</summary>
     private const string WorkerMarker = "/worker-";
 
-    /// <summary>
-    /// The three-state rule <see cref="StatusBadge"/> already renders, as text.
-    /// Busy wins over parked, exactly as it does there.
-    /// </summary>
+    /// <summary>Text form of the same three-state rule <see cref="StatusBadge"/> renders. Busy wins over parked.</summary>
     private static string StateOf(bool busy, bool parked) =>
         busy ? "working" : parked ? "parked" : "idle";
 
     /// <summary>
-    /// Actual worked time: wall clock since dispatch began, less however long the
-    /// job has sat parked waiting on the Boss. Null until the job actually starts,
-    /// because queue time is visible elsewhere and is never charged as work.
+    /// Actual worked time: wall clock since dispatch, less time spent parked
+    /// waiting on the Boss. Null until the job starts, since queue time is
+    /// never charged as work.
     /// </summary>
     private static TimeSpan? ElapsedOf(JobRecord? job, DateTimeOffset now) =>
         job?.StartedAt is { } startedAt ? now - startedAt - job.ParkedDuration : null;
 
     /// <summary>
     /// The jobsite's canonical name, so a Foreman configured against "xinfra"
-    /// reports the roster's "XINFRA". An unconfigured name is still shown -- it is
-    /// what the Foreman's own config says, and hiding it would hide the mismatch.
+    /// reports the roster's "XINFRA". An unrecognized name is still shown so
+    /// the mismatch is visible.
     /// </summary>
     private static string? JobsiteNameFor(string? jobsiteName, JobsiteDirectory jobsites) =>
         string.IsNullOrWhiteSpace(jobsiteName) ? null : jobsites.Find(jobsiteName)?.Name ?? jobsiteName;
 
-    /// <summary>
-    /// What an unrecognized slash command lands on. Every tab in the strip is
-    /// built now, so this is no longer a "later phase" placeholder -- it is the
-    /// answer to a command that does not exist.
-    /// </summary>
+    /// <summary>What an unrecognized slash command lands on.</summary>
     private static IRenderable BuildStub(string label) =>
         new Markup($"[grey]'/{Markup.Escape(label)}' isn't a command -- /help lists the ones that are.[/]");
 

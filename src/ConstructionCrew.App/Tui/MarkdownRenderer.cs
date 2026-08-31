@@ -10,17 +10,16 @@ namespace ConstructionCrew.App.Tui;
 /// fenced code blocks, `-`/`*` bullets, ordered lists, `&gt;` blockquotes, GFM
 /// pipe tables, thematic breaks, and inline **bold**, *italic*, `code` and
 /// [[wikilinks]]. Everything else renders as literal text. Not a general
-/// Markdown implementation and not trying to be -- see the plan's Phase 10.
+/// Markdown implementation.
 ///
 /// <para>
-/// Safety property, and the reason this file is worth reading before editing:
-/// every character that comes from the source document goes through
+/// Safety property, and the reason to read this file before editing it:
+/// every character from the source document goes through
 /// <see cref="Markup.Escape"/> BEFORE any styling tag is added, and a fenced
-/// code block's body goes into a <see cref="Text"/> (which never interprets
-/// markup) rather than a <see cref="Markup"/>. Crew-authored content therefore
-/// cannot inject Spectre markup -- neither a stray `[` in a sentence (which
-/// would throw and take the TUI down) nor a deliberate `[red]` in a code
-/// sample (which would silently recolor the console).
+/// code block's body goes into a <see cref="Text"/> (never interprets markup)
+/// rather than a <see cref="Markup"/>. Crew-authored content can't inject
+/// Spectre markup: neither a stray `[` (which would throw) nor a deliberate
+/// `[red]` in a code sample (which would silently recolor the console).
 /// </para>
 /// </summary>
 public static class MarkdownRenderer
@@ -36,7 +35,7 @@ public static class MarkdownRenderer
 
     private static readonly Regex Heading = new(@"^(#{1,3})\s+(.*)$", RegexOptions.Compiled);
 
-    // Runs against ALREADY-ESCAPED text, where a source `[` is "[[" -- so a
+    // Runs against ALREADY-ESCAPED text, where a source `[` is "[[", so a
     // source [[wikilink]] arrives here as "[[[[wikilink]]]]".
     private static readonly Regex EscapedWikiLink = new(@"\[\[\[\[([^\[\]]+?)\]\]\]\]", RegexOptions.Compiled);
 
@@ -59,8 +58,8 @@ public static class MarkdownRenderer
         var lines = markdown.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
         var i = 0;
 
-        // Frontmatter is only frontmatter on line one. A "---" anywhere else is
-        // a thematic break, which is why this is not part of the main loop.
+        // Frontmatter is only frontmatter on line one; a "---" anywhere else
+        // is a thematic break. Handled outside the main loop for that reason.
         if (lines.Length > 0 && lines[0].Trim() == "---")
         {
             var end = -1;
@@ -156,10 +155,9 @@ public static class MarkdownRenderer
     public static IRenderable Render(string markdown) => new Rows(RenderBlocks(markdown));
 
     /// <summary>
-    /// Source text -&gt; Spectre markup. The escape happens FIRST and the styling
-    /// tags are added on top of already-escaped text, so nothing in the source
-    /// can ever be read back as a markup tag. Code spans are lifted out before
-    /// the emphasis passes so `**not bold**` inside backticks stays literal.
+    /// Source text -&gt; Spectre markup. Escaping happens FIRST, so nothing in
+    /// the source can be read back as a markup tag. Code spans are lifted out
+    /// before the emphasis passes so `**not bold**` inside backticks stays literal.
     /// </summary>
     internal static string RenderInline(string text)
     {
@@ -171,8 +169,8 @@ public static class MarkdownRenderer
         var escaped = Markup.Escape(text);
 
         // Code spans are parked behind a NUL-delimited slot number so the
-        // emphasis passes below cannot reach inside them, then put back styled.
-        // NUL is used because it cannot occur in a text file the crew wrote.
+        // emphasis passes can't reach inside them, then put back styled. NUL
+        // can't occur in a text file the crew wrote.
         var codeSpans = new List<string>();
         escaped = CodeSpan.Replace(escaped, match =>
         {
@@ -212,9 +210,9 @@ public static class MarkdownRenderer
     }
 
     /// <summary>
-    /// The body goes into a <see cref="Text"/>, never a <see cref="Markup"/> --
-    /// a code sample containing "[red]" has to come out as the four characters
-    /// the author typed, not as a color tag.
+    /// The body goes into a <see cref="Text"/>, never a <see cref="Markup"/>:
+    /// a code sample containing "[red]" must come out as the literal four
+    /// characters, not a color tag.
     /// </summary>
     private static IRenderable ReadFencedCode(string[] lines, ref int i, string fence)
     {
@@ -250,8 +248,8 @@ public static class MarkdownRenderer
 
     /// <summary>
     /// A GFM pipe table is only a table when the line after the header is an
-    /// alignment row. Without that check a prose line that happens to contain a
-    /// pipe would be shredded into columns.
+    /// alignment row; otherwise a prose line with a stray pipe would be
+    /// shredded into columns.
     /// </summary>
     private static bool IsTableStart(string[] lines, int i)
     {
@@ -291,8 +289,8 @@ public static class MarkdownRenderer
         {
             var cells = SplitRow(lines[i]);
 
-            // Table.AddRow throws on a cell-count mismatch, and a hand-written
-            // table with a short row is not worth crashing the viewer over.
+            // Table.AddRow throws on a cell-count mismatch; a short row in a
+            // hand-written table isn't worth crashing the viewer over.
             var row = new string[headerCells.Count];
             for (var c = 0; c < headerCells.Count; c++)
             {

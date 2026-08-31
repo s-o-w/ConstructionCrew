@@ -5,19 +5,13 @@ using ConstructionCrew.Core.Models;
 namespace ConstructionCrew.Config;
 
 /// <summary>
-/// Appends a new Foreman block to foremen.yaml as plain text. Deliberately not
-/// a deserialize-mutate-reserialize round trip through YamlDotNet -- that would
-/// drop the hand-written comments at the top of the file. A hand-formatted
-/// append is simple and safe for this file's shape (a flat list of Foremen).
+/// Appends a new Foreman block to foremen.yaml as plain text, not through
+/// YamlDotNet's serializer: a round trip would drop the file's hand-written
+/// header comments.
 /// </summary>
 public static class ForemanConfigWriter
 {
-    /// <summary>
-    /// Creates foremen.yaml with its header comment if it is not there yet, so
-    /// the first-run flow has something to append to. Mirrors
-    /// <see cref="JobsiteConfigWriter.EnsureFileExists"/>. Never touches an
-    /// existing file.
-    /// </summary>
+    /// <summary>Creates foremen.yaml with its header comment if absent. Never touches an existing file.</summary>
     public static void EnsureFileExists(string path)
     {
         if (File.Exists(path))
@@ -83,7 +77,7 @@ public static class ForemanConfigWriter
             block.AppendLine("    vaultFolders:");
             foreach (var folder in config.VaultFolders)
             {
-                // Vault-relative by definition -- no root collapsing to do.
+                // Vault-relative by definition: no root collapsing to do.
                 block.AppendLine($"      - {Quote(folder)}");
             }
         }
@@ -93,10 +87,8 @@ public static class ForemanConfigWriter
             block.AppendLine("    providerOptions:");
             foreach (var (key, value) in config.ProviderOptions)
             {
-                // Collapse ${repoRoot} first (e.g. mcpConfigPath is always
-                // under the repo) so most values end up with no backslashes
-                // at all; single-quoting whatever's left handles it safely
-                // regardless.
+                // Collapse ${repoRoot} first (mcpConfigPath is always under the
+                // repo); Quote handles whatever backslashes are left either way.
                 block.AppendLine($"      {key}: {Quote(CollapseRepoRoot(value, repoRoot))}");
             }
         }
@@ -104,17 +96,10 @@ public static class ForemanConfigWriter
         File.AppendAllText(path, block.ToString());
     }
 
-    /// <summary>
-    /// Removes a Foreman's entry from foremen.yaml. Only ever touches this
-    /// config file -- never the Foreman's working directory or anything under
-    /// it. Callers (the /fire flow) must never pass anything else to delete.
-    /// </summary>
+    /// <summary>Removes a Foreman's entry from foremen.yaml only. Never touches the Foreman's working directory.</summary>
     public static bool RemoveForeman(string path, string name) => YamlListEditor.RemoveEntry(path, "foremen", name);
 
-    /// <summary>
-    /// Vault prefix first, then repo prefix -- the safe ordering if the two
-    /// roots were ever nested (a Vault inside the repo, or the reverse).
-    /// </summary>
+    /// <summary>Checks the Vault prefix before the repo prefix: the safe order if the two roots are ever nested.</summary>
     private static string CollapseRoots(string absolutePath, string? vaultRoot, string repoRoot) =>
         IsUnderVaultRoot(absolutePath, vaultRoot)
             ? CollapseVaultRoot(absolutePath, vaultRoot)
@@ -134,10 +119,9 @@ public static class ForemanConfigWriter
             : absolutePath;
 
     /// <summary>
-    /// Single-quoted YAML has no escape processing at all (except '' for a
-    /// literal quote) -- unlike unquoted plain scalars, which break on things
-    /// as ordinary as a Windows drive letter ("c:") or a path with backslashes,
-    /// both hit for real on this file. Quote every free-form value, always.
+    /// Single-quoted YAML needs no escaping except '' for a literal quote.
+    /// Unquoted scalars break on a Windows drive letter ("c:") or backslashes,
+    /// both real in this file's paths. Quote every free-form value, always.
     /// </summary>
     internal static string Quote(string value) => $"'{value.Replace("'", "''")}'";
 }

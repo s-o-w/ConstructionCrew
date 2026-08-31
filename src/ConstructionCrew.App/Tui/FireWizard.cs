@@ -8,19 +8,16 @@ namespace ConstructionCrew.App.Tui;
 
 /// <summary>
 /// Removes a Foreman from ConstructionCrew's own config and live state. NEVER
-/// removes its Jobsite -- a Jobsite may have other Foremen assigned to it, and
-/// even a solo Foreman's Jobsite config (and everything under
-/// <c>Notes/&lt;Jobsite&gt;</c>/<c>Plans/&lt;Jobsite&gt;</c> in the Vault) is work
-/// the Boss may still want, so firing never deletes it.
+/// removes its Jobsite: other Foremen may be assigned to it, and even a solo
+/// Foreman's Jobsite config (and its Vault content) is work the Boss may
+/// still want.
 ///
-/// HARD INVARIANT, never to be relaxed: this only ever edits/deletes files
-/// this tool itself generated (foremen.yaml, a Foreman's own
-/// AI/ConstructionCrew/Instructions/<name>.md in the Vault). It NEVER touches
-/// jobsites.yaml, tracked working-tree content in a Jobsite repo, or anything
-/// in the Vault, with exactly one exception: <c>git worktree remove</c>/
-/// <c>prune</c>, which only ever rewrite <c>.git/worktrees/</c> bookkeeping for
-/// worktrees ConstructionCrew itself opened. Those repos are the Boss's, not
-/// this tool's to touch.
+/// HARD INVARIANT: this only ever edits/deletes files it itself generated
+/// (foremen.yaml, a Foreman's own AI/ConstructionCrew/Instructions/&lt;name&gt;.md
+/// in the Vault). It NEVER touches jobsites.yaml, tracked working-tree
+/// content in a Jobsite repo, or anything in the Vault, except <c>git
+/// worktree remove</c>/<c>prune</c>, which only rewrite
+/// <c>.git/worktrees/</c> bookkeeping for worktrees ConstructionCrew opened.
 /// </summary>
 public static class FireWizard
 {
@@ -91,15 +88,13 @@ public static class FireWizard
 
         DeleteGeneratedInstructionsFile(foreman.InstructionsFilePath, vaultRoot);
 
-        // The Jobsite itself is never removed here -- see the class doc comment.
-        // Worktree prune is still safe to run regardless: it only ever clears
-        // stale .git/worktrees/ bookkeeping for a worktree whose directory is
-        // already gone, never a live one another Foreman might still have open.
+        // The Jobsite is never removed here (see class doc comment). Prune is
+        // safe regardless: it only clears stale .git/worktrees/ bookkeeping
+        // for worktrees whose directory is already gone.
         //
-        // NEVER repoRoot -- that is ConstructionCrew's own checkout, not the
-        // jobsite's. A Foreman with no Jobsite (GC, or one never assigned one) has
-        // no worktrees to clean up: skipping the whole prune is the correct
-        // outcome there, not an error.
+        // NEVER repoRoot: that is ConstructionCrew's own checkout, not the
+        // jobsite's. A Foreman with no Jobsite has no worktrees to clean up;
+        // skipping the prune there is correct, not an error.
         if (!string.IsNullOrWhiteSpace(jobsite?.RepoPath))
         {
             await worktreeManager.PruneAsync(jobsite.RepoPath, cancellationToken);
@@ -108,19 +103,17 @@ public static class FireWizard
         AnsiConsole.MarkupLine($"[bold green]{Markup.Escape(name)} is fired.[/] Config removed. The jobsite (its config and everything under it in the Vault) was not touched.");
     }
 
-    /// <summary>Public so the "never deletes outside AI/ConstructionCrew/Instructions" invariant can be tested directly, not just code-reviewed.</summary>
+    /// <summary>Public so the "never deletes outside AI/ConstructionCrew/Instructions" invariant can be tested directly.</summary>
     public static void DeleteGeneratedInstructionsFile(string instructionsFilePath, string? vaultRoot)
     {
-        // No Vault, no boundary to check against -- never delete, same as any
-        // other unresolvable path below.
+        // No Vault, no boundary to check against: never delete.
         if (string.IsNullOrWhiteSpace(vaultRoot))
         {
             return;
         }
 
-        // Only ever delete a file that's actually inside this tool's own
-        // generated-instructions directory -- never trust the path blindly, even
-        // though it should always point there for a Foreman hired via /hire.
+        // Only delete a file actually inside this tool's own
+        // generated-instructions directory; never trust the path blindly.
         var instructionsDir = Path.GetFullPath(Path.Combine(vaultRoot, "AI", "ConstructionCrew", "Instructions"));
         var fullPath = Path.GetFullPath(instructionsFilePath);
 

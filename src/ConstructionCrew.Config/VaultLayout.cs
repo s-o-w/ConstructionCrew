@@ -6,37 +6,31 @@ public enum VaultRecognition
     /// <summary>Every marker <see cref="VaultLayout"/> looks for is present.</summary>
     Recognized,
 
-    /// <summary>At least one marker is missing. Still usable as a Vault -- just not conventionally shaped.</summary>
+    /// <summary>At least one marker is missing. Still usable as a Vault, just not conventionally shaped.</summary>
     Unrecognized,
 }
 
 /// <summary>
 /// Recognizes the vault layout ConstructionCrew's conventions are built on.
 ///
-/// The predicate is deliberately the same one the `plan-Work` skill's Step 0 uses
-/// to resolve VAULT_ROOT, so a vault this returns Recognized for is a vault that
-/// skill can also drive. Step 0's discovery block is:
+/// Mirrors the `plan-Work` skill's Step 0 VAULT_ROOT discovery, so a vault
+/// Recognized here is one that skill can also drive:
 ///
 ///   VAULT_ROOT="$(pwd)"
 ///   while [ "$VAULT_ROOT" != "/" ] &amp;&amp; { [ ! -f "$VAULT_ROOT/HOME.md" ] || [ ! -f "$VAULT_ROOT/CLAUDE.md" ]; }; do
 ///     VAULT_ROOT="$(dirname "$VAULT_ROOT")"
 ///   done
-///   PLANS_ROOT="$VAULT_ROOT/Plans"
 ///
-/// Note what that literally tests: `HOME.md` and `CLAUDE.md` as *files*. `Plans/`
-/// it derives without an existence check, and `Notes/` it never names at all.
-/// Recognize() checks all five -- a strict superset -- because Notes/ and Plans/
-/// are what the VaultFolders derivation ("Notes/&lt;Jobsite&gt;", "Plans/&lt;Jobsite&gt;")
-/// actually writes into, and deriving a write path into a directory that isn't
-/// there is the failure this check exists to prevent. Anything Recognized here
-/// therefore also satisfies plan-Work's own two-file test; the reverse is not
+/// Step 0 only checks HOME.md and CLAUDE.md as files; it derives Plans/ without
+/// checking it exists and never names Notes/ at all. Recognize() checks all
+/// five (a strict superset) because Notes/ and Plans/ are exactly what
+/// VaultFolders derivation ("Notes/&lt;Jobsite&gt;", "Plans/&lt;Jobsite&gt;") writes
+/// into. Recognized here always satisfies plan-Work's test; the reverse isn't
 /// guaranteed, and that asymmetry is intentional.
 ///
-/// `AI/` joined the required set alongside Notes/ and Plans/ for the same
-/// reason: ConstructionCrew's own instructions templates and rendered
-/// instructions files now live under AI/ConstructionCrew/ (InstructionsComposer),
-/// so a vault missing AI/ is exactly as unable to host this tool's writes as one
-/// missing Notes/ or Plans/.
+/// `AI/` is required for the same reason: instructions templates and rendered
+/// files live under AI/ConstructionCrew/ (InstructionsComposer), so missing
+/// AI/ blocks this tool's writes exactly like missing Notes/ or Plans/.
 /// </summary>
 public static class VaultLayout
 {
@@ -49,11 +43,7 @@ public static class VaultLayout
     public static VaultRecognition Recognize(string? vaultRoot) =>
         MissingMarkers(vaultRoot).Count == 0 ? VaultRecognition.Recognized : VaultRecognition.Unrecognized;
 
-    /// <summary>
-    /// The markers that are absent, in the order they are checked -- for telling the
-    /// Boss exactly why a directory was not recognized, rather than just that it wasn't.
-    /// A null/blank/missing root reports every marker as missing.
-    /// </summary>
+    /// <summary>The markers that are absent, in check order, so the Boss learns why a directory wasn't recognized. A null/blank/missing root reports every marker missing.</summary>
     public static IReadOnlyList<string> MissingMarkers(string? vaultRoot)
     {
         if (string.IsNullOrWhiteSpace(vaultRoot) || !Directory.Exists(vaultRoot))
@@ -83,17 +73,12 @@ public static class VaultLayout
     }
 
     /// <summary>
-    /// Copies the templates under <paramref name="scaffoldSourceDirectory"/>
-    /// (config/scaffold/ in this repo) verbatim into <paramref name="vaultRoot"/>.
-    /// No templating engine, no substitution -- a file is copied byte for byte or
-    /// not at all.
+    /// Copies the templates under <paramref name="scaffoldSourceDirectory"/> verbatim
+    /// into <paramref name="vaultRoot"/>. No templating, no substitution.
     ///
-    /// Two deliberate exceptions to "verbatim":
-    /// - `.gitkeep` markers are not copied. They exist only so git tracks the
-    ///   scaffold's intentionally-empty directories; the directory itself is still
-    ///   created here, which is the actual intent.
-    /// - An existing file is never overwritten. Scaffolding into a directory that
-    ///   already holds content adds what is missing and leaves the rest alone.
+    /// Two exceptions: `.gitkeep` markers are not copied (they only exist so git
+    /// tracks empty scaffold directories; the directory itself is still created),
+    /// and an existing file is never overwritten.
     /// </summary>
     /// <returns>The vault-relative paths actually written.</returns>
     public static IReadOnlyList<string> Scaffold(string scaffoldSourceDirectory, string vaultRoot)
@@ -142,23 +127,18 @@ public static class VaultLayout
     public static string ScaffoldSourceDirectory(string repoRoot) => Path.Combine(repoRoot, "config", "scaffold");
 
     /// <summary>
-    /// The Boss's standing crew preferences, vault-relative. Both instructions
-    /// templates point the crew at this path unconditionally, so it has to exist on
-    /// every vault -- not just a scaffolded one. Kept in sync with
+    /// The Boss's crew preferences path, vault-relative. Must exist on every
+    /// vault, not just a scaffolded one, since both instructions templates point
+    /// at it unconditionally. Kept in sync with
     /// <see cref="InstructionsComposer.CrewPreferencesPath"/>.
     /// </summary>
     public const string CrewPreferencesRelativePath = "AI/Context/crew-preferences.md";
 
-    /// <summary>
-    /// Copies exactly one scaffold file into a vault when it is absent, for a file
-    /// both instructions templates reference unconditionally. Existing files are
-    /// never touched, matching Scaffold's own rule. Returns true when it wrote one.
-    /// </summary>
+    /// <summary>Copies one scaffold file into a vault when absent, matching Scaffold's never-overwrite rule. Returns true when it wrote one.</summary>
     public static bool EnsureScaffoldFile(string scaffoldSourceDirectory, string vaultRoot, string relativePath)
     {
-        // Path.Combine on a relative path holding '/' works on both platforms; the
-        // separators are normalized by the OS. Kept as one segment string so callers
-        // pass the same literal the templates use.
+        // relativePath is one literal (e.g. "AI/Context/x.md"), the same string
+        // callers share with the templates; '/' is converted here for both platforms.
         var source = Path.Combine(scaffoldSourceDirectory, relativePath.Replace('/', Path.DirectorySeparatorChar));
         if (!File.Exists(source))
         {

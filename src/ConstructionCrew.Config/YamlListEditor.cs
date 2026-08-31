@@ -1,11 +1,11 @@
 namespace ConstructionCrew.Config;
 
 /// <summary>
-/// Surgically removes one "- name: X" entry from a hand-formatted YAML list
-/// file (foremen.yaml / jobsites.yaml shape), preserving everything else --
-/// including the file's hand-written header comments -- byte for byte. This is
-/// the removal counterpart to the writers' plain-text append: neither
-/// round-trips through YamlDotNet's serializer, which would drop comments.
+/// Removes one "- name: X" entry from a hand-formatted YAML list file
+/// (foremen.yaml / jobsites.yaml shape), preserving everything else,
+/// including header comments, byte for byte. Counterpart to the writers'
+/// plain-text append; neither round-trips through YamlDotNet, which would
+/// drop comments.
 /// </summary>
 internal static class YamlListEditor
 {

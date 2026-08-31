@@ -3,11 +3,7 @@ using ConstructionCrew.Core.Models;
 
 namespace ConstructionCrew.Config;
 
-/// <summary>
-/// Live, mutable registry. Hiring a Foreman at runtime adds to this directly
-/// (plus a separate append to foremen.yaml for persistence across restarts --
-/// this class only holds the in-memory view for the running session).
-/// </summary>
+/// <summary>In-memory Foreman registry. Hiring at runtime adds here directly; a separate append to foremen.yaml persists it across restarts.</summary>
 public sealed class ForemanDirectory : IForemanDirectory
 {
     private readonly Dictionary<string, ForemanConfig> _byName;

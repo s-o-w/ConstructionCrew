@@ -3,7 +3,7 @@ namespace ConstructionCrew.Core.Models;
 /// <summary>
 /// The curated set of jobsite border colors, referenced by name so persisted
 /// config (jobsites.yaml) and rendering (Spectre.Console, in the App project)
-/// stay decoupled -- this class has no UI dependency.
+/// stay decoupled: this class has no UI dependency.
 /// </summary>
 public static class JobsiteColorPalette
 {

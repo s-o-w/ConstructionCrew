@@ -8,38 +8,31 @@ using Spectre.Console;
 namespace ConstructionCrew.App;
 
 /// <summary>
-/// First run: there is no foremen.yaml yet, so there is no GC, so there is
-/// nothing for the Boss to talk to. This wizard produces one.
+/// Produces the GC when no foremen.yaml exists yet, so there is nothing for
+/// the Boss to talk to.
 ///
-/// It hooks off <c>File.Exists(settings.ForemenConfigPath)</c> in Program.cs,
-/// deliberately NOT off the "no Foreman named GC" branch. Those are two
-/// different failures: a missing file is a fresh install, while a config that
-/// loads and has no GC-named entry is a broken roster, and the second stays a
-/// hard fail.
+/// Hooks off <c>File.Exists(settings.ForemenConfigPath)</c> in Program.cs, not
+/// the "no Foreman named GC" branch: a missing file is a fresh install, while
+/// a config with no GC entry is a broken roster and stays a hard fail.
 ///
-/// Flow: point at an existing Vault or scaffold a new one -> recognize the
-/// layout -> hire GC -> write foremen.yaml -> persist the Vault path to
-/// appsettings.json. The resolved Vault path is RETURNED so Program.cs can do
-/// <c>settings = settings with { VaultRoot = resolved }</c> on this same run --
-/// AppSettings is a record and nothing reloads it from disk, so without that
-/// reassignment the just-written <c>${vaultRoot}</c> would fail to expand and
-/// /hire's Vault guard would still see null.
+/// Flow: resolve Vault -> recognize layout -> hire GC -> write foremen.yaml ->
+/// persist Vault path. Returns the resolved Vault path so Program.cs can do
+/// <c>settings = settings with { VaultRoot = resolved }</c>: AppSettings is a
+/// record, so without that reassignment <c>${vaultRoot}</c> would fail to
+/// expand on this same run.
 /// </summary>
 public static class FirstRunWizard
 {
     /// <summary>
-    /// GC's vault write scope. Order matters: SitrepWriter.FindNotesFolder takes the
-    /// FIRST entry under Notes/, which is where GC's own sitreps land. The bare
-    /// "Notes" and "Plans" entries cover the cross-jobsite writes GC's instructions
-    /// actually ask for -- workorders under Plans/&lt;Jobsite&gt;/&lt;Feature&gt;/ and Delivery
-    /// notes under Notes/&lt;Jobsite&gt;/Deliveries/.
+    /// GC's vault write scope. Order matters: SitrepWriter.FindNotesFolder uses
+    /// the FIRST entry under Notes/, where GC's sitreps land. "Notes" and
+    /// "Plans" cover GC's cross-jobsite writes: workorders under
+    /// Plans/&lt;Jobsite&gt;/&lt;Feature&gt;/ and Delivery notes under
+    /// Notes/&lt;Jobsite&gt;/Deliveries/.
     /// </summary>
     public static readonly IReadOnlyList<string> GcVaultFolders = ["Notes/GC", "Notes", "Plans"];
 
-    /// <summary>
-    /// Runs the first-run flow. Returns the resolved absolute Vault path, or
-    /// null if the Boss backed out (in which case nothing was written).
-    /// </summary>
+    /// <summary>Runs the first-run flow. Returns the resolved Vault path, or null if the Boss backed out.</summary>
     public static string? Run(string repoRoot, AppSettings settings, IReadOnlyList<string> availableProviderIds)
     {
         AnsiConsole.Write(new Rule("[bold yellow]first run[/]").LeftJustified());
@@ -108,15 +101,14 @@ public static class FirstRunWizard
     }
 
     /// <summary>
-    /// The GC's ForemanConfig, exactly as first run writes it. Three things are
-    /// invariant and not the Boss's to change here:
-    /// - <c>Name</c> is always the reserved GcForemanName. The loader's
-    ///   collection-level validation rejects any other spelling.
+    /// The GC's ForemanConfig, exactly as first run writes it.
+    /// - <c>Name</c> is always the reserved GcForemanName; the loader rejects
+    ///   any other spelling.
     /// - <c>Role</c> is always <see cref="CrewRole.GC"/>.
-    /// - <c>WorkingDirectory</c> is the VAULT, not this repo -- a CLI auto-loads
-    ///   the CLAUDE.md/AGENTS.md in its own cwd, and GC only inherits the
-    ///   vault's authoring conventions if the vault is its cwd. This repo comes
-    ///   along as an AddDirs entry instead.
+    /// - <c>WorkingDirectory</c> is the VAULT, not this repo: a CLI auto-loads
+    ///   the CLAUDE.md/AGENTS.md in its own cwd, so GC only inherits the
+    ///   vault's conventions if the vault is its cwd. The repo is added via
+    ///   AddDirs instead.
     /// <c>DisplayName</c> is the one optional field: UI only, never a lookup key.
     /// </summary>
     public static ForemanConfig BuildGcConfig(
@@ -139,10 +131,9 @@ public static class FirstRunWizard
             VaultFolders: GcVaultFolders);
 
     /// <summary>
-    /// Writes Vault:Root into appsettings.json, merging into whatever is already
-    /// there rather than rewriting the file -- HomeOffice:Port lives in the same
-    /// file and must survive. A malformed or missing file is replaced with a
-    /// fresh document; anything else would leave first run unable to finish.
+    /// Writes Vault:Root into appsettings.json, merging into the existing file
+    /// rather than rewriting it: HomeOffice:Port lives in the same file and
+    /// must survive. A malformed or missing file is replaced with a fresh document.
     /// </summary>
     public static void PersistVaultRoot(string appSettingsPath, string vaultRoot)
     {
@@ -171,24 +162,18 @@ public static class FirstRunWizard
     }
 
     /// <summary>
-    /// Resolves a Vault path (existing or freshly scaffolded), reports layout
-    /// recognition, and runs the Phase 1c skill-reachability check. Null means
-    /// the Boss backed out or the check failed -- nothing was written in either
-    /// case. Shared by <see cref="Run"/> (first hire) and
-    /// <see cref="SetupVaultOnly"/> (a roster that already has a GC but was
-    /// never pointed at a Vault -- e.g. a hand-edited <c>foremen.yaml</c>, which
-    /// means the automatic first-run flow at startup never triggers because the
-    /// file already exists).
+    /// Resolves a Vault path (existing or freshly scaffolded) and reports
+    /// layout recognition. Null means the Boss backed out or scaffolding
+    /// failed. Shared by <see cref="Run"/> (first hire) and
+    /// <see cref="SetupVaultOnly"/> (a roster with a GC but no Vault yet, e.g.
+    /// a hand-edited foremen.yaml, where the automatic first-run flow never
+    /// triggers since the file exists).
     ///
-    /// Does NOT check whether the vault's `consult-tha-graph` Claude Code skill
-    /// is reachable from `~/.claude/skills/` -- that check made sense when this
-    /// was written, before ConstructionCrew's own `build_graph`/`query_graph` MCP
-    /// tools existed. GC and Foreman instructions call those tools directly
-    /// (see AI/ConstructionCrew/Templates/*.md); neither ever invokes the skill, so its
-    /// reachability has no bearing on ConstructionCrew's own operation. The skill
-    /// still exists for a human, or an external Claude Code session, querying the
-    /// vault directly outside this app -- that's a separate concern from hiring
-    /// a GC here.
+    /// Does not check whether the vault's `consult-tha-graph` skill is
+    /// reachable from `~/.claude/skills/`: GC and Foreman instructions call
+    /// ConstructionCrew's own `build_graph`/`query_graph` MCP tools directly
+    /// and never invoke that skill. It still matters for a human or external
+    /// Claude Code session querying the vault directly, outside this app.
     /// </summary>
     public static string? ResolveAndConfirmVault(string repoRoot)
     {
@@ -205,19 +190,16 @@ public static class FirstRunWizard
 
     /// <summary>
     /// On-demand Vault setup for a roster that already has a GC. The automatic
-    /// first-run flow only ever triggers off a missing <c>foremen.yaml</c>
-    /// (<see cref="Run"/>'s own doc comment) -- a roster written by hand, or
-    /// left over from before a Vault was ever configured, has a GC but no
-    /// Vault, and nothing would otherwise invite the Boss to fix that. This is
-    /// the <c>/setup-vault</c> command's implementation.
+    /// first-run flow only triggers off a missing <c>foremen.yaml</c> (see
+    /// <see cref="Run"/>), so a hand-written roster, or one predating Vault
+    /// setup, has a GC but no Vault and nothing else prompts the Boss to fix
+    /// it. Backs the <c>/setup-vault</c> command.
     ///
-    /// Does not hire a GC. If one already exists and its WorkingDirectory isn't
-    /// already the Vault, it is rewritten in place (WorkingDirectory becomes the
-    /// Vault, this repo joins AddDirs if it isn't there already) so GC actually
-    /// gets Vault access as its cwd -- the same shape a fresh <see cref="Run"/>
-    /// hire would have produced. A GC already pointed at the Vault (or no GC at
-    /// all, which should not happen once <c>foremen.yaml</c> exists, but is not
-    /// this method's problem to diagnose) is left untouched.
+    /// Does not hire a GC. If one exists and its WorkingDirectory isn't
+    /// already the Vault, it's rewritten in place (WorkingDirectory becomes
+    /// the Vault, repo joins AddDirs) to match the shape a fresh
+    /// <see cref="Run"/> hire produces. A GC already pointed at the Vault is
+    /// left untouched.
     /// </summary>
     public static string? SetupVaultOnly(
         string repoRoot, ForemanDirectory foremen, string foremenConfigPath, string gcForemanName)
@@ -250,11 +232,8 @@ public static class FirstRunWizard
     /// <summary>
     /// The pure shaping step behind <see cref="SetupVaultOnly"/>: WorkingDirectory
     /// becomes <paramref name="vaultRoot"/>, and <paramref name="repoRoot"/> joins
-    /// AddDirs if it isn't already there -- the same repo-stays-reachable rule
-    /// <see cref="BuildGcConfig"/> applies on a fresh hire. Never drops an existing
-    /// AddDirs entry (a Boss may have added others by hand). Separated from the
-    /// interactive method above so this shaping logic is directly testable without
-    /// mocking a console prompt.
+    /// AddDirs if not already present. Never drops an existing AddDirs entry.
+    /// Separated out so it's testable without mocking console prompts.
     /// </summary>
     public static ForemanConfig RepointGcAtVault(ForemanConfig gc, string vaultRoot, string repoRoot)
     {
@@ -312,9 +291,9 @@ public static class FirstRunWizard
     }
 
     /// <summary>
-    /// Absolute path from what the Boss typed. "~/Vault" is the shape a Linux or
-    /// Mac user reaches for first, and Path.GetFullPath does not expand it -- it
-    /// would produce a literal "~" directory next to the cwd.
+    /// Absolute path from what the Boss typed. Expands a leading "~" (the
+    /// shape a Linux or Mac user reaches for), since Path.GetFullPath does not
+    /// and would produce a literal "~" directory next to the cwd.
     /// </summary>
     internal static string ExpandPath(string input)
     {
@@ -346,35 +325,19 @@ public static class FirstRunWizard
 
     /// <summary>
     /// GC's instructions file, rendered from
-    /// AI/ConstructionCrew/Templates/gc-instructions.md (in the Vault) by the
-    /// same composer a Foreman's file goes through -- the workorder handoff
-    /// protocol lives in that template, so a GC hired from a hand-written
-    /// stand-in would never learn it. An existing file is never overwritten: the
-    /// Boss may have edited it.
+    /// AI/ConstructionCrew/Templates/gc-instructions.md through the same
+    /// composer a Foreman's file goes through. An existing file is never
+    /// overwritten: the Boss may have edited it. A missing template falls back
+    /// to a minimal stand-in rather than failing first run.
     ///
-    /// A missing template (a broken vault, or one not yet migrated) falls back
-    /// to a minimal stand-in rather than failing the whole first run -- the
-    /// loader hard-fails on an instructionsFilePath that isn't there.
+    /// Called from two places: <see cref="Run"/> (fresh install), and
+    /// Program.cs unconditionally before the roster loads, since GC.md is no
+    /// longer shipped and can go missing on an existing install too.
     ///
-    /// Called from two places, not just first run: <see cref="Run"/> (a genuinely
-    /// new install), and Program.cs unconditionally, right before the roster
-    /// loads. The second call site is the one that matters for an EXISTING
-    /// roster -- foremen.yaml already names this file's conventional path, so
-    /// first run never triggers again, but the file itself is no longer shipped
-    /// (Phase 4's decision) and can be missing on disk for reasons unrelated to a
-    /// fresh clone: a `git rm` picked up by a pull, a manual delete, a restore
-    /// from a backup that predates it. Without the second call site, the loader's
-    /// hard-fail above is not hypothetical -- it is the only thing the Boss sees.
-    ///
-    /// This runs BEFORE foremen.yaml loads -- deliberately before the general
-    /// InstructionsMigration pass (Program.cs, right after the roster loads),
-    /// which is the one that actually MOVES a legacy file and rewrites
-    /// foremen.yaml to match. This method must never move anything itself: at
-    /// this point foremen.yaml still names the OLD location (if that is where
-    /// GC was hired), and the loader that runs moments later hard-fails if the
-    /// path it names stops existing out from under it. So the legacy check
-    /// below only ever READS -- if the old file is there, hand its path back
-    /// unchanged and let the loader (then migration) see it through.
+    /// Runs before InstructionsMigration, which moves a legacy file and
+    /// rewrites foremen.yaml to match. This method must only READ the legacy
+    /// path, never move it: foremen.yaml may still name the OLD location here,
+    /// and the loader that runs moments later hard-fails if that path stops existing.
     /// </summary>
     internal static string EnsureGcInstructions(
         string repoRoot,
@@ -391,8 +354,8 @@ public static class FirstRunWizard
             return path;
         }
 
-        // Not moved here -- see the method doc comment. A Boss who hand-edited
-        // this file keeps that edit intact until InstructionsMigration moves it.
+        // Read-only here (see doc comment above); a hand-edited file stays
+        // intact until InstructionsMigration moves it.
         var legacyPath = Path.Combine(repoRoot, "config", "instructions", "GC.md");
         if (File.Exists(legacyPath))
         {

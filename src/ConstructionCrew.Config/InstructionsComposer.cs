@@ -3,24 +3,20 @@ using ConstructionCrew.Core.Models;
 namespace ConstructionCrew.Config;
 
 /// <summary>
-/// Renders a crew member's instructions file from a Vault-hosted template --
+/// Renders a crew member's instructions file from a Vault-hosted template:
 /// <c>AI/ConstructionCrew/Templates/gc-instructions.md</c> for a GC,
-/// <c>AI/ConstructionCrew/Templates/foreman-instructions.md</c> for a Foreman.
-/// Replaces HireWizard's old inline ComposeInstructions.
+/// <c>foreman-instructions.md</c> for a Foreman.
 ///
-/// Templates live in the Vault, not this repo, so the Boss can read and edit
-/// them where the rest of the second brain lives. They still ship a master copy
-/// under <c>config/scaffold/AI/ConstructionCrew/Templates/</c>, seeded into a
-/// vault that doesn't have its own copy yet (see VaultLayout.EnsureScaffoldFile)
-/// and never overwritten after that -- an edited template is the Boss's, not
-/// this tool's to clobber.
+/// Templates live in the Vault, not this repo, so the Boss can edit them
+/// directly. A master copy ships under
+/// <c>config/scaffold/AI/ConstructionCrew/Templates/</c> and seeds a vault
+/// missing its own copy (see VaultLayout.EnsureScaffoldFile), but never
+/// overwrites an existing, edited template.
 ///
-/// The adversarial-review workflow lives in the TEMPLATE, as literal prose, not
-/// in a skill and not in C#. That is what makes it provider-agnostic: an
-/// instructions file is plain text every CLI reads as its own system prompt
-/// (LocalCliAgent prepends it on turn one), so Claude Code, Codex and Copilot
-/// all get the same workflow without any of them needing to resolve a skill.
-/// Nothing here references plan-Work, or any other vault skill, by name.
+/// The adversarial-review workflow lives as prose in the template, not in a
+/// skill or C#, because an instructions file is plain text every CLI reads as
+/// its own system prompt. That is what keeps the workflow provider-agnostic
+/// across Claude Code, Codex, and Copilot.
 /// </summary>
 public static class InstructionsComposer
 {
@@ -33,11 +29,10 @@ public static class InstructionsComposer
 
     /// <summary>
     /// The authoredBy string this role stamps on every Vault note it writes.
-    /// GC always yields "GC" regardless of DisplayName; a Foreman yields
-    /// "Foreman:&lt;ForemanName&gt;:&lt;JobsiteName&gt;" (Architecture §3.1). The
-    /// Foreman name is load-bearing, not decorative: more than one Foreman can
-    /// share a Jobsite, and "Foreman:&lt;JobsiteName&gt;" alone would make every
-    /// note either of them writes byte-identical in attribution.
+    /// GC always yields "GC"; a Foreman yields
+    /// "Foreman:&lt;ForemanName&gt;:&lt;JobsiteName&gt;". The Foreman name matters:
+    /// two Foremen can share a Jobsite, so JobsiteName alone would make their
+    /// notes indistinguishable in attribution.
     /// </summary>
     public static string AuthoredBy(CrewRole role, string foremanName, string? jobsiteName) =>
         role == CrewRole.GC ? "GC" : $"Foreman:{foremanName}:{jobsiteName ?? "unassigned"}";
@@ -57,11 +52,10 @@ public static class InstructionsComposer
         Path.Combine(vaultRoot, "AI", "ConstructionCrew", "Instructions", $"{name}.briefing.md");
 
     /// <summary>
-    /// The briefing back out of an already-rendered Foreman instructions file, for a
-    /// crew member hired before the sidecar existed. The template puts the briefing
-    /// first, then a line that is exactly "---", a blank line, and a "# You are"
-    /// heading (AI/ConstructionCrew/Templates/foreman-instructions.md:1-5). Returns ""
-    /// when that shape is not found -- a GC file, or a hand-rewritten one.
+    /// Extracts the briefing back out of an already-rendered Foreman instructions
+    /// file, for a crew member hired before the sidecar existed. The template puts
+    /// the briefing first, then "---", a blank line, and a "# You are" heading.
+    /// Returns "" when that shape isn't found (a GC file, or a hand-edited one).
     /// </summary>
     public static string ExtractBriefing(string renderedInstructions)
     {
@@ -70,8 +64,7 @@ public static class InstructionsComposer
             return string.Empty;
         }
 
-        // Split on any line ending; the file may have been written or hand-edited
-        // on either platform.
+        // Handles either line ending; the file may be edited on either platform.
         var lines = renderedInstructions.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
 
         for (var i = 0; i + 2 < lines.Length; i++)
@@ -86,8 +79,7 @@ public static class InstructionsComposer
                 continue;
             }
 
-            // Everything above the separator is the briefing, exactly as Compose
-            // trimmed it on the way in.
+            // Above the separator is the briefing, trimmed the same way Compose wrote it.
             return string.Join(Environment.NewLine, lines.Take(i)).Trim();
         }
 
@@ -127,9 +119,9 @@ public static class InstructionsComposer
             ["JobsiteDescription"] = string.IsNullOrWhiteSpace(jobsite?.Description)
                 ? "(no description was given for this jobsite)"
                 : jobsite!.Description.Trim(),
-            // Plain "main", never a parenthetical: this token is substituted into
-            // a `gh pr create --base {{DefaultBranch}}` example in the template,
-            // and any prose here renders as a literally broken shell command.
+            // Plain "main", not a parenthetical: this substitutes into a
+            // `gh pr create --base {{DefaultBranch}}` example, so prose here
+            // would render as a broken shell command.
             ["DefaultBranch"] = Fallback(jobsite?.DefaultBranch, "main"),
             ["BuildCommand"] = Fallback(jobsite?.BuildCommand, "(no build command configured -- ask the Boss before guessing one)"),
             ["TestCommand"] = Fallback(jobsite?.TestCommand, "(no test command configured -- ask the Boss before guessing one)"),

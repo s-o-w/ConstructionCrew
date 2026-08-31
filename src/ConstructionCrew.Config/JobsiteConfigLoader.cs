@@ -10,7 +10,7 @@ public sealed class JobsiteConfigLoader
         .WithNamingConvention(CamelCaseNamingConvention.Instance)
         .Build();
 
-    /// <summary>Missing file is not an error -- jobsites.yaml starts empty until the first /hire flow creates one.</summary>
+    /// <summary>Missing file is not an error: jobsites.yaml starts empty until the first /hire flow creates one.</summary>
     public IReadOnlyList<JobsiteConfig> LoadFromFile(string path, string repoRoot)
     {
         if (!File.Exists(path))
@@ -22,9 +22,7 @@ public sealed class JobsiteConfigLoader
         var document = _deserializer.Deserialize<JobsiteFileDto>(yaml) ?? new JobsiteFileDto();
 
         var configs = new List<JobsiteConfig>();
-        // An empty "jobsites:" key deserializes the list property to null, not
-        // an empty list -- confirmed by hitting this for real on a freshly
-        // seeded jobsites.yaml, not assumed.
+        // An empty "jobsites:" key deserializes to null, not an empty list.
         foreach (var dto in document.Jobsites ?? [])
         {
             var repoPath = dto.RepoPath?.Replace("${repoRoot}", repoRoot);
@@ -39,9 +37,8 @@ public sealed class JobsiteConfigLoader
                 throw new InvalidOperationException($"Jobsite '{dto.Name}' repoPath does not exist: '{repoPath}'.");
             }
 
-            // vaultFolders and upstream each need their own "?? []": the guard on
-            // document.Jobsites above protects the outer list only, never a
-            // per-entry list or map field.
+            // vaultFolders and upstream need their own "?? []": the outer-list
+            // guard above doesn't cover per-entry fields.
             configs.Add(new JobsiteConfig(
                 dto.Name,
                 repoPath,

@@ -13,7 +13,7 @@ public interface ISitrepWriter
 
 /// <summary>
 /// Everything the writer needs, already resolved by the MCP boundary.
-/// <paramref name="VaultFolders"/> is the CALLER's declared write scope -- the
+/// <paramref name="VaultFolders"/> is the caller's declared write scope: the
 /// sitrep lands under its first <c>Notes/</c> entry and nowhere else.
 /// </summary>
 public sealed record SitrepRequest(

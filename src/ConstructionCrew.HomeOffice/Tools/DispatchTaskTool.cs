@@ -5,10 +5,8 @@ using ModelContextProtocol.Server;
 namespace ConstructionCrew.HomeOffice.Tools;
 
 /// <summary>
-/// The MCP boundary owns parsing and validating a workorder path, not
-/// JobRegistry: this tool already holds the incoming path string, and keeping
-/// the parsing here leaves JobRegistry a pure state machine with no YAML
-/// dependency (Architecture §4 Feature 5).
+/// Owns parsing and validating a workorder path, not JobRegistry: this
+/// keeps JobRegistry a pure state machine with no YAML dependency.
 /// </summary>
 [McpServerToolType]
 public sealed class DispatchTaskTool
@@ -40,16 +38,15 @@ public sealed class DispatchTaskTool
         [Description("A clear, self-contained description of the task for the Foreman to carry out.")] string task,
         [Description("Optional. The absolute path to the WORKORDER.md you wrote at <vaultRoot>/Plans/<Jobsite>/<Feature>/WORKORDER.md. Omit for an ordinary ad-hoc task.")] string? workorderPath = null)
     {
-        // No workorder is the ordinary path: it never touches vaultOptions, so an
-        // unconfigured Vault never blocks ad-hoc dispatch.
+        // No workorder path never touches vaultOptions, so an unconfigured Vault
+        // never blocks ad-hoc dispatch.
         if (string.IsNullOrWhiteSpace(workorderPath))
         {
             return _jobs.StartJob(foreman, task);
         }
 
-        // Guard FIRST, before the reader is ever called: VaultRoot is nullable and
-        // IWorkorderReader.Read takes a non-nullable vaultRoot it calls
-        // Path.Combine with.
+        // Guard before calling the reader: VaultRoot is nullable, but Read's
+        // vaultRoot param is non-nullable and gets Path.Combine'd.
         var vaultRoot = _vaultOptions.VaultRoot;
         if (string.IsNullOrWhiteSpace(vaultRoot))
         {
@@ -59,10 +56,10 @@ public sealed class DispatchTaskTool
                 "Dispatching without a workorderPath still works.");
         }
 
-        // Step 1 -- the file against itself (path segments vs. frontmatter).
+        // Step 1: the file against itself (path segments vs. frontmatter).
         var parsed = _workorderReader.Read(workorderPath, vaultRoot);
 
-        // Step 2 -- the file against the dispatch target.
+        // Step 2: the file against the dispatch target.
         var target = _foremen.Find(foreman)
             ?? throw new InvalidOperationException(
                 $"No Foreman named '{foreman}' is hired. Known Foremen: {string.Join(", ", _foremen.All().Select(f => f.Name))}.");
@@ -74,8 +71,8 @@ public sealed class DispatchTaskTool
                 $"assigned to jobsite '{target.JobsiteName ?? "(none)"}'. Dispatch it to that jobsite's Foreman instead.");
         }
 
-        // Step 3 -- resolve the rest. SourceBranch's fallback chain lives here,
-        // not in the reader: only this side knows the Jobsite registry.
+        // Step 3: SourceBranch's fallback chain lives here, not the reader: only
+        // this side knows the Jobsite registry.
         var sourceBranch = parsed.SourceBranch
             ?? _jobsites.Find(parsed.Jobsite)?.DefaultBranch
             ?? "main";

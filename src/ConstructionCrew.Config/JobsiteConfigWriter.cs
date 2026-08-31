@@ -4,7 +4,7 @@ using ConstructionCrew.Core.Models;
 
 namespace ConstructionCrew.Config;
 
-/// <summary>Plain-text append, same rationale as ForemanConfigWriter -- avoids a round trip that would drop comments.</summary>
+/// <summary>Plain-text append, same rationale as ForemanConfigWriter: avoids a round trip that would drop comments.</summary>
 public static class JobsiteConfigWriter
 {
     public static void EnsureFileExists(string path)
@@ -54,9 +54,8 @@ public static class JobsiteConfigWriter
 
         if (config.Upstream is { Count: > 0 })
         {
-            // Same shape and same CollapseRepoRoot-then-Quote ordering as
-            // providerOptions in ForemanConfigWriter -- an upstream value can
-            // legitimately be a repo-relative path, not just a URL.
+            // Same CollapseRepoRoot-then-Quote ordering as ForemanConfigWriter's
+            // providerOptions: an upstream value can be a repo-relative path, not just a URL.
             block.AppendLine("    upstream:");
             foreach (var (key, value) in config.Upstream)
             {
@@ -69,7 +68,7 @@ public static class JobsiteConfigWriter
             block.AppendLine("    vaultFolders:");
             foreach (var folder in config.VaultFolders)
             {
-                // Vault-relative by definition -- there is no root to collapse.
+                // Vault-relative already; nothing to collapse.
                 block.AppendLine($"      - {ForemanConfigWriter.Quote(folder)}");
             }
         }
@@ -77,12 +76,7 @@ public static class JobsiteConfigWriter
         File.AppendAllText(path, block.ToString());
     }
 
-    /// <summary>
-    /// Removes a Jobsite's entry from jobsites.yaml. NEVER deletes, touches, or
-    /// even reads the jobsite's repo directory (RepoPath) -- this only edits
-    /// ConstructionCrew's own config file. The /fire flow must never be given
-    /// any other way to affect a jobsite's actual repo.
-    /// </summary>
+    /// <summary>Removes a Jobsite's entry from jobsites.yaml. Never touches the jobsite's actual repo directory.</summary>
     public static bool RemoveJobsite(string path, string name) => YamlListEditor.RemoveEntry(path, "jobsites", name);
 
     private static string CollapseRepoRoot(string absolutePath, string repoRoot) =>

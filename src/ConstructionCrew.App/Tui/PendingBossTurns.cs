@@ -7,25 +7,21 @@ namespace ConstructionCrew.App.Tui;
 /// The Boss loop's completion-notice mechanism, in full.
 ///
 /// <para>
-/// <c>JobRegistry.StartJob</c> only ever hands back a job id; the completion data
-/// (<see cref="JobRecord.Summary"/>) is written by private members, so there is no
-/// public completion callback to hang a transcript append off -- and adding one
-/// would widen a public surface that is deliberately narrow. Instead the loop
-/// records each Boss-turn job id here at the dispatch call site, and inspects
-/// every <see cref="JobRecord"/> it drains from <c>IJobStatusSink.Reader</c>
-/// against this set. A drained record that is both tracked and terminal becomes a
+/// <c>JobRegistry.StartJob</c> only hands back a job id; there is no public
+/// completion callback to hang a transcript append off. Instead the loop
+/// records each Boss-turn job id here at dispatch, and checks every
+/// <see cref="JobRecord"/> drained from <c>IJobStatusSink.Reader</c> against
+/// this set. A drained record that is both tracked and terminal becomes a
 /// transcript line.
 /// </para>
 ///
 /// <para>
-/// Concurrency: the Boss loop is the only reader of the status channel, but
-/// <see cref="Track"/> runs whenever a turn is dispatched and jobs the Boss never
-/// started are completing on background threads the whole time. Everything here
-/// goes through a <see cref="ConcurrentDictionary{TKey,TValue}"/>, and the
-/// terminal check happens strictly <b>before</b> the removal so an intermediate
-/// <c>Running</c> transition can never evict a still-pending id. The single
-/// <c>TryRemove</c> is what decides the winner, so a record delivered twice can
-/// only ever produce one transcript line.
+/// Concurrency: jobs the Boss never started complete on background threads
+/// the whole time <see cref="Track"/> runs. Everything here goes through a
+/// <see cref="ConcurrentDictionary{TKey,TValue}"/>, and the terminal check
+/// happens strictly before removal, so an intermediate <c>Running</c>
+/// transition can never evict a still-pending id, and a record delivered
+/// twice can only produce one transcript line.
 /// </para>
 /// </summary>
 internal sealed class PendingBossTurns
@@ -66,7 +62,7 @@ internal sealed class PendingBossTurns
     }
 
     /// <summary>
-    /// A failed turn still gets a line -- a Boss who typed something and got
+    /// A failed turn still gets a line: a Boss who typed something and got
     /// silence has no way to tell "still working" from "died".
     /// </summary>
     internal static TranscriptLine Format(JobRecord record, string foremanName)

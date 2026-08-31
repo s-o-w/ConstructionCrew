@@ -5,7 +5,7 @@ using ModelContextProtocol.Server;
 namespace ConstructionCrew.HomeOffice.Tools;
 
 /// <summary>
-/// Depends on <see cref="IWorktreeManager"/> only -- HomeOffice never names the
+/// Depends on <see cref="IWorktreeManager"/> only: HomeOffice never names the
 /// ConstructionCrew.Git concrete type (Architecture §3.7).
 /// </summary>
 [McpServerToolType]

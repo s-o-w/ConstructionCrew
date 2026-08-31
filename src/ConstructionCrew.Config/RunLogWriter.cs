@@ -8,13 +8,13 @@ namespace ConstructionCrew.Config;
 
 /// <summary>
 /// Appends one line per completed unit of work to
-/// <c>&lt;plansFolder&gt;/RUN-LOG.md</c>: when the work started and finished, how
-/// long it sat parked, how long it queued, and what the run cost.
+/// <c>&lt;plansFolder&gt;/RUN-LOG.md</c>: start/finish time, parked time, queue
+/// time, and cost.
 ///
-/// Actual hours are (CompletedAt - StartedAt) - ParkedDuration. Queue time
-/// (StartedAt - CreatedAt) is recorded beside it but never charged against an
-/// estimate. A value that is genuinely unknown is written as "unavailable" rather
-/// than omitted, so a missing number never reads as a zero.
+/// Actual hours = (CompletedAt - StartedAt) - ParkedDuration. Queue time
+/// (StartedAt - CreatedAt) is recorded but never charged against an estimate.
+/// An unknown value is written as "unavailable", never omitted, so it never
+/// reads as zero.
 /// </summary>
 public sealed class RunLogWriter : IRunLogWriter
 {
@@ -22,14 +22,13 @@ public sealed class RunLogWriter : IRunLogWriter
     private const string Unavailable = "unavailable";
 
     /// <summary>
-    /// One lock object per RUN-LOG.md this process writes, keyed by a canonicalized
-    /// path. Two Features under two different Jobsites can legitimately complete at
-    /// the same wall-clock moment; only writes to the SAME file need to serialize.
+    /// One lock per RUN-LOG.md path, keyed by canonicalized path. Only writes to
+    /// the SAME file need to serialize.
     ///
-    /// The comparer is the codebase's one OS-aware path policy (OrdinalIgnoreCase
-    /// on Windows/macOS, Ordinal on Linux) -- canonicalization resolves symlinks,
-    /// not casing, so without it two spellings of one physical file on a
-    /// case-insensitive filesystem would land two different lock objects.
+    /// The comparer is OrdinalIgnoreCase on Windows/macOS, Ordinal on Linux.
+    /// Canonicalization resolves symlinks, not casing, so without this comparer
+    /// two spellings of one file on a case-insensitive filesystem would get two
+    /// different lock objects.
     /// </summary>
     private readonly ConcurrentDictionary<string, object> _fileLocks = new(PathComparison.PathComparer);
 
@@ -52,16 +51,15 @@ public sealed class RunLogWriter : IRunLogWriter
     }
 
     /// <summary>
-    /// The real lock-acquisition path -- Append itself calls this, passing the real
-    /// file-write logic as <paramref name="criticalSection"/>. This is production
-    /// code with one added observation point, not a parallel reimplementation:
-    /// `lock (x) { body }` is exactly Monitor.Enter/try/finally Monitor.Exit.
+    /// The real lock-acquisition path; Append calls this with the real write logic
+    /// as <paramref name="criticalSection"/>. `lock (x) { body }` is exactly
+    /// Monitor.Enter/try/finally Monitor.Exit, so this is production code with one
+    /// added observation hook, not a reimplementation.
     ///
-    /// <paramref name="onContended"/> fires if, and only if, a non-blocking
-    /// Monitor.TryEnter(fileLock, 0) genuinely failed because another caller
-    /// already holds the lock. TryEnter is a single atomic BCL operation -- the
-    /// attempt happening and its result being known are the same call, so there is
-    /// no scheduling window in which a test could mistake luck for contention.
+    /// <paramref name="onContended"/> fires only when a non-blocking
+    /// Monitor.TryEnter(fileLock, 0) genuinely failed because another caller holds
+    /// the lock: TryEnter is one atomic call, so a test can't mistake luck for
+    /// contention.
     /// </summary>
     internal void AppendWithLockForTesting(
         string normalizedPath,
@@ -74,7 +72,7 @@ public sealed class RunLogWriter : IRunLogWriter
 
         if (!Monitor.TryEnter(fileLock, 0))
         {
-            onContended?.Invoke(); // TryEnter's own atomic result says so -- no window to misjudge
+            onContended?.Invoke(); // TryEnter already confirmed contention atomically.
             Monitor.Enter(fileLock);
         }
 
@@ -89,16 +87,10 @@ public sealed class RunLogWriter : IRunLogWriter
     }
 
     /// <summary>
-    /// Physical-path canonicalization: Path.GetFullPath resolves "."/".." but NOT a
-    /// symlinked ANCESTOR directory, so a Vault (or a Jobsite's Plans folder)
-    /// reached through a symlink would otherwise give two in-process strings for
-    /// one real file -- and therefore two different lock objects.
-    ///
-    /// Walks the path from its root, resolving any segment that is itself a
-    /// reparse point to its final target. Pathological cases (symlink loops,
-    /// targets containing further relative segments) get no special guard beyond
-    /// what ResolveLinkTarget itself does: this is a defensible fix for the
-    /// realistic case (one symlink hop), not a hardened realpath.
+    /// Path.GetFullPath resolves "."/".." but not a symlinked ancestor directory,
+    /// so a path reached through a symlink could otherwise get two lock objects
+    /// for one real file. Walks the path from root, resolving any segment that is
+    /// a reparse point. Handles one symlink hop; not a hardened realpath.
     /// </summary>
     internal static string CanonicalizePath(string path)
     {
@@ -121,11 +113,7 @@ public sealed class RunLogWriter : IRunLogWriter
         return resolved;
     }
 
-    /// <summary>
-    /// One line per entry, on purpose: concurrent appends from two completing jobs
-    /// can then never interleave into a half-written multi-line record, and the log
-    /// stays greppable.
-    /// </summary>
+    /// <summary>One line per entry: concurrent appends can never interleave into a half-written record, and the log stays greppable.</summary>
     internal static string FormatEntry(JobRecord job)
     {
         var actual = ActualDuration(job);
@@ -147,11 +135,7 @@ public sealed class RunLogWriter : IRunLogWriter
         });
     }
 
-    /// <summary>
-    /// Actual hours = (CompletedAt - StartedAt) - ParkedDuration. Null when the job
-    /// never reached one of those stamps -- a job that failed before dispatch began
-    /// has no actual hours, and reporting zero would be a lie.
-    /// </summary>
+    /// <summary>Actual hours = (CompletedAt - StartedAt) - ParkedDuration. Null (not zero) when the job never reached those stamps.</summary>
     internal static TimeSpan? ActualDuration(JobRecord job) =>
         job.CompletedAt is { } completedAt && job.StartedAt is { } startedAt
             ? completedAt - startedAt - job.ParkedDuration
@@ -175,10 +159,7 @@ public sealed class RunLogWriter : IRunLogWriter
     private static string Cost(decimal? value) =>
         value is { } cost ? "$" + cost.ToString("0.####", CultureInfo.InvariantCulture) : Unavailable;
 
-    /// <summary>
-    /// A summary is whatever the agent last said, newlines and all. Flattened, so
-    /// one entry is always exactly one line.
-    /// </summary>
+    /// <summary>Flattens the agent's summary (whatever it said, newlines and all) into exactly one line.</summary>
     private static string OneLine(string? summary)
     {
         if (string.IsNullOrWhiteSpace(summary))

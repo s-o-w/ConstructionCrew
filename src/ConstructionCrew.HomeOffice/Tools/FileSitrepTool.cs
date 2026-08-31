@@ -6,11 +6,11 @@ using ModelContextProtocol.Server;
 namespace ConstructionCrew.HomeOffice.Tools;
 
 /// <summary>
-/// Files a sitrep into the caller's own Notes/ folder, then does whatever the
-/// <c>kind</c> says: nothing (status), escalate to the GC (milestone), or free
-/// the Foreman's workorder slot and raise a notification (pr-opened).
+/// Files a sitrep into the caller's own Notes/ folder, then acts on
+/// <c>kind</c>: nothing (status), escalate to GC (milestone), or free the
+/// Foreman's workorder slot and notify (pr-opened).
 ///
-/// Takes <see cref="ISitrepWriter"/>, never the concrete SitrepWriter -- that
+/// Takes <see cref="ISitrepWriter"/>, never the concrete SitrepWriter, which
 /// lives in Config, which this project does not reference.
 /// </summary>
 [McpServerToolType]
@@ -81,15 +81,14 @@ public sealed class FileSitrepTool
         switch (normalizedKind)
         {
             case "milestone":
-                // The same JobRegistry.AskGc ask_gc uses -- deliberately not a
-                // separate "GC" conversation.
+                // Same JobRegistry.AskGc ask_gc uses: one GC conversation, not a
+                // separate one.
                 var gcReply = await _jobs.AskGc(jobId, MilestoneSummary(caller.Name, jobId, body, path), cancellationToken);
                 return $"sitrep filed: {path}{Environment.NewLine}GC: {gcReply}";
 
             case "pr-opened":
-                // No AskGc: the GC learns of a PR opportunistically. Releasing the
-                // slot by JOB ID (not by Foreman name) is what makes a stale
-                // release harmless.
+                // No AskGc: GC learns of the PR opportunistically. Releasing by
+                // job id, not Foreman name, makes a stale release harmless.
                 _jobs.ReleaseWorkorder(jobId);
                 _jobs.NotifyPrOpened(jobId, caller.Name);
                 return $"sitrep filed: {path}{Environment.NewLine}Workorder slot released -- you can take new work now.";

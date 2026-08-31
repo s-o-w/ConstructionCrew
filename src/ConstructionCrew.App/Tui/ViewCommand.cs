@@ -6,23 +6,20 @@ namespace ConstructionCrew.App.Tui;
 
 /// <summary>
 /// The <c>/view &lt;path&gt;</c> command: render a crew-authored Markdown file
-/// (a workorder, a sitrep, a plan, a sitewalk note) into the console through
-/// <see cref="MarkdownRenderer"/>, paging on anything longer than the window.
+/// into the console through <see cref="MarkdownRenderer"/>, paging on
+/// anything longer than the window.
 ///
 /// <para>
-/// Modal and full-width, not a side panel beside the chat pane -- the
-/// dashboard's main column already shares width with a 38-column passive
-/// column in drive mode, and a workorder rendered into what is left is
-/// unreadable. <c>/settings</c>, <c>/hire</c> and <c>/foreman</c> are all modal
-/// already; this matches them.
+/// Modal and full-width, not a side panel: the dashboard's main column
+/// already shares width with a 38-column passive column in drive mode, and a
+/// workorder rendered into what's left is unreadable.
 /// </para>
 ///
 /// <para>
-/// The reachable set is deliberately closed: a resolved path must sit under the
-/// Vault root or the repo root, must exist, and must carry a text extension.
-/// This is the same "by construction, not by filter" scoping the roster's vault
-/// folders use -- <c>/view ../../.ssh/id_rsa</c> is refused by the containment
-/// test, not by pattern-matching what it looks like.
+/// The reachable set is closed: a resolved path must sit under the Vault
+/// root or the repo root, must exist, and must carry a text extension.
+/// <c>/view ../../.ssh/id_rsa</c> is refused by the containment test, not by
+/// pattern-matching what it looks like.
 /// </para>
 /// </summary>
 public static class ViewCommand
@@ -32,10 +29,9 @@ public static class ViewCommand
     private static readonly string[] ViewableExtensions = [".md", ".txt", ".yaml", ".yml"];
 
     /// <summary>
-    /// Parses <c>/view Notes/Frontend/Sitewalk.md</c>, matching
-    /// <see cref="ForemanDetailsCommand.TryParse"/>'s exact shape.
-    /// <paramref name="target"/> comes back empty for a bare <c>/view</c> (which
-    /// prints usage); <c>/viewx</c> is not this command at all.
+    /// Parses <c>/view Notes/Frontend/Sitewalk.md</c>. <paramref name="target"/>
+    /// comes back empty for a bare <c>/view</c> (prints usage); <c>/viewx</c>
+    /// is not this command at all.
     /// </summary>
     internal static bool TryParse(string command, out string target)
     {
@@ -82,8 +78,7 @@ public static class ViewCommand
     /// <summary>
     /// Reads a resolved, already-authorized path and pages it through the
     /// renderer. Split out from <see cref="Run"/> because the memory browser
-    /// navigates its own way to a file and then needs exactly this loop --
-    /// nothing here knows how the path was chosen.
+    /// navigates to a file its own way and then needs exactly this loop.
     /// </summary>
     internal static void Page(string path)
     {
@@ -103,8 +98,8 @@ public static class ViewCommand
         AnsiConsole.Clear();
         AnsiConsole.Write(new Rule($"[bold yellow]{Markup.Escape(path)}[/]").LeftJustified());
 
-        // -4: the rule above, the "-- more --" line, and a row of slack either
-        // side of it, so a page never scrolls its own prompt off the top.
+        // -4: the rule, the "-- more --" line, and slack either side, so a
+        // page never scrolls its own prompt off the top.
         var pageHeight = Math.Max(4, AnsiConsole.Profile.Height - 4);
         var used = 0;
 
@@ -130,12 +125,11 @@ public static class ViewCommand
     }
 
     /// <summary>
-    /// An absolute path is taken as given; anything else is resolved against the
-    /// Vault root first and the repo root second. The result has to survive
-    /// three tests, in this order: it sits under one of those two roots, it
-    /// exists, and it is a text file. Containment is checked first on purpose --
-    /// a traversal out of the Vault should be refused as a traversal, not
-    /// leak whether the file it aimed at happens to exist.
+    /// An absolute path is taken as given; anything else resolves against the
+    /// Vault root first, then the repo root. The result must pass three
+    /// checks in order: sits under one of those two roots, exists, is a text
+    /// file. Containment is checked first so a traversal out of the Vault is
+    /// refused as a traversal, not by leaking whether the target exists.
     /// </summary>
     internal static string? Resolve(string argument, string? vaultRoot, string repoRoot, out string? refusal)
     {
@@ -217,10 +211,9 @@ public static class ViewCommand
     }
 
     /// <summary>
-    /// How many console rows a block will actually occupy, including wrapping
-    /// and panel/table borders. Rendering it once into a throwaway plain-text
-    /// console is both simpler and more honest than a per-renderable-type
-    /// guess; a viewer redraws rarely enough that the second pass is free.
+    /// How many console rows a block will occupy, including wrapping and
+    /// borders. Renders it once into a throwaway plain-text console rather
+    /// than guessing per renderable type.
     /// </summary>
     private static int EstimateLines(IRenderable block)
     {

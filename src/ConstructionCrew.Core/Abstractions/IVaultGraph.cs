@@ -8,7 +8,7 @@ public sealed record GraphBuildResult(
 
 /// <summary>
 /// The vault's RDF projection: build it from the vault's Markdown frontmatter,
-/// and run SPARQL against the built artifact. Pure .NET -- nothing here shells
+/// and run SPARQL against the built artifact. Pure .NET; nothing here shells
 /// python3, vault_to_rdf.py, or export_graph.sh.
 /// </summary>
 public interface IVaultGraph

@@ -5,9 +5,9 @@ namespace ConstructionCrew.Providers;
 
 /// <summary>
 /// Shared runtime for GC and Foreman alike: on the first turn, prepend the
-/// configured instructions file (AGENTS.md-style) to the message; on later
-/// turns, continue the same CLI conversation. GC and a one-shot Foreman job
-/// both go through this -- GC just lives longer and gets more turns.
+/// configured instructions file (AGENTS.md-style) to the message; later turns
+/// continue the same CLI conversation. GC and a one-shot Foreman job both go
+/// through this; GC just lives longer and gets more turns.
 /// </summary>
 public sealed class LocalCliAgent : ILocalCliAgent
 {
@@ -41,8 +41,8 @@ public sealed class LocalCliAgent : ILocalCliAgent
         _hasSentFirstMessage = true;
 
         // The provider gets the last word on its own output shape: this is where
-        // an opt-in structured-output run turns into CliRunResult.Usage. Default
-        // implementation is the identity, so every other provider is unaffected.
+        // an opt-in structured-output run becomes CliRunResult.Usage. Default is
+        // identity, so other providers are unaffected.
         return _provider.PostProcess(request, result);
     }
 

@@ -37,8 +37,8 @@ public sealed class QueryGraphTool
         }
         catch (Exception ex)
         {
-            // A malformed query is the agent's own problem to fix, not a tool
-            // crash -- hand back the parser's message so it can correct itself.
+            // Malformed query is the agent's problem, not a crash: hand back the
+            // parser's message so it can self-correct.
             return $"query_graph failed: {ex.Message}";
         }
     }

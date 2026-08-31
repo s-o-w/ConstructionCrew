@@ -10,15 +10,15 @@ namespace ConstructionCrew.Graph;
 
 /// <summary>
 /// Pure-.NET projection of a Vault-LD vault to RDF, and SPARQL over the result.
-/// <see cref="Build"/> is a port of vault-ld's vault_to_rdf.py -- ported from the
+/// <see cref="Build"/> is a port of vault-ld's vault_to_rdf.py, ported from the
 /// live script and verified by triple-level isomorphism against its real output,
 /// not from any documentation of it.
 ///
 /// One deliberate divergence from the shell wrapper it replaces: a PLANNING/
 /// folder is excluded at any depth, not just at the vault root. export_graph.sh's
-/// flat prefix list could not express that, so eight agent-executable planning
-/// docs under Notes/&lt;Project&gt;/PLANNING/ leaked into the data graph. The vault's
-/// own convention is that agent-executable plans are not in the graph.
+/// flat prefix list couldn't express that, so agent-executable planning docs
+/// under Notes/&lt;Project&gt;/PLANNING/ leaked into the data graph. The vault's own
+/// convention keeps agent-executable plans out of the graph.
 /// </summary>
 public sealed class VaultGraph : IVaultGraph
 {
@@ -30,8 +30,8 @@ public sealed class VaultGraph : IVaultGraph
     private const string RdfTypeIri = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
 
     /// <summary>
-    /// The nine root-anchored prefixes export_graph.sh carries as -not -path
-    /// "./X/*". They only ever match at the vault root.
+    /// The root-anchored prefixes export_graph.sh carries as -not -path "./X/*".
+    /// They only ever match at the vault root.
     /// </summary>
     private static readonly string[] ExcludedRootPrefixes =
     [
@@ -119,7 +119,7 @@ public sealed class VaultGraph : IVaultGraph
 
     /// <summary>
     /// What kind of resource a note's folder implies. Used only for the canonical
-    /// placement check that decides whether a schema note needs a vld:path -- it
+    /// placement check that decides whether a schema note needs a vld:path; it
     /// never classifies the note (folder location does that).
     /// </summary>
     private enum Expected
@@ -141,7 +141,7 @@ public sealed class VaultGraph : IVaultGraph
         Layer Layer,
         Expected Expected);
 
-    /// <summary>One whole Build call's state -- caches, indexes, and the two output graphs.</summary>
+    /// <summary>One whole Build call's state: caches, indexes, and the two output graphs.</summary>
     private sealed class BuildRun
     {
         private readonly string _vault;
@@ -211,10 +211,10 @@ public sealed class VaultGraph : IVaultGraph
         }
 
         /// <summary>
-        /// Pass 1a: every *.md under the vault whose frontmatter parses to a
-        /// mapping and carries a type/@type key, minus both exclusion lists.
-        /// Ordered by vault-relative path so a duplicate note name resolves the
-        /// same way the reference implementation resolves it (last one wins).
+        /// Pass 1a: every *.md whose frontmatter parses to a mapping and carries a
+        /// type/@type key, minus both exclusion lists. Ordered by vault-relative
+        /// path so a duplicate note name resolves the same way the reference
+        /// implementation resolves it (last one wins).
         /// </summary>
         private List<Note> Discover()
         {
@@ -379,7 +379,7 @@ public sealed class VaultGraph : IVaultGraph
         /// <summary>
         /// The (base, folder) of the note's governing context: a schema note's own
         /// ontology/vocabulary context, otherwise the nearest context.jsonld at or
-        /// above the note -- the vault root in the end.
+        /// above the note, the vault root in the end.
         /// </summary>
         private (string Base, string Folder) GoverningFor(Note note)
         {
@@ -412,7 +412,7 @@ public sealed class VaultGraph : IVaultGraph
         /// <summary>
         /// Each ontology/vocabulary folder mints its members under the @base its
         /// own context.jsonld declares. Only when that folder has no context does
-        /// the schema-namespace fallback apply -- nothing on a real Vault-LD vault
+        /// the schema-namespace fallback apply; nothing on a real Vault-LD vault
         /// with per-folder contexts reaches it.
         /// </summary>
         private string BaseForSchemaFolder(string folder, string name)
@@ -453,10 +453,9 @@ public sealed class VaultGraph : IVaultGraph
             {
                 var token = Scalar(raw).Trim();
 
-                // A non-absolute @id (every urn:uuid: in this vault) is flattened
-                // onto the governing base -- it does NOT stay an opaque urn:uuid:
-                // IRI. That is the real, verified behaviour of the reference
-                // implementation, whatever the skill's docs used to claim.
+                // A non-absolute @id (every urn:uuid: in this vault) flattens onto
+                // the governing base; it does not stay an opaque urn:uuid: IRI.
+                // This is the verified behaviour of the reference implementation.
                 return token.StartsWith("http://", StringComparison.Ordinal) || token.StartsWith("https://", StringComparison.Ordinal)
                     ? token
                     : GoverningFor(note).Base + token;
@@ -518,7 +517,7 @@ public sealed class VaultGraph : IVaultGraph
         }
 
         /// <summary>
-        /// vld:path carries the true path of every note whose location cannot be
+        /// vld:path carries the true path of every note whose location can't be
         /// reconstructed from the graph, relative to its governing folder.
         /// </summary>
         private void EmitPath(Note note, string subjectIri, INode subject, IGraph graph)
@@ -538,8 +537,8 @@ public sealed class VaultGraph : IVaultGraph
         }
 
         /// <summary>
-        /// The flat, reconstructable placement for a schema note. Anything else
-        /// (hierarchy nesting included) is organisational and travels as vld:path.
+        /// The flat, reconstructable placement for a schema note. Anything else,
+        /// including hierarchy nesting, is organisational and travels as vld:path.
         /// </summary>
         private static string CanonicalRelative(Note note)
         {

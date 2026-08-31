@@ -3,16 +3,13 @@ using ConstructionCrew.Core.Models;
 namespace ConstructionCrew.Config;
 
 /// <summary>
-/// One-time migration for a roster hired before instructions templates and
-/// rendered instructions files moved into the Vault (see InstructionsComposer,
-/// VaultLayout). Runs as a startup self-heal (Program.cs, right after
-/// foremen.yaml loads) and on demand via the /migrate command -- both call
-/// <see cref="MigrateToVault"/> the same way, so there's exactly one code path
-/// that decides what "already migrated" means.
+/// One-time migration for a roster hired before instructions files moved into
+/// the Vault (see InstructionsComposer, VaultLayout). Runs at startup and via
+/// /migrate, both through <see cref="MigrateToVault"/>, so one code path
+/// decides what "already migrated" means.
 ///
-/// Idempotent: a roster already pointing at AI/ConstructionCrew/Instructions/
-/// is left untouched, file and YAML both. Never throws on a partially-migrated
-/// or already-migrated roster -- a missing legacy file is skipped, not an error.
+/// Idempotent: a roster already under AI/ConstructionCrew/Instructions/ is
+/// left untouched. A missing legacy file is skipped, not an error.
 /// </summary>
 public static class InstructionsMigration
 {
@@ -21,11 +18,7 @@ public static class InstructionsMigration
         IReadOnlyList<string> MigratedForemen,
         IReadOnlyList<string> TemplatesEnsured);
 
-    /// <summary>
-    /// The two templates that ship in this repo's scaffold and must exist in
-    /// every vault ConstructionCrew renders instructions from -- same "seed if
-    /// absent, never overwrite" rule as every other scaffolded vault file.
-    /// </summary>
+    /// <summary>The two templates every vault needs. Same "seed if absent, never overwrite" rule as other scaffolded files.</summary>
     private static readonly string[] TemplateRelativePaths =
     [
         "AI/ConstructionCrew/Templates/gc-instructions.md",
@@ -65,10 +58,8 @@ public static class InstructionsMigration
             Directory.CreateDirectory(instructionsDir);
             var newPath = Path.Combine(instructionsDir, Path.GetFileName(oldPath));
 
-            // Best-effort: the file may already be gone if something else (the
-            // GC-specific fallback in FirstRunWizard.EnsureGcInstructions, which
-            // runs earlier in the same startup, ahead of the roster load this
-            // migration depends on) already moved it this same run.
+            // Best-effort: FirstRunWizard.EnsureGcInstructions runs earlier in the
+            // same startup and may have already moved this file.
             TryMigrateLegacyFile(oldPath, newPath);
 
             var oldBriefing = Path.Combine(Path.GetDirectoryName(oldPath)!, $"{foreman.Name}.briefing.md");
@@ -85,12 +76,7 @@ public static class InstructionsMigration
         return new Result(updatedForemen, migrated, templatesEnsured);
     }
 
-    /// <summary>
-    /// Moves one file from its old repo-side location to its new Vault-side one,
-    /// if the old one is actually there and the new one isn't already. Never
-    /// throws: a missing source (already migrated, or never existed -- a
-    /// briefing sidecar is optional) is simply not migrated, not an error.
-    /// </summary>
+    /// <summary>Moves one file to its Vault location if the source exists and the destination doesn't. A missing source (already migrated, or optional) is not an error.</summary>
     public static bool TryMigrateLegacyFile(string legacyPath, string newPath)
     {
         if (!File.Exists(legacyPath) || File.Exists(newPath))
@@ -103,11 +89,7 @@ public static class InstructionsMigration
         return true;
     }
 
-    /// <summary>
-    /// Reuses ForemanConfigWriter's own vault-prefix test (via the collapse it
-    /// already performs when writing foremen.yaml) rather than duplicating the
-    /// boundary check here.
-    /// </summary>
+    /// <summary>Reuses ForemanConfigWriter's vault-prefix collapse rather than duplicating the boundary check.</summary>
     private static bool IsAlreadyUnderVault(string absolutePath, string vaultRoot) =>
         ForemanConfigWriter.CollapseVaultRoot(absolutePath, vaultRoot).StartsWith("${vaultRoot}", StringComparison.Ordinal);
 }

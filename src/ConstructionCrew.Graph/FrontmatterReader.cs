@@ -4,10 +4,9 @@ using YamlDotNet.Serialization;
 namespace ConstructionCrew.Graph;
 
 /// <summary>
-/// Reads a note's YAML frontmatter block and nothing else -- the Markdown body
-/// is never read. Port of vault_to_rdf.py's parse_frontmatter, including its
-/// size cap and its "malformed frontmatter skips the note, it never aborts the
-/// sweep" behaviour.
+/// Reads a note's YAML frontmatter block only; the Markdown body is never read.
+/// Port of vault_to_rdf.py's parse_frontmatter, including its size cap and its
+/// "malformed frontmatter skips the note, never aborts the sweep" behaviour.
 /// </summary>
 internal static class FrontmatterReader
 {

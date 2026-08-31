@@ -6,9 +6,9 @@ namespace ConstructionCrew.Providers;
 
 /// <summary>
 /// The one place that actually spawns a process. Stdin is always closed
-/// (PipeSource.Null): these CLIs run non-interactively via their own flags,
-/// so if one somehow still tries to prompt, it hits EOF and fails fast
-/// instead of hanging forever on input a redirected pipe will never deliver.
+/// (PipeSource.Null): these CLIs run non-interactively via their own flags, so if
+/// one tries to prompt anyway, it hits EOF and fails fast instead of hanging on
+/// input a redirected pipe never delivers.
 /// </summary>
 public sealed class CliProcessRunner : ICliProcessRunner
 {

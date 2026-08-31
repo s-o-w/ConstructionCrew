@@ -17,10 +17,10 @@ public sealed record TranscriptLine(string Speaker, string Text, bool IsError = 
 /// Everything the TUI renders that is not read straight off the registries.
 ///
 /// <para>
-/// Not thread-safe, and does not need to be: the Boss loop is the single reader of
-/// the event channel, so every write here happens on the loop thread. Background
-/// work (an agent turn, a passive-column refresh) reports back by writing a
-/// <see cref="BossEvent"/>, never by touching this object.
+/// Not thread-safe, and doesn't need to be: the Boss loop is the single
+/// reader of the event channel, so every write happens on the loop thread.
+/// Background work reports back by writing a <see cref="BossEvent"/>, never
+/// by touching this object directly.
 /// </para>
 /// </summary>
 public sealed class DashboardState
@@ -33,7 +33,7 @@ public sealed class DashboardState
 
     public string? StubLabel { get; set; }
 
-    /// <summary>The GC conversation -- what the Boss sees when not driving anyone.</summary>
+    /// <summary>The GC conversation: what the Boss sees when not driving anyone.</summary>
     public List<TranscriptLine> Transcript { get; } = new();
 
     public required string HomeOfficeAddress { get; init; }
@@ -59,9 +59,9 @@ public sealed class DashboardState
     public List<TranscriptLine> ActiveTranscript => TranscriptFor(DrivenForeman);
 
     /// <summary>
-    /// The transcript a line belongs in. Null -- and GC's own name -- both mean the
-    /// main <see cref="Transcript"/>: there is exactly one GC conversation, and it
-    /// must never be split across two panes.
+    /// The transcript a line belongs in. Null, and GC's own name, both mean
+    /// the main <see cref="Transcript"/>: there is exactly one GC
+    /// conversation, and it must never be split across two panes.
     /// </summary>
     public List<TranscriptLine> TranscriptFor(string? foremanName)
     {

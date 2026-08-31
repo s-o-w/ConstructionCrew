@@ -7,14 +7,14 @@ namespace ConstructionCrew.App.Tui;
 /// <summary>
 /// The memory tab: navigate the vault locations the hired crew actually reads
 /// and writes, and open a note. Roots are the union of every crew member's
-/// VaultFolders -- not the whole vault -- so the Boss's unrelated notes are out
-/// of scope by construction. Modal, like /view, and it renders through the same
+/// VaultFolders, not the whole vault, so the Boss's unrelated notes are out of
+/// scope by construction. Modal, like /view, rendered through the same
 /// MarkdownRenderer.
 ///
 /// <para>
-/// The scoping is a containment test, never a pattern match: <c>..</c> is offered
-/// like any other entry and refused the moment the directory it lands on falls
-/// outside every root, so there is no list of "bad" names to keep current.
+/// Scoping is a containment test, not a pattern match: <c>..</c> is offered
+/// like any other entry and refused only if the directory it lands on falls
+/// outside every root.
 /// </para>
 /// </summary>
 public static class MemoryBrowser
@@ -24,9 +24,8 @@ public static class MemoryBrowser
     private const string Done = "(done)";
 
     /// <summary>
-    /// <paramref name="repoRoot"/> is taken to match <see cref="ViewCommand.Run"/>'s
-    /// (vaultRoot, repoRoot) shape -- the browser itself never leaves the vault,
-    /// so nothing here reads it.
+    /// <paramref name="repoRoot"/> matches <see cref="ViewCommand.Run"/>'s
+    /// (vaultRoot, repoRoot) shape, but the browser never leaves the vault, so nothing here reads it.
     /// </summary>
     public static void Run(string? vaultRoot, ForemanDirectory foremen, string repoRoot)
     {
@@ -61,18 +60,16 @@ public static class MemoryBrowser
                 return;
             }
 
-            // Back to this same prompt when the folder walk is done, so the Boss
-            // can read a note in one root and then another without retyping.
+            // Returns to this prompt so the Boss can browse another root without retyping.
             Browse(Path.GetFullPath(Path.Combine(vaultRoot, choice)), roots);
         }
     }
 
     /// <summary>
     /// Every hired crew member's vault write scope, resolved against the vault
-    /// root. An entry that resolves outside the vault (an absolute path, a
-    /// <c>..</c> traversal) is dropped by the same containment test /view uses,
-    /// and one that names a folder nobody has created yet is dropped because
-    /// offering an empty prompt for it helps no one.
+    /// root. An entry resolving outside the vault is dropped by the same
+    /// containment test /view uses; a folder nobody has created yet is
+    /// dropped too, since an empty prompt helps no one.
     /// </summary>
     internal static IReadOnlyList<string> Roots(string vaultRoot, ForemanDirectory foremen)
     {
@@ -114,10 +111,9 @@ public static class MemoryBrowser
     }
 
     /// <summary>
-    /// True when <paramref name="candidate"/> is one of the roots or sits under
-    /// one. A root's own parent is deliberately outside: that is what stops
-    /// <c>..</c> at the top of a crew folder instead of letting it walk up into
-    /// the rest of the vault.
+    /// True when <paramref name="candidate"/> is one of the roots or sits
+    /// under one. A root's own parent is outside: that's what stops <c>..</c>
+    /// at the top of a crew folder rather than walking into the rest of the vault.
     /// </summary>
     internal static bool IsInsideAnyRoot(string candidate, IReadOnlyList<string> roots)
     {
@@ -147,9 +143,9 @@ public static class MemoryBrowser
     }
 
     /// <summary>
-    /// One directory at a time: <c>..</c> first, then subdirectories, then files.
-    /// A file goes straight to <see cref="ViewCommand.Page"/> -- the same paging
-    /// loop /view uses, so a note reads identically whichever way it was reached.
+    /// One directory at a time: <c>..</c> first, then subdirectories, then
+    /// files. A file goes straight to <see cref="ViewCommand.Page"/>, the same
+    /// paging loop /view uses.
     /// </summary>
     private static void Browse(string directory, IReadOnlyList<string> roots)
     {
@@ -193,8 +189,7 @@ public static class MemoryBrowser
             {
                 var parent = Directory.GetParent(current)?.FullName;
 
-                // Refused, not silently ignored: the Boss asked to go up, and the
-                // answer is that this is the top of what the crew can see.
+                // Refused, not silently ignored: this is the top of what the crew can see.
                 if (parent is null || !IsInsideAnyRoot(parent, roots))
                 {
                     Refuse("That is the top of the crew's vault folders -- /memory does not read the rest of the Vault.");

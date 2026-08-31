@@ -12,10 +12,10 @@ public sealed record ProviderProbe(
     string? ResolvedPath)
 {
     /// <summary>
-    /// A provider is offerable only if it is implemented in code AND its binary
-    /// resolves on PATH. Both halves matter: Gemini's binary is on PATH on at least
-    /// one dev machine but its provider throws, and Claude Code is implemented but
-    /// absent on a machine where it was never installed.
+    /// A provider is offerable only if it's implemented in code AND its binary
+    /// resolves on PATH. Both matter: Gemini's binary is on PATH on some dev
+    /// machines but its provider throws; Claude Code is implemented but may be
+    /// absent on PATH.
     /// </summary>
     [JsonIgnore]
     public bool Available => Implemented && ResolvedPath is not null;
@@ -25,10 +25,10 @@ public sealed record ProviderProbe(
 public sealed record ToolDiscoveryCache(DateTimeOffset ProbedAtUtc, IReadOnlyList<ProviderProbe> Tools);
 
 /// <summary>
-/// Answers "which CLI tools can this machine actually hire". Replaces the hardcoded
-/// provider array Program.cs used to carry. Results are cached to state/tools.json so
-/// the answer survives a restart; <see cref="Refresh"/> re-probes on demand (that is
-/// what the /settings command calls).
+/// Answers "which CLI tools can this machine actually hire", replacing the
+/// hardcoded provider array Program.cs used to carry. Cached to state/tools.json
+/// so the answer survives a restart; <see cref="Refresh"/> re-probes on demand
+/// (used by /settings).
 /// </summary>
 public sealed class ProviderRegistry
 {
@@ -50,14 +50,14 @@ public sealed class ProviderRegistry
 
     /// <summary>
     /// Every provider that exists in code, implemented or not. The hire wizard must
-    /// never be fed this list directly -- use <see cref="Available"/>.
+    /// never be fed this list directly; use <see cref="Available"/>.
     /// </summary>
     public IReadOnlyList<ICliToolProvider> Registered => _registered;
 
     /// <summary>
-    /// Every provider ConstructionCrew ships. GeminiProvider is deliberately included:
-    /// it reports IsImplemented == false, so the registry filters it without anyone
-    /// hand-writing an id blocklist.
+    /// Every provider ConstructionCrew ships. GeminiProvider is deliberately
+    /// included: it reports IsImplemented == false, so the registry filters it
+    /// without a hand-written id blocklist.
     /// </summary>
     public static IReadOnlyList<ICliToolProvider> DefaultProviders() =>
     [
@@ -94,8 +94,8 @@ public sealed class ProviderRegistry
                 p.ProviderId,
                 p.ExecutableName,
                 p.IsImplemented,
-                // Skip the filesystem walk entirely for a provider that could not be
-                // used even if found.
+                // Skip the filesystem walk for a provider that couldn't be used
+                // even if found.
                 p.IsImplemented ? _resolveOnPath(p.ExecutableName) : null))
             .ToList();
 
@@ -124,9 +124,9 @@ public sealed class ProviderRegistry
         }
         catch (IOException)
         {
-            // The cache is a convenience, never the source of truth -- Available()
+            // The cache is a convenience, not the source of truth: Available()
             // always reflects the live probe. A read-only or contended state/ dir
-            // must not take the app down.
+            // must not crash the app.
         }
         catch (UnauthorizedAccessException)
         {
@@ -156,10 +156,9 @@ public sealed class ProviderRegistry
     };
 
     /// <summary>
-    /// `which`-equivalent, without shelling out to `which`/`where` (which don't exist
-    /// on every target and would cost a process per provider per probe). Honours
-    /// PATHEXT on Windows so `claude.cmd` -- the shape an npm-installed CLI actually
-    /// takes there -- is found.
+    /// `which`-equivalent without shelling out to `which`/`where` (not universally
+    /// available; costs a process per probe). Honours PATHEXT on Windows so
+    /// `claude.cmd`, the shape an npm-installed CLI takes there, is found.
     /// </summary>
     public static string? ResolveOnPath(string executable)
     {

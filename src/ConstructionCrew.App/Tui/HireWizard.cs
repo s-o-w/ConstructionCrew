@@ -9,12 +9,11 @@ using Spectre.Console;
 namespace ConstructionCrew.App.Tui;
 
 /// <summary>
-/// The Identity/Workspace/Engine/Briefing flow, adapted from Munder Difflin's
-/// "Add Agent" dialog. Runs as a plain blocking sequence of Spectre prompts --
-/// not part of the redrawn dashboard -- since it's a distinct, linear flow.
-/// Workspace here means picking (or creating) the Jobsite this Foreman is
-/// assigned to. A Jobsite may have more than one Foreman assigned to it --
-/// the picker below shows every Jobsite, already-claimed ones included.
+/// The Identity/Workspace/Engine/Briefing flow. Runs as a plain blocking
+/// sequence of Spectre prompts, not part of the redrawn dashboard, since it's
+/// a distinct linear flow. Workspace means picking (or creating) the Jobsite
+/// this Foreman is assigned to; the picker shows every Jobsite, including
+/// already-claimed ones, since more than one Foreman may share a Jobsite.
 /// </summary>
 public static class HireWizard
 {
@@ -51,7 +50,7 @@ public static class HireWizard
                         : ValidationResult.Success();
                 }));
 
-        // 2. Workspace -- pick or create the one Jobsite this Foreman owns
+        // 2. Workspace: pick or create the one Jobsite this Foreman owns
         var jobsite = await PickOrCreateJobsite(jobsites, foremen, repoRoot, vaultRoot, runner, cancellationToken);
         if (jobsite is null)
         {
@@ -89,11 +88,10 @@ public static class HireWizard
             ? string.Join('\n', briefingLines)
             : $"You are the {name} Foreman.";
 
-        // 5. Vault write scope. Last, so a Boss who backs out at the Engine step
-        // is never asked for it. A Jobsite created moments ago already carries it
-        // (derived there, where the name is first known), so a recognized layout
-        // never asks twice. An existing Jobsite from before this field existed,
-        // or an unrecognized vault layout, falls through to the prompt.
+        // 5. Vault write scope. Last, so a Boss who backs out at Engine is
+        // never asked for it. A Jobsite created moments ago already carries
+        // it, so a recognized layout never asks twice; an older Jobsite or
+        // unrecognized layout falls through to the prompt.
         var vaultFolders = jobsite.VaultFolders is { Count: > 0 } existingFolders
             ? existingFolders
             : DeriveVaultFolders(vaultRoot, jobsite.Name) ?? PromptForVaultFolders(jobsite.Name);
@@ -140,9 +138,9 @@ public static class HireWizard
         Directory.CreateDirectory(instructionsDir);
         var instructionsFilePath = Path.Combine(instructionsDir, $"{name}.md");
 
-        // The briefing is kept verbatim beside the rendered file. Nothing else on
-        // disk holds it -- ForemanConfig has no briefing field -- so without this
-        // sidecar a later re-render would have to ask the Boss for it again.
+        // The briefing is kept verbatim beside the rendered file: ForemanConfig
+        // has no briefing field, so without this sidecar a later re-render
+        // would have to ask the Boss for it again.
         File.WriteAllText(InstructionsComposer.BriefingFilePath(vaultRoot, name), briefing);
 
         File.WriteAllText(
@@ -156,9 +154,10 @@ public static class HireWizard
                 availableProviderIds,
                 vaultRoot));
 
-        // Tool policy is provider-specific -- Claude Code's "Bash,Edit,Read,Write" means
-        // nothing to Copilot, and Codex has no tool allowlist at all. Same composer the
-        // provider switch in ForemanDetailsCommand uses, so the two cannot drift.
+        // Tool policy is provider-specific: Claude Code's "Bash,Edit,Read,Write"
+        // means nothing to Copilot, and Codex has no tool allowlist at all.
+        // Same composer the provider switch in ForemanDetailsCommand uses, so
+        // the two can't drift.
         var providerOptions = ProviderDefaults.ComposeProviderOptions(CrewRole.Foreman, provider, mcpOptionsByProvider);
 
         var config = new ForemanConfig(
@@ -211,10 +210,10 @@ public static class HireWizard
 
     /// <summary>
     /// The dispatched task text for a sitewalk. A POINTER, not the brief: the
-    /// sitewalk brief itself is template text in AI/ConstructionCrew/Templates/foreman-instructions.md,
-    /// rendered into this Foreman's instructions file by InstructionsComposer and
-    /// prepended by LocalCliAgent on turn one. Writing the brief here too would
-    /// mean maintaining it in two places and letting the two drift.
+    /// brief itself is template text in
+    /// AI/ConstructionCrew/Templates/foreman-instructions.md, rendered into
+    /// the Foreman's instructions file and prepended by LocalCliAgent on turn
+    /// one. Writing the brief here too would let the two drift.
     /// </summary>
     public static string SitewalkPrompt(string foremanName, string jobsiteName) =>
         $"Run your sitewalk on jobsite '{jobsiteName}' now, exactly as the \"The sitewalk\" section of your " +
@@ -223,10 +222,10 @@ public static class HireWizard
         $"build_graph as the closing step. You are {foremanName}. Change no code and open no PR on this job.";
 
     /// <summary>
-    /// The vault-relative folders a Foreman on <paramref name="jobsiteName"/> owns,
-    /// derived from the vault's own layout. A recognized layout (HOME.md, CLAUDE.md,
-    /// Notes/, Plans/) means the convention holds and the paths are knowable without
-    /// asking. Null means "unrecognized -- ask the Boss instead", which is a different
+    /// The vault-relative folders a Foreman on <paramref name="jobsiteName"/>
+    /// owns, derived from the vault's layout. A recognized layout (HOME.md,
+    /// CLAUDE.md, Notes/, Plans/) means the paths are knowable without
+    /// asking. Null means "unrecognized, ask the Boss instead", a different
     /// answer from an empty list.
     /// </summary>
     public static IReadOnlyList<string>? DeriveVaultFolders(string vaultRoot, string jobsiteName) =>
@@ -236,10 +235,10 @@ public static class HireWizard
 
     /// <summary>
     /// Creates the Foreman's vault folders at hire time. Not required for
-    /// correctness (SitrepWriter and every agent Write already create parents) --
-    /// this exists so an overridden or mistyped path is visible in the vault the
-    /// moment the hire completes, rather than at the first write. Any entry that
-    /// resolves outside vaultRoot is skipped and reported, never created.
+    /// correctness (SitrepWriter and every agent Write already create
+    /// parents); this makes an overridden or mistyped path visible the
+    /// moment the hire completes, not at the first write. An entry resolving
+    /// outside vaultRoot is skipped and reported, never created.
     /// </summary>
     internal static IReadOnlyList<string> EnsureVaultFolders(string vaultRoot, IReadOnlyList<string> folders)
     {
@@ -279,20 +278,19 @@ public static class HireWizard
         return rejected;
     }
 
-    /// <summary>Blank means "main" -- never the literal fallback prose. That token
-    /// lands inside a `gh pr create --base ...` command.</summary>
+    /// <summary>Blank means "main", never the literal fallback prose: that token lands inside a `gh pr create --base ...` command.</summary>
     internal static string NormalizeBranch(string? input) =>
         string.IsNullOrWhiteSpace(input) ? "main" : input.Trim();
 
-    /// <summary>Blank stays null so InstructionsComposer's "ask the Boss" prose
-    /// renders -- that fallback is correct when the command is genuinely unknown.</summary>
+    /// <summary>Blank stays null so InstructionsComposer's "ask the Boss" prose renders when the command is genuinely unknown.</summary>
     internal static string? NormalizeOptionalCommand(string? input) =>
         string.IsNullOrWhiteSpace(input) ? null : input.Trim();
 
     /// <summary>
-    /// The derived Notes/&lt;Jobsite&gt; + Plans/&lt;Jobsite&gt; default is a DEFAULT, not a
-    /// rule -- real projects live elsewhere in a vault. Show it and let the Boss take
-    /// it or replace it. An unrecognized layout has nothing to show and asks outright.
+    /// The derived Notes/&lt;Jobsite&gt; + Plans/&lt;Jobsite&gt; default is a
+    /// DEFAULT, not a rule: real projects live elsewhere in a vault. Show it
+    /// and let the Boss take it or replace it. An unrecognized layout has
+    /// nothing to show and asks outright.
     /// </summary>
     internal static IReadOnlyList<string> ResolveVaultFolders(string vaultRoot, string jobsiteName)
     {
@@ -336,11 +334,11 @@ public static class HireWizard
     }
 
     /// <summary>
-    /// Typed at any free-text prompt inside <see cref="PickOrCreateJobsite"/> to
-    /// bail out of hiring entirely. Spectre's <c>TextPrompt.Validate</c> has no
-    /// escape of its own -- a rejected answer just re-prompts forever -- so the
-    /// two validated prompts here (Jobsite name, Repo path) are hand-rolled loops
-    /// instead, specifically so a real cancel path exists.
+    /// Typed at any free-text prompt inside <see cref="PickOrCreateJobsite"/>
+    /// to bail out of hiring entirely. Spectre's <c>TextPrompt.Validate</c>
+    /// has no escape of its own (a rejected answer just re-prompts forever),
+    /// so the two validated prompts here are hand-rolled loops instead, so a
+    /// real cancel path exists.
     /// </summary>
     private const string CancelSentinel = "cancel";
 
@@ -353,9 +351,9 @@ public static class HireWizard
     {
         const string addNew = "+ add a new jobsite";
 
-        // A Jobsite may have more than one Foreman assigned to it -- every
-        // Jobsite is offered, not just unclaimed ones, but an already-staffed
-        // one is labeled with who's already there so the Boss picks it knowingly.
+        // Every Jobsite is offered, not just unclaimed ones (more than one
+        // Foreman may share a Jobsite), but an already-staffed one is
+        // labeled with who's there so the Boss picks it knowingly.
         var assignedTo = foremen.All()
             .Where(f => f.JobsiteName is not null)
             .GroupBy(f => f.JobsiteName!, StringComparer.OrdinalIgnoreCase)
@@ -450,15 +448,11 @@ public static class HireWizard
         var defaultBranch = NormalizeBranch(AnsiConsole.Prompt(
             new TextPrompt<string>("[bold]Default branch[/] (blank for [grey]main[/]):").AllowEmpty()));
 
-        // The repo-path step above only ensures the FOLDER exists -- an
-        // existing local clone already has a real repo, but a brand-new folder
-        // (whether just created above, or an empty one the Boss mkdir'd before
-        // hiring) does not. `git init` is safe to run unconditionally here: it
-        // is a no-op on a directory that is already a git repo (confirmed via
-        // `rev-parse --git-dir` first, rather than assumed), and the Foreman's
-        // own later bootstrap step (AI/ConstructionCrew/Templates/foreman-instructions.md's
-        // "Stand the repository up" step) checks the same way, so this and
-        // that step can never disagree about whether a repo already exists.
+        // The repo-path step above only ensures the FOLDER exists; a
+        // brand-new folder has no real repo yet. `git init` is safe
+        // unconditionally: it's a no-op when `rev-parse --git-dir` confirms
+        // a repo already exists, the same check the Foreman's own bootstrap
+        // step uses, so the two can never disagree.
         await EnsureGitRepo(repoPath, defaultBranch, runner, cancellationToken);
 
         var buildCommand = NormalizeOptionalCommand(AnsiConsole.Prompt(
@@ -498,12 +492,8 @@ public static class HireWizard
             DefaultBranch: defaultBranch,
             BuildCommand: buildCommand,
             TestCommand: testCommand,
-            // Resolved here, where the Jobsite name is first known, and the
-            // answer has to be on the config before AppendJobsite writes it.
-            // A recognized layout shows its derived default and takes a yes; a
-            // no, or an unrecognized layout, asks outright. Named, not
-            // positional -- DefaultBranch/BuildCommand/TestCommand/Upstream sit
-            // between ColorName and VaultFolders.
+            // Resolved here, where the Jobsite name is first known, since the
+            // answer must be on the config before AppendJobsite writes it.
             VaultFolders: ResolveVaultFolders(vaultRoot, jobsiteName));
 
         var jobsitesYamlPath = Path.Combine(repoRoot, "config", "jobsites.yaml");
@@ -514,15 +504,11 @@ public static class HireWizard
     }
 
     /// <summary>
-    /// Makes <paramref name="repoPath"/> a real git repository if it isn't one
-    /// yet. Checked via `rev-parse --git-dir`, the same command the Foreman's
-    /// own bootstrap step (AI/ConstructionCrew/Templates/foreman-instructions.md) checks with
-    /// -- deliberately the identical check, so hire time and the Foreman's own
-    /// later dispatch can never disagree about whether `git init` still needs to
-    /// run. Never throws: a repo the Foreman will need to bootstrap for real
-    /// (license, README, first commit) is exactly what a bare `git init` here
-    /// produces, and a failure here is reported but does not block the hire --
-    /// the Boss can always run `git init` by hand afterward.
+    /// Makes <paramref name="repoPath"/> a real git repository if it isn't
+    /// one yet. Checked via `rev-parse --git-dir`, the same check the
+    /// Foreman's own bootstrap step uses, so the two can never disagree
+    /// about whether `git init` still needs to run. Never throws: a failure
+    /// is reported but does not block the hire.
     /// </summary>
     internal static async Task EnsureGitRepo(
         string repoPath, string defaultBranch, ICliProcessRunner runner, CancellationToken cancellationToken)

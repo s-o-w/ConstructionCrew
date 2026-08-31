@@ -12,7 +12,6 @@ public interface ILocalCliAgent
     Task<CliRunResult> SendAsync(string message, CancellationToken cancellationToken);
 }
 
-/// <summary>Builds an <see cref="ILocalCliAgent"/> for a given Foreman/GC configuration.</summary>
 public interface ILocalCliAgentFactory
 {
     ILocalCliAgent Create(Models.ForemanConfig config);

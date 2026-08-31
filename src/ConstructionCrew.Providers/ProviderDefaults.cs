@@ -18,11 +18,11 @@ public static class ProviderDefaults
     public static IReadOnlyDictionary<string, string> ToolPolicy(string providerId) =>
         providerId.ToLowerInvariant() switch
         {
-            // Claude Code tool names, as already used by the shipped GC config,
-            // PLUS the Home Office tools -- under `claude -p` an allow-list that
-            // omits them silently denies every ask_gc and file_sitrep, which reads
-            // as a Foreman that works but never reports (the same failure mode
-            // GcToolPolicy below already guards against for dispatch).
+            // Claude Code tool names already used by the shipped GC config, plus
+            // the Home Office tools: under `claude -p`, an allowlist missing them
+            // silently denies every ask_gc and file_sitrep, so the Foreman works
+            // but never reports (same failure mode GcToolPolicy guards against for
+            // dispatch).
             "claude" => new Dictionary<string, string>
             {
                 ["allowedTools"] = string.Join(
@@ -38,18 +38,18 @@ public static class ProviderDefaults
                 ["allowedTools"] = $"shell,write,{CopilotProvider.HomeOfficeServerName}",
             },
 
-            // Codex has no per-tool allowlist at all -- permissions are a sandbox
-            // policy. workspace-write is the analogue of "can edit its own repo".
+            // Codex has no per-tool allowlist; permissions are a sandbox policy.
+            // workspace-write is the analogue of "can edit its own repo".
             "codex" => new Dictionary<string, string> { ["sandbox"] = "workspace-write" },
 
             _ => new Dictionary<string, string>(),
         };
 
     /// <summary>
-    /// The Home Office MCP tools a Foreman has to be able to call to do its job at
-    /// all: report (file_sitrep), escalate (ask_gc), delegate (spawn_worker and the
-    /// two worktree tools that close a Worker out), and refresh the graph after a
-    /// sitewalk. No dispatch_task -- a Foreman does not dispatch to other Foremen.
+    /// The Home Office MCP tools a Foreman must be able to call: report
+    /// (file_sitrep), escalate (ask_gc), delegate (spawn_worker plus the two
+    /// worktree tools that close a Worker out), and refresh the graph after a
+    /// sitewalk. No dispatch_task: a Foreman never dispatches to other Foremen.
     /// </summary>
     private static readonly string[] ForemanHomeOfficeTools =
     [
@@ -66,13 +66,12 @@ public static class ProviderDefaults
     ];
 
     /// <summary>
-    /// The Home Office MCP tools GC has to be able to call to do its job at all.
-    /// Deliberately NOT the bare server name `mcp__home_office`: that form works,
-    /// and is what the copilot branch relies on, but for claude it would also hand
-    /// GC `ask_gc`, `merge_worker_branch` and `close_worktree`. The explicit list is
-    /// the deny-by-omission that keeps those away. `ask_gc` in particular stays out:
-    /// GC never calls it (gc-instructions.md), and granting it would let GC escalate
-    /// to itself.
+    /// The Home Office MCP tools GC must be able to call. Deliberately not the
+    /// bare server name `mcp__home_office` (used by the copilot branch): for
+    /// claude, that form would also hand GC `ask_gc`, `merge_worker_branch`, and
+    /// `close_worktree`. This explicit list denies those by omission. `ask_gc`
+    /// stays out because GC never calls it (gc-instructions.md); granting it would
+    /// let GC escalate to itself.
     /// </summary>
     private static readonly string[] HomeOfficeTools =
     [
@@ -88,12 +87,11 @@ public static class ProviderDefaults
     ];
 
     /// <summary>
-    /// GC's starting ProviderOptions, which are NOT a Foreman's. GC dispatches and
-    /// authors; it never runs shell commands itself. Two things it must have:
-    /// the Home Office MCP tools -- under `claude -p` an allow-list that omits them
-    /// silently denies every dispatch, which reads as a GC that talks but never
-    /// delegates -- and Write/Edit, because writing the workorder is step one of
-    /// the work loop.
+    /// GC's starting ProviderOptions, distinct from a Foreman's: GC dispatches and
+    /// authors, never running shell commands itself. It needs the Home Office MCP
+    /// tools (an allowlist missing them silently denies every dispatch, so GC
+    /// talks but never delegates) and Write/Edit, since writing the workorder is
+    /// step one of the work loop.
     /// </summary>
     public static IReadOnlyDictionary<string, string> GcToolPolicy(string providerId) =>
         providerId.ToLowerInvariant() switch
@@ -106,14 +104,14 @@ public static class ProviderDefaults
             },
 
             // Copilot allows a whole MCP server by bare name. `write` is Copilot's
-            // own permission kind for "allow all file editing". No `shell`: GC still
-            // runs no commands.
+            // permission kind for "allow all file editing". No `shell`: GC runs no
+            // commands.
             "copilot" => new Dictionary<string, string>
             {
                 ["allowedTools"] = $"write,{CopilotProvider.HomeOfficeServerName}",
             },
 
-            // Codex has no per-tool allow-list; the sandbox policy is the only lever.
+            // Codex has no per-tool allowlist; the sandbox policy is the only lever.
             // GC's WorkingDirectory is the Vault, so workspace-write scopes GC's
             // writes to the Vault and nothing else.
             "codex" => new Dictionary<string, string> { ["sandbox"] = "workspace-write" },
@@ -123,11 +121,10 @@ public static class ProviderDefaults
 
     /// <summary>
     /// A crew member's full ProviderOptions for <paramref name="provider"/>: that
-    /// CLI's own tool policy, plus the Home Office wiring for it. Tool policies are
-    /// NOT portable across CLIs (see ToolPolicy's own comment), so a provider switch
-    /// resets the policy -- but the wiring has to be re-applied, not dropped.
-    /// Any hand-tuning done via "provider options" is lost on a provider switch,
-    /// same as it would be re-hiring under the new provider.
+    /// CLI's tool policy plus its Home Office wiring. Tool policies are not
+    /// portable across CLIs, so a provider switch resets the policy, but wiring is
+    /// re-applied, not dropped. Hand-tuning done via provider options is lost on a
+    /// provider switch, the same as re-hiring under a new provider.
     /// </summary>
     public static IReadOnlyDictionary<string, string> ComposeProviderOptions(
         CrewRole role,
@@ -164,7 +161,7 @@ public static class ProviderDefaults
 
         // Codex: the sandbox policy is the whole permission model, so "upgrade" means
         // replacing an absent or explicitly read-only value. Anything else the Boss
-        // chose (danger-full-access, say) is theirs and is left alone.
+        // chose (danger-full-access, say) is left alone.
         if (required.TryGetValue("sandbox", out var requiredSandbox))
         {
             var hasSandbox = current.TryGetValue("sandbox", out var currentSandbox);
