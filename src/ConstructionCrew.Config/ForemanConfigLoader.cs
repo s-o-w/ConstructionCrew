@@ -1,4 +1,5 @@
 using ConstructionCrew.Core.Models;
+using YamlDotNet.Core;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 
@@ -25,7 +26,21 @@ public sealed class ForemanConfigLoader
         }
 
         var yaml = File.ReadAllText(path);
-        var document = _deserializer.Deserialize<ForemanFileDto>(yaml) ?? new ForemanFileDto();
+
+        ForemanFileDto? document;
+        try
+        {
+            document = _deserializer.Deserialize<ForemanFileDto>(yaml);
+        }
+        catch (YamlException ex)
+        {
+            throw new InvalidOperationException(
+                $"Could not load Foreman config at '{path}': {ex.Message}. Check it still opens with a top-level " +
+                "'foremen:' key -- a hand edit that removed it, or an entry with a field YamlDotNet can't place, " +
+                "will fail exactly like this.", ex);
+        }
+
+        document ??= new ForemanFileDto();
 
         var configs = new List<ForemanConfig>();
         // An empty "foremen:" key deserializes to null, not []; guards the outer

@@ -1,4 +1,5 @@
 using ConstructionCrew.Core.Models;
+using YamlDotNet.Core;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 
@@ -19,7 +20,21 @@ public sealed class JobsiteConfigLoader
         }
 
         var yaml = File.ReadAllText(path);
-        var document = _deserializer.Deserialize<JobsiteFileDto>(yaml) ?? new JobsiteFileDto();
+
+        JobsiteFileDto? document;
+        try
+        {
+            document = _deserializer.Deserialize<JobsiteFileDto>(yaml);
+        }
+        catch (YamlException ex)
+        {
+            throw new InvalidOperationException(
+                $"Could not load Jobsite config at '{path}': {ex.Message}. Check it still opens with a top-level " +
+                "'jobsites:' key -- a hand edit that removed it, or an entry with a field YamlDotNet can't place, " +
+                "will fail exactly like this.", ex);
+        }
+
+        document ??= new JobsiteFileDto();
 
         var configs = new List<JobsiteConfig>();
         // An empty "jobsites:" key deserializes to null, not an empty list.

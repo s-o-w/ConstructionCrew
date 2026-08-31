@@ -224,6 +224,26 @@ public class ForemanConfigLoaderTests : IDisposable
         Assert.Equal(_repoRoot, Assert.Single(reloaded).WorkingDirectory);
     }
 
+    /// <summary>
+    /// Regression: a hand-edited/truncated file missing its "foremen:" key
+    /// used to surface a raw, opaque YamlException from deep inside
+    /// YamlDotNet. It must now name the file and say what to check.
+    /// </summary>
+    [Fact]
+    public void LoadFromFile_MissingTopLevelKey_ThrowsAClearActionableError()
+    {
+        WriteYaml("""
+              - name: 'Frontend'
+                role: 'Foreman'
+                provider: 'claude'
+            """);
+
+        var ex = Assert.Throws<InvalidOperationException>(Load);
+
+        Assert.Contains(_yamlPath, ex.Message);
+        Assert.Contains("foremen:", ex.Message);
+    }
+
     private ForemanConfig GcConfig() => new(
         "GC",
         CrewRole.GC,
