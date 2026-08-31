@@ -58,6 +58,9 @@ data:feedback_claude_voice_freedom_and_xinfra_research a vm:FeedbackMemory ;
 data:feedback_codex_output_path a vm:FeedbackMemory ;
     vld:path "AI/memory/feedback_codex_output_path.md" .
 
+data:feedback_constructioncrew_docs_default_vault a data:feedback ;
+    vld:path "AI/memory/feedback_constructioncrew_docs_default_vault.md" .
+
 data:feedback_csharp_samples_from_sdk a vm:FeedbackMemory ;
     vld:path "AI/memory/feedback_csharp_samples_from_sdk.md" .
 
