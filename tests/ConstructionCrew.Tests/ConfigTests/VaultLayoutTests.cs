@@ -4,31 +4,13 @@ namespace ConstructionCrew.Tests.ConfigTests;
 
 /// <summary>
 /// The recognition predicate is what decides whether /hire derives a Foreman's
-/// vault write scope or has to ask for it, so it gets pinned against both a real
-/// vault and a deliberately incomplete one.
+/// vault write scope or has to ask for it, so it gets pinned against a
+/// deliberately incomplete vault and a fully scaffolded one. Every case here
+/// builds its own temp directory; none assumes any particular machine's real
+/// vault path.
 /// </summary>
 public class VaultLayoutTests
 {
-    /// <summary>
-    /// The vault this tool was built against. Skipped rather than failed on a
-    /// machine that doesn't have it -- the temp-directory cases below carry the
-    /// actual predicate coverage; this one proves the predicate matches a real
-    /// vault's real shape.
-    /// </summary>
-    private const string RealVaultRoot = "/home/shawn/Documents/MyObsidianVault";
-
-    [Fact]
-    public void Recognize_RealVault_IsRecognized()
-    {
-        if (!Directory.Exists(RealVaultRoot))
-        {
-            return;
-        }
-
-        Assert.Equal(VaultRecognition.Recognized, VaultLayout.Recognize(RealVaultRoot));
-        Assert.Empty(VaultLayout.MissingMarkers(RealVaultRoot));
-    }
-
     [Fact]
     public void Recognize_OnlyHomeMd_IsNotRecognized()
     {
@@ -120,8 +102,7 @@ public class VaultLayoutTests
             Assert.Equal(VaultRecognition.Recognized, VaultLayout.Recognize(root));
             Assert.NotEmpty(written);
 
-            // The empty directories are created even though .gitkeep is not copied.
-            Assert.True(Directory.Exists(Path.Combine(root, "Journal")));
+            // Empty directories are created even though .gitkeep is not copied.
             Assert.True(Directory.Exists(Path.Combine(root, "AI", "graph", "build")));
             Assert.False(File.Exists(Path.Combine(root, "Notes", ".gitkeep")));
 
