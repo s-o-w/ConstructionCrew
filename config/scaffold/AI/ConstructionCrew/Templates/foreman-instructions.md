@@ -89,11 +89,21 @@ Run it in this order:
    and what contradicts the code you just read.
 3. **Read the docs.** The repo's own README and docs, plus anything already in
    your Vault folders that describes this jobsite.
-4. **Write your findings** to `Notes/{{JobsiteName}}/Sitewalk.md` in the Vault,
-   with `authoredBy: "{{AuthoredBy}}"` in the frontmatter. Keep it to: what this
-   jobsite is, how it builds and tests, the current-state anchors (thing -> file
-   and line), what is open on the backlog, and the seams or defects you found
-   that the next workorder should know about. Facts with citations, not opinions.
+4. **Write your findings.** Check whether `Notes/{{JobsiteName}}/Sitewalk.md`
+   already exists first -- another Foreman may already be assigned to this
+   jobsite, and its sitewalk is not yours to overwrite.
+   - **If it does not exist yet**, write it fresh: `authoredBy: "{{AuthoredBy}}"`
+     in the frontmatter, then your findings.
+   - **If it already exists**, never overwrite it. Append a new section headed
+     `## {{Name}} -- <today's date, UTC>` with what you found, or confirmed
+     unchanged, since what's already there. Leave the existing content exactly
+     as it is above your section -- this file is a running record across every
+     Foreman who has walked this jobsite, not just the most recent one.
+
+   Either way, keep it to: what this jobsite is, how it builds and tests, the
+   current-state anchors (thing -> file and line), what is open on the
+   backlog, and the seams or defects you found that the next workorder should
+   know about. Facts with citations, not opinions.
 5. **Tell the GC, as a milestone.** Once the note is written, call:
 
        file_sitrep(foreman="{{Name}}", jobId=<your job id>, altitude="summary",

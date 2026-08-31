@@ -115,6 +115,29 @@ public class InstructionsComposerTests
         Assert.DoesNotContain("{{", rendered);
     }
 
+    /// <summary>
+    /// Multiple Foremen per Jobsite means Sitewalk.md is no longer one
+    /// Foreman's alone. The template has to tell every Foreman to check for an
+    /// existing sitewalk before writing and append rather than overwrite it.
+    /// </summary>
+    [Fact]
+    public void Compose_ForemanTemplate_CarriesTheSitewalkAppendNotOverwriteRule()
+    {
+        var rendered = InstructionsComposer.Compose(
+            "Frontend",
+            CrewRole.Foreman,
+            "You are the Frontend Foreman.",
+            Jobsite(),
+            ["Notes/XINFRA", "Plans/XINFRA"],
+            ["claude", "codex"],
+            RealVaultRoot);
+
+        Assert.Contains("already exists", rendered);
+        Assert.Contains("never overwrite it", rendered);
+        Assert.Contains("Append a new section", rendered);
+        Assert.DoesNotContain("{{", rendered);
+    }
+
     [Fact]
     public void Compose_Gc_RendersTheWorkorderHandoff()
     {
