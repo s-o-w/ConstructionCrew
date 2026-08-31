@@ -49,7 +49,11 @@ public sealed class SitrepWriter : ISitrepWriter
 
         Directory.CreateDirectory(sitrepsDirectory);
 
-        var section = $"## {DateTimeOffset.UtcNow:HH:mm:ss} UTC{Environment.NewLine}{Environment.NewLine}" +
+        // The heading carries its own author, not just the file-level frontmatter
+        // below -- a shared jobsite's file can carry sections from more than one
+        // Foreman, and the frontmatter alone only ever reflects whoever created
+        // the file first.
+        var section = $"## {DateTimeOffset.UtcNow:HH:mm:ss} UTC -- {request.AuthoredBy}{Environment.NewLine}{Environment.NewLine}" +
                       $"{request.Body.Trim()}{Environment.NewLine}";
 
         if (!File.Exists(filePath))

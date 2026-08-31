@@ -37,6 +37,9 @@ public class SitrepWriterTests
             Assert.Contains("type: \"[[SessionNote]]\"", text);
             Assert.Contains("touchesProject: \"[[XINFRA]]\"", text);
             Assert.Contains("authoredBy: \"Foreman:XINFRA\"", text);
+            // The section heading carries its own author too, not just the
+            // file-level frontmatter -- what a shared Jobsite's file needs.
+            Assert.Contains("UTC -- Foreman:XINFRA", text);
             Assert.Contains("build is green", text);
         }
         finally
@@ -65,6 +68,46 @@ public class SitrepWriterTests
             Assert.Equal(2, text.ReplaceLineEndings("\n").Split('\n').Count(l => l.Trim() == "---"));
             Assert.True(text.IndexOf("plan settled", StringComparison.Ordinal) <
                         text.IndexOf("diff reviewed", StringComparison.Ordinal));
+        }
+        finally
+        {
+            Directory.Delete(vaultRoot, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Two Foremen sharing a Jobsite can file into the same day/altitude file --
+    /// each section has to show which one wrote it, since the file-level
+    /// authoredBy only ever reflects whoever created the file first.
+    /// </summary>
+    [Fact]
+    public void Write_TwoDifferentAuthorsSameDayAndAltitude_EachSectionShowsItsOwnAuthor()
+    {
+        var vaultRoot = NewVault();
+        try
+        {
+            var writer = new SitrepWriter();
+            var caseyRequest = Request(vaultRoot, "Casey's update") with { AuthoredBy = "Foreman:Casey:XINFRA" };
+            var robinRequest = Request(vaultRoot, "Robin's update") with { AuthoredBy = "Foreman:Robin:XINFRA" };
+
+            var first = writer.Write(caseyRequest);
+            var second = writer.Write(robinRequest);
+            Assert.Equal(first, second);
+
+            var text = File.ReadAllText(first);
+            // File-level frontmatter still only names whoever created it first.
+            Assert.Contains("authoredBy: \"Foreman:Casey:XINFRA\"", text);
+
+            // But each section is self-attributed, and paired with its OWN body --
+            // not just that both authors and both bodies appear somewhere.
+            var caseyHeadingIndex = text.IndexOf("UTC -- Foreman:Casey:XINFRA", StringComparison.Ordinal);
+            var robinHeadingIndex = text.IndexOf("UTC -- Foreman:Robin:XINFRA", StringComparison.Ordinal);
+            var caseyBodyIndex = text.IndexOf("Casey's update", StringComparison.Ordinal);
+            var robinBodyIndex = text.IndexOf("Robin's update", StringComparison.Ordinal);
+
+            Assert.True(caseyHeadingIndex >= 0 && robinHeadingIndex >= 0);
+            Assert.True(caseyHeadingIndex < caseyBodyIndex && caseyBodyIndex < robinHeadingIndex);
+            Assert.True(robinHeadingIndex < robinBodyIndex);
         }
         finally
         {
