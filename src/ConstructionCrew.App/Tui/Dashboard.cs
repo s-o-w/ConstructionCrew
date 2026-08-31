@@ -14,9 +14,10 @@ namespace ConstructionCrew.App.Tui;
 /// </summary>
 public static class Dashboard
 {
-    // "memory" and "monitor" are placeholders for real, not-yet-built features
-    // (see new_features.md) -- they render in the tab strip but, like every tab
-    // that isn't in LiveTabs below, are otherwise inert. "ask me"/"triggers"/
+    // Every tab here is live. "memory" and "monitor" were the last two
+    // placeholders; "memory" is modal (the browser takes over the screen, like
+    // /view and the wizards) and its tab is what shows the Boss is in it, while
+    // "monitor" renders in place off the registries. "ask me"/"triggers"/
     // "activity" were removed outright: first-commit scaffolding with no
     // documented purpose behind any of them.
     private static readonly (string Id, string Label)[] Tabs =
@@ -28,7 +29,8 @@ public static class Dashboard
         ("monitor", "monitor"),
     ];
 
-    private static readonly HashSet<string> LiveTabs = new(StringComparer.OrdinalIgnoreCase) { "chat", "tasks", "hire" };
+    private static readonly HashSet<string> LiveTabs =
+        new(StringComparer.OrdinalIgnoreCase) { "chat", "tasks", "hire", "memory", "monitor" };
 
     public static void Render(ForemanDirectory foremen, JobsiteDirectory jobsites, JobRegistry jobs, DashboardState state)
     {
@@ -55,7 +57,7 @@ public static class Dashboard
             new Layout("main"));
 
         body["sidebar"].Update(BuildSidebar(foremen, jobsites, jobs));
-        body["main"].Update(BuildMain(jobs, state));
+        body["main"].Update(BuildMain(foremen, jobsites, jobs, state));
 
         root["body"].Update(body);
 
@@ -82,7 +84,7 @@ public static class Dashboard
     /// </summary>
     internal static string FooterFor(string? drivenForeman) =>
         drivenForeman is null
-            ? "[grey]/tasks /hire /fire /foreman <Name> /view <path> /chat /drive <Name> /settings /help /exit[/]"
+            ? "[grey]/tasks /monitor /memory /hire /fire /foreman <Name> /view <path> /chat /drive <Name> /settings /help /exit[/]"
             : $"[grey]driving [/][yellow]{Markup.Escape(drivenForeman)}[/][grey] -- /exit returns to GC[/]";
 
     private static void PositionCursorOnPromptRow()
@@ -194,7 +196,8 @@ public static class Dashboard
         : parked ? "[bold black on magenta] parked [/]"
         : "[grey on grey19] idle [/]";
 
-    private static IRenderable BuildMain(JobRegistry jobs, DashboardState state)
+    private static IRenderable BuildMain(
+        ForemanDirectory foremen, JobsiteDirectory jobsites, JobRegistry jobs, DashboardState state)
     {
         var tabStrip = new Markup(string.Join("   ", Tabs.Select(t => RenderTab(t, state))));
 
@@ -202,6 +205,8 @@ public static class Dashboard
         {
             TuiView.Chat => BuildChatPane(state),
             TuiView.Tasks => BuildTasks(jobs),
+            TuiView.Monitor => BuildMonitor(foremen, jobsites, jobs),
+            TuiView.Memory => BuildMemoryHint(),
             _ => BuildStub(state.StubLabel ?? "this"),
         };
 
@@ -220,6 +225,8 @@ public static class Dashboard
         {
             TuiView.Chat => tab.Id == "chat",
             TuiView.Tasks => tab.Id == "tasks",
+            TuiView.Memory => tab.Id == "memory",
+            TuiView.Monitor => tab.Id == "monitor",
             TuiView.Stub => string.Equals(tab.Id, state.StubLabel, StringComparison.OrdinalIgnoreCase),
             _ => false,
         };
@@ -339,8 +346,195 @@ public static class Dashboard
             .Border(BoxBorder.Rounded);
     }
 
+    /// <summary>
+    /// The memory tab is a mode, not a pane: the browser itself is modal (it
+    /// takes the whole screen, like /view and the wizards), so the tab only ever
+    /// shows while the Boss is between browses.
+    /// </summary>
+    private static IRenderable BuildMemoryHint() =>
+        new Markup("[grey]/memory opens the crew's vault folders -- pick a folder, walk down to a note, and it renders full width.[/]");
+
+    /// <summary>
+    /// Who is working right now. Rebuilt from the registries on every render --
+    /// no Live region and no timer, because Render already redraws once per event
+    /// batch and a JobRegistry transition is one of those events.
+    /// </summary>
+    private static IRenderable BuildMonitor(ForemanDirectory foremen, JobsiteDirectory jobsites, JobRegistry jobs)
+    {
+        var rows = MonitorRows(foremen, jobsites, jobs, DateTimeOffset.UtcNow);
+
+        var table = new Table().Border(TableBorder.Rounded).Expand();
+        table.AddColumn("who");
+        table.AddColumn("kind");
+        table.AddColumn("state");
+        table.AddColumn("task");
+        table.AddColumn("started");
+        table.AddColumn("elapsed");
+
+        foreach (var row in rows)
+        {
+            var stateMarkup = row.State switch
+            {
+                "working" => "[yellow]working[/]",
+                "parked" => "[magenta]parked[/]",
+                _ => "[grey]idle[/]",
+            };
+
+            var who = row.Jobsite is null
+                ? Markup.Escape(row.Who)
+                : $"{Markup.Escape(row.Who)} [grey]@ {Markup.Escape(row.Jobsite)}[/]";
+
+            table.AddRow(
+                new Markup($"[bold]{who}[/]"),
+                new Markup($"[grey]{Markup.Escape(row.Kind)}[/]"),
+                new Markup(stateMarkup),
+                new Markup(row.Task is null ? "[grey]-[/]" : Markup.Escape(Truncate(row.Task, 40))),
+                new Markup(row.StartedAt is { } startedAt
+                    ? Markup.Escape(startedAt.ToLocalTime().ToString("HH:mm"))
+                    : "[grey]-[/]"),
+                new Markup(row.Elapsed is { } elapsed ? Markup.Escape(FormatElapsed(elapsed)) : "[grey]-[/]"));
+        }
+
+        return table;
+    }
+
+    private static string FormatElapsed(TimeSpan elapsed)
+    {
+        var clamped = elapsed < TimeSpan.Zero ? TimeSpan.Zero : elapsed;
+        return clamped.TotalHours >= 1
+            ? $"{(int)clamped.TotalHours}h{clamped.Minutes:00}m"
+            : $"{(int)clamped.TotalMinutes}m";
+    }
+
+    /// <summary>
+    /// One monitor line. <paramref name="Elapsed"/> is already net of parked time,
+    /// so it is actual worked time, not wall-clock since dispatch.
+    /// </summary>
+    internal sealed record MonitorRow(
+        string Who,
+        string Kind,          // "GC" | "Foreman" | "Worker"
+        string State,         // "working" | "parked" | "idle"
+        string? Task,
+        DateTimeOffset? StartedAt,
+        TimeSpan? Elapsed,
+        string? Jobsite);
+
+    /// <summary>
+    /// One row per hired crew member, plus one per Worker with a job still in
+    /// flight. Workers are transient by design -- they appear when spawned and
+    /// vanish when their job goes terminal, which is the whole point of the view.
+    /// </summary>
+    internal static IReadOnlyList<MonitorRow> MonitorRows(
+        ForemanDirectory foremen, JobsiteDirectory jobsites, JobRegistry jobs, DateTimeOffset now) =>
+        BuildMonitorRows(foremen, jobsites, jobs.GetAllJobs(), jobs.IsForemanBusy, jobs.IsForemanParked, now);
+
+    /// <summary>
+    /// The same view over a plain job list, for states a real JobRegistry only
+    /// ever reaches through a live agent (Parked, and a resumed job's
+    /// ParkedDuration). The two predicates are JobRegistry.IsForemanBusy and
+    /// IsForemanParked restated over the same list, through the ownership rule
+    /// <see cref="DriveCommands.BelongsTo"/> already mirrors -- not a second rule.
+    /// </summary>
+    internal static IReadOnlyList<MonitorRow> MonitorRows(
+        ForemanDirectory foremen, JobsiteDirectory jobsites, IReadOnlyCollection<JobRecord> all, DateTimeOffset now) =>
+        BuildMonitorRows(
+            foremen,
+            jobsites,
+            all,
+            name => all.Any(j => j.Status is JobStatus.Pending or JobStatus.Running &&
+                                 DriveCommands.BelongsTo(name, j.ForemanName)),
+            name => all.Any(j => j.Status is JobStatus.Parked && DriveCommands.BelongsTo(name, j.ForemanName)),
+            now);
+
+    private static IReadOnlyList<MonitorRow> BuildMonitorRows(
+        ForemanDirectory foremen,
+        JobsiteDirectory jobsites,
+        IReadOnlyCollection<JobRecord> all,
+        Func<string, bool> isBusy,
+        Func<string, bool> isParked,
+        DateTimeOffset now)
+    {
+        var rows = new List<MonitorRow>();
+
+        // GC first, then the Foremen in roster order. OrderBy is stable, so the
+        // roster's own order survives inside each group.
+        var crew = foremen.All().OrderBy(f => f.Role == CrewRole.GC ? 0 : 1).ToList();
+
+        foreach (var member in crew)
+        {
+            // State is the registry's rule verbatim, which counts a Worker's job
+            // against its parent -- a Foreman whose only in-flight work is a
+            // Worker's is genuinely not free. Task/StartedAt deliberately do NOT
+            // follow a Worker's job up to the parent: that Worker has a row of its
+            // own further down, and repeating its task on the parent's line reads
+            // as two pieces of work when there is one.
+            var own = all
+                .Where(j => j.Status is JobStatus.Pending or JobStatus.Running &&
+                            j.ForemanName.Equals(member.Name, StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(j => j.CreatedAt)
+                .FirstOrDefault();
+
+            rows.Add(new MonitorRow(
+                member.Name,
+                member.Role == CrewRole.GC ? "GC" : "Foreman",
+                StateOf(isBusy(member.Name), isParked(member.Name)),
+                own?.Task,
+                own?.StartedAt,
+                ElapsedOf(own, now),
+                JobsiteNameFor(member.JobsiteName, jobsites)));
+        }
+
+        foreach (var job in all.Where(j => j.ForemanName.Contains(WorkerMarker, StringComparison.OrdinalIgnoreCase) &&
+                                          j.Status is JobStatus.Pending or JobStatus.Running))
+        {
+            var parentName = job.ForemanName[..job.ForemanName.IndexOf(WorkerMarker, StringComparison.OrdinalIgnoreCase)];
+
+            rows.Add(new MonitorRow(
+                job.ForemanName,
+                "Worker",
+                "working",
+                job.Task,
+                job.StartedAt,
+                ElapsedOf(job, now),
+                JobsiteNameFor(foremen.Find(parentName)?.JobsiteName, jobsites)));
+        }
+
+        return rows;
+    }
+
+    /// <summary>The Worker label convention JobRegistry.StartWorkerJob mints: <c>&lt;Parent&gt;/worker-&lt;shortId&gt;</c>.</summary>
+    private const string WorkerMarker = "/worker-";
+
+    /// <summary>
+    /// The three-state rule <see cref="StatusBadge"/> already renders, as text.
+    /// Busy wins over parked, exactly as it does there.
+    /// </summary>
+    private static string StateOf(bool busy, bool parked) =>
+        busy ? "working" : parked ? "parked" : "idle";
+
+    /// <summary>
+    /// Actual worked time: wall clock since dispatch began, less however long the
+    /// job has sat parked waiting on the Boss. Null until the job actually starts,
+    /// because queue time is visible elsewhere and is never charged as work.
+    /// </summary>
+    private static TimeSpan? ElapsedOf(JobRecord? job, DateTimeOffset now) =>
+        job?.StartedAt is { } startedAt ? now - startedAt - job.ParkedDuration : null;
+
+    /// <summary>
+    /// The jobsite's canonical name, so a Foreman configured against "xinfra"
+    /// reports the roster's "XINFRA". An unconfigured name is still shown -- it is
+    /// what the Foreman's own config says, and hiding it would hide the mismatch.
+    /// </summary>
+    private static string? JobsiteNameFor(string? jobsiteName, JobsiteDirectory jobsites) =>
+        string.IsNullOrWhiteSpace(jobsiteName) ? null : jobsites.Find(jobsiteName)?.Name ?? jobsiteName;
+
+    /// <summary>
+    /// What an unrecognized slash command lands on. Every tab in the strip is
+    /// built now, so this is no longer a "later phase" placeholder -- it is the
+    /// answer to a command that does not exist.
+    /// </summary>
     private static IRenderable BuildStub(string label) =>
-        new Markup($"[grey]'{Markup.Escape(label)}' isn't built yet -- coming in a later phase.[/]");
+        new Markup($"[grey]'/{Markup.Escape(label)}' isn't a command -- /help lists the ones that are.[/]");
 
     private static string Truncate(string text, int max)
     {

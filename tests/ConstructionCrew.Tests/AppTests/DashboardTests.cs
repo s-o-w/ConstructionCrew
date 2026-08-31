@@ -1,12 +1,45 @@
 using ConstructionCrew.App.Tui;
+using ConstructionCrew.Config;
+using ConstructionCrew.Core.Abstractions;
 using ConstructionCrew.Core.Models;
+using ConstructionCrew.Core.Runtime;
+using ConstructionCrew.HomeOffice;
+using ConstructionCrew.Providers;
+using ConstructionCrew.Tests.Fakes;
 
 namespace ConstructionCrew.Tests.AppTests;
 
 public class DashboardTests
 {
+    private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(10);
+
     private static JobRecord Job(string id, JobStatus status) =>
         new(id, "Frontend", $"task {id}", status, DateTimeOffset.UtcNow, null, null);
+
+    private static JobRecord Job(string id, string foremanName, JobStatus status) =>
+        new(id, foremanName, $"task {id}", status, DateTimeOffset.UtcNow, null, null);
+
+    private static ForemanConfig Crew(string name, CrewRole role, string? jobsite = null) =>
+        new(name, role, "fake", "dir", "instructions.md", new Dictionary<string, string>(), JobsiteName: jobsite);
+
+    private static JobRegistry BuildRegistry(
+        ForemanDirectory foremen, JobsiteDirectory jobsites, ICliProcessRunner runner, JobStatusSink sink)
+    {
+        var factory = new LocalCliAgentFactory([new FakeCliToolProvider("fake")], runner);
+        return new JobRegistry(
+            foremen,
+            jobsites,
+            factory,
+            sink,
+            new LiveAgentRegistry(factory),
+            "GC",
+            new FakeWorktreeManager(),
+            new JobRegistryRuntimeOptions(Path.Combine(Path.GetTempPath(), "cc-monitor-state")),
+            new FakeCliProcessRunner(),
+            new HomeOfficeNotificationOptions(null),
+            new FakeRunLogWriter(),
+            new FakeJobsLogWriter());
+    }
 
     /// <summary>
     /// Four columns, in order, and a Parked job belongs to exactly one of them.
@@ -98,4 +131,168 @@ public class DashboardTests
             Dashboard.StatusBadge(busy: true, parked: false),
             Dashboard.StatusBadge(busy: true, parked: true));
     }
+
+    /// <summary>
+    /// The monitor's floor: every hired crew member has a row whether or not it is
+    /// working, GC first. A Foreman that vanishes from the board when idle is the
+    /// bug this view exists to prevent.
+    /// </summary>
+    [Fact]
+    public void MonitorRows_IncludesGcAndEveryForeman()
+    {
+        var foremen = new ForemanDirectory([
+            Crew("GC", CrewRole.GC),
+            Crew("Frontend", CrewRole.Foreman, "XINFRA"),
+            Crew("Backend", CrewRole.Foreman, "XINFRA"),
+        ]);
+        var jobsites = new JobsiteDirectory([new JobsiteConfig("XINFRA", "/repos/xinfra", "the jobsite")]);
+
+        var rows = Dashboard.MonitorRows(foremen, jobsites, Array.Empty<JobRecord>(), DateTimeOffset.UtcNow);
+
+        Assert.Equal(3, rows.Count);
+        Assert.Equal("GC", rows[0].Who);
+        Assert.Equal("GC", rows[0].Kind);
+        Assert.Equal(["Backend", "Frontend"], rows.Skip(1).Select(r => r.Who).Order());
+        Assert.All(rows.Skip(1), r => Assert.Equal("Foreman", r.Kind));
+        Assert.All(rows, r => Assert.Equal("idle", r.State));
+        Assert.All(rows, r => Assert.Null(r.Task));
+        Assert.All(rows, r => Assert.Null(r.Elapsed));
+        Assert.Equal("XINFRA", rows[1].Jobsite);
+        Assert.Null(rows[0].Jobsite);
+    }
+
+    /// <summary>
+    /// A spawned Worker is a row of its own, under the full
+    /// <c>&lt;Parent&gt;/worker-&lt;id&gt;</c> label JobRegistry mints -- driven through a
+    /// real registry, so the label convention is the registry's and not the test's.
+    /// The parent stays "working" beside it: the registry counts a Worker's job
+    /// against it, and it is genuinely not free.
+    /// </summary>
+    [Fact]
+    public async Task MonitorRows_RunningWorker_GetsItsOwnRow()
+    {
+        var foremen = new ForemanDirectory([Crew("GC", CrewRole.GC), Crew("Frontend", CrewRole.Foreman, "XINFRA")]);
+        var jobsites = new JobsiteDirectory([new JobsiteConfig("XINFRA", "/repos/xinfra", "the jobsite")]);
+        var runner = new HangingCliProcessRunner();
+        var sink = new JobStatusSink();
+        var registry = BuildRegistry(foremen, jobsites, runner, sink);
+
+        registry.StartJob("Frontend", "the feature", Workorder("named-graphs"));
+        var workerJobId = await registry.StartWorkerJob("Frontend", "do a small thing", null, CancellationToken.None);
+
+        var rows = Dashboard.MonitorRows(foremen, jobsites, registry, DateTimeOffset.UtcNow);
+
+        var worker = Assert.Single(rows, r => r.Kind == "Worker");
+        Assert.StartsWith("Frontend/worker-", worker.Who);
+        Assert.Equal("do a small thing", worker.Task);
+        Assert.Equal("working", worker.State);
+        Assert.Equal("XINFRA", worker.Jobsite);
+
+        var parent = Assert.Single(rows, r => r.Who == "Frontend");
+        Assert.Equal("working", parent.State);
+
+        // The parent's own row names the parent's own task, never the Worker's --
+        // the Worker already has a line, and repeating it reads as two jobs.
+        Assert.Equal("the feature", parent.Task);
+
+        Assert.NotNull(registry.GetJob(workerJobId));
+        runner.Release();
+    }
+
+    /// <summary>
+    /// Worker rows are transient by design. Present while the job is in flight,
+    /// gone from the very next call once it goes terminal -- asserted across the
+    /// same registry, so this is the row genuinely disappearing and not two
+    /// differently-built lists.
+    /// </summary>
+    [Fact]
+    public async Task MonitorRows_CompletedWorker_IsDropped()
+    {
+        var foremen = new ForemanDirectory([Crew("GC", CrewRole.GC), Crew("Frontend", CrewRole.Foreman, "XINFRA")]);
+        var jobsites = new JobsiteDirectory([new JobsiteConfig("XINFRA", "/repos/xinfra", "the jobsite")]);
+        var runner = new HangingCliProcessRunner { NextResult = new CliRunResult(true, "worker done", "", 0) };
+        var sink = new JobStatusSink();
+        var registry = BuildRegistry(foremen, jobsites, runner, sink);
+
+        registry.StartJob("Frontend", "the feature", Workorder("named-graphs"));
+        var workerJobId = await registry.StartWorkerJob("Frontend", "do a small thing", null, CancellationToken.None);
+
+        Assert.Contains(Dashboard.MonitorRows(foremen, jobsites, registry, DateTimeOffset.UtcNow), r => r.Kind == "Worker");
+
+        // Every hung run finishes, including the Worker's.
+        runner.Release();
+
+        using var cts = new CancellationTokenSource(Timeout);
+        JobRecord? last = null;
+        while (last is null || last.JobId != workerJobId || last.Status is JobStatus.Pending or JobStatus.Running)
+        {
+            last = await sink.Reader.ReadAsync(cts.Token);
+        }
+
+        var rows = Dashboard.MonitorRows(foremen, jobsites, registry, DateTimeOffset.UtcNow);
+
+        Assert.DoesNotContain(rows, r => r.Kind == "Worker");
+        Assert.Equal(2, rows.Count);
+    }
+
+    /// <summary>
+    /// Three states here too, and for the same reason StatusBadge has three: a
+    /// parked Foreman is blocked on the Boss, and reporting it as "working" (or as
+    /// "idle") hides the one row the Boss has to act on.
+    /// </summary>
+    [Fact]
+    public void MonitorRows_ParkedForeman_ReportsParkedNotWorking()
+    {
+        var foremen = new ForemanDirectory([Crew("GC", CrewRole.GC), Crew("Frontend", CrewRole.Foreman)]);
+        var jobsites = new JobsiteDirectory([]);
+
+        var rows = Dashboard.MonitorRows(
+            foremen, jobsites, [Job("parked", "Frontend", JobStatus.Parked)], DateTimeOffset.UtcNow);
+
+        var frontend = Assert.Single(rows, r => r.Who == "Frontend");
+        Assert.Equal("parked", frontend.State);
+        Assert.Equal("idle", Assert.Single(rows, r => r.Who == "GC").State);
+
+        // Busy still wins, exactly as StatusBadge resolves the same two flags.
+        var alsoRunning = Dashboard.MonitorRows(
+            foremen,
+            jobsites,
+            [Job("parked", "Frontend", JobStatus.Parked), Job("running", "Frontend", JobStatus.Running)],
+            DateTimeOffset.UtcNow);
+
+        Assert.Equal("working", Assert.Single(alsoRunning, r => r.Who == "Frontend").State);
+    }
+
+    /// <summary>
+    /// Elapsed is worked time, not wall clock: the hour a job spent parked waiting
+    /// on the Boss is not an hour of work. Null until the job actually starts,
+    /// because queue time is never charged either.
+    /// </summary>
+    [Fact]
+    public void MonitorRows_ElapsedExcludesParkedDuration()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var foremen = new ForemanDirectory([Crew("Frontend", CrewRole.Foreman)]);
+        var jobsites = new JobsiteDirectory([]);
+
+        var running = Job("running", "Frontend", JobStatus.Running) with
+        {
+            StartedAt = now - TimeSpan.FromMinutes(60),
+            ParkedDuration = TimeSpan.FromMinutes(20),
+        };
+
+        var row = Assert.Single(Dashboard.MonitorRows(foremen, jobsites, [running], now));
+
+        Assert.Equal(TimeSpan.FromMinutes(40), row.Elapsed);
+        Assert.Equal(running.StartedAt, row.StartedAt);
+
+        var queued = Job("queued", "Frontend", JobStatus.Pending);
+        var queuedRow = Assert.Single(Dashboard.MonitorRows(foremen, jobsites, [queued], now));
+
+        Assert.Null(queuedRow.Elapsed);
+        Assert.Null(queuedRow.StartedAt);
+    }
+
+    private static ActiveWorkorder Workorder(string feature) =>
+        new(feature, "XINFRA", $"/vault/Plans/XINFRA/{feature}", "main", $"feature/{feature}", DateTimeOffset.UtcNow);
 }

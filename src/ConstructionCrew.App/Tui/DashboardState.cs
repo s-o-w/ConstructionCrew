@@ -6,6 +6,8 @@ public enum TuiView
 {
     Chat,
     Tasks,
+    Memory,
+    Monitor,
     Stub,
 }
 

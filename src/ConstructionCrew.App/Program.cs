@@ -446,9 +446,27 @@ async Task<bool> HandleBossLine(string input)
         return true;
     }
 
+    if (command.Equals("/monitor", StringComparison.OrdinalIgnoreCase))
+    {
+        state.View = TuiView.Monitor;
+        return true;
+    }
+
+    // The tab is set first and cleared last, so the strip shows "memory" for as
+    // long as the modal browser owns the screen. The browser itself never leaves
+    // the crew's own vault folders -- see MemoryBrowser.Roots.
+    if (command.Equals("/memory", StringComparison.OrdinalIgnoreCase))
+    {
+        state.View = TuiView.Memory;
+        AnsiConsole.Clear();
+        MemoryBrowser.Run(settings.VaultRoot, foremanDirectory, repoRoot);
+        state.View = TuiView.Chat;
+        return true;
+    }
+
     if (command.Equals("/help", StringComparison.OrdinalIgnoreCase))
     {
-        AnsiConsole.MarkupLine("[grey]/chat  /tasks  /hire  /fire  /foreman <Name>  /view <path>  /drive <Foreman>  /settings  /exit -- anything else is sent to the GC (or the driven Foreman) as a message.[/]");
+        AnsiConsole.MarkupLine("[grey]/chat  /tasks  /monitor  /memory  /hire  /fire  /foreman <Name>  /view <path>  /drive <Foreman>  /settings  /exit -- anything else is sent to the GC (or the driven Foreman) as a message.[/]");
         AnsiConsole.Markup("[grey]Press enter to continue...[/]");
         Console.ReadLine();
         return true;
