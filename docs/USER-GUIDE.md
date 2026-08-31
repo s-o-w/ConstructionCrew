@@ -87,8 +87,8 @@ full-screen view.
      exists.
    - *scaffold a new Vault*: type a path and the app copies a starter vault
      into it (`HOME.md`, `CLAUDE.md`, `Notes/`, `Plans/`, a small graph
-     ontology, and `AI/Context/crew-preferences.md`). It never overwrites a
-     file that is already there.
+     ontology, and `AI/ConstructionCrew/crew-preferences.md`). It never
+     overwrites a file that is already there.
 
    For our scenario, choose *point at an existing Vault* and enter `~/vault`.
 
@@ -124,7 +124,7 @@ full-screen view.
   delete it to get a current copy.
 
 **Also ensured at every startup, for whatever vault is configured:**
-`AI/Context/crew-preferences.md` and both instructions templates under
+`AI/ConstructionCrew/crew-preferences.md` and both instructions templates under
 `AI/ConstructionCrew/Templates/`. GC and every Foreman are told to read
 crew-preferences.md and use it as the tiebreaker whenever two options are
 equally good, so the app makes sure it exists even on a vault you pointed at
@@ -851,7 +851,7 @@ Inside the ConstructionCrew repo:
 | ----------------------------------------- | -------------------------------------------------------------- |
 | `config/foremen.yaml`                    | Your roster: GC plus every Foreman                             |
 | `config/jobsites.yaml`                   | Your Jobsites                                                  |
-| `config/scaffold/`                       | The starter vault, incl. `AI/Context/crew-preferences.md` and both instructions templates |
+| `config/scaffold/`                       | The starter vault, incl. `AI/ConstructionCrew/crew-preferences.md` and both instructions templates |
 | `config/generated/`                      | Home Office wiring written at startup                          |
 | `appsettings.json`                       | Vault root, port, notification command (git-ignored; first-run setup writes it) |
 | `appsettings.json.example`                | Reference only, showing the shape; not a file to copy          |
@@ -871,7 +871,7 @@ Inside your vault:
 | `Notes/<Jobsite>/Deliveries/<Feature>.md`        | What the finished job cost                    |
 | `Notes/<Jobsite>/Status.md`                      | Current state, linking the delivery notes     |
 | `Notes/GC/Sitreps/`                              | GC's own sitreps                              |
-| `AI/Context/crew-preferences.md`                 | How you like work done; ensured at every start |
+| `AI/ConstructionCrew/crew-preferences.md`        | How you like work done; ensured at every start |
 | `AI/graph/build/schema.ttl`, `data.ttl`          | The graph projection `build_graph` writes     |
 | `AI/ConstructionCrew/Templates/*.md`             | The GC/Foreman instructions templates. Boss-editable, seeded once, never overwritten |
 | `AI/ConstructionCrew/Instructions/GC.md`         | GC's instructions: generated, not shipped, self-heals at start |
@@ -893,6 +893,8 @@ Inside your vault:
 | `/hire`                            | Hire a Foreman: name, Jobsite (incl. branch, build and test commands, and the vault-folder default to accept or override), engine, briefing, then optional sitewalk. Refuses if no vault is configured. |
 | `/fire`                            | Let a Foreman go. Removes only that Foreman from this tool's config; the Jobsite is kept, and the repo and vault are never touched.                                |
 | `/foreman <Name>`                  | View a crew member's details and edit the safe fields, plus two actions: **re-render instructions** and **run sitewalk**. A bare `/foreman` gives a picker.         |
+| `/preferences [add]`               | Show `AI/ConstructionCrew/crew-preferences.md`, the tiebreaker every crew member reads. `/preferences add` appends one without hand-editing the file.              |
+| `/inbox`                           | Pick through messages Foremen sent while you were doing something else. Reading one never disturbs what is on screen in the chat. The footer badges unread ones.   |
 | `/drive <Foreman>`                 | Route your typing to that Foreman instead of GC, with a read-only git panel beside the chat.                                                                       |
 | `/settings`                        | Offer vault setup if none is configured, then re-scan for installed CLIs, re-stamp Home Office wiring, and show what is wired.                                     |
 | `/migrate`                         | Move any crew member's instructions file, and briefing sidecar, still in the old repo-side location into the Vault, and seed missing templates. Runs automatically at every start; this is an on-demand re-trigger. |
