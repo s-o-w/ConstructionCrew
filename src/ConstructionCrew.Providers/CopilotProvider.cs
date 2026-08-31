@@ -4,8 +4,8 @@ namespace ConstructionCrew.Providers;
 
 /// <summary>
 /// Drives the GitHub Copilot CLI non-interactively via `copilot -p`. Every flag here
-/// was read off real `copilot --help` output captured on this machine and committed
-/// verbatim at docs/provider-flags/copilot-help.txt. Nothing is recalled from memory.
+/// was read off real `copilot --help` output captured on this machine on 2026-08-30.
+/// Nothing is recalled from memory.
 ///
 /// Two things the help text states outright and this class relies on:
 /// `--allow-all-tools` is "required for non-interactive mode", and

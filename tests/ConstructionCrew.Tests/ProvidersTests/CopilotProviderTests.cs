@@ -4,8 +4,7 @@ using ConstructionCrew.Providers;
 namespace ConstructionCrew.Tests.ProvidersTests;
 
 /// <summary>
-/// Locks in the flag mapping captured from the real GitHub Copilot CLI on 2026-08-30
-/// (docs/provider-flags/copilot-help.txt).
+/// Locks in the flag mapping captured from the real GitHub Copilot CLI on 2026-08-30.
 /// </summary>
 public class CopilotProviderTests
 {

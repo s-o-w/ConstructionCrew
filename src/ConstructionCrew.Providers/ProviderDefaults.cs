@@ -6,7 +6,8 @@ namespace ConstructionCrew.Providers;
 /// The starting ProviderOptions a newly hired Foreman gets, per provider. These are
 /// NOT interchangeable: each CLI has its own permission vocabulary, so stamping Claude
 /// Code's "Bash,Edit,Read,Write" onto a Copilot Foreman would silently grant it
-/// nothing. Every value below comes from the captured help in docs/provider-flags/.
+/// nothing. Every value below comes from each CLI's own `--help` output, not
+/// guessed by analogy to another provider's.
 /// </summary>
 public static class ProviderDefaults
 {

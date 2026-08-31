@@ -28,9 +28,9 @@ public sealed class ClaudeCodeProvider : ICliToolProvider
     /// <summary>
     /// providerOptions key that emits `--permission-mode &lt;value&gt;`. Per-crew-member
     /// escape hatch only, set through `/foreman &lt;Name&gt;` -> provider options; there is
-    /// deliberately no global toggle for it. Real CLI choices (captured 2026-08-30,
-    /// see docs/provider-flags/claude-help.txt): acceptEdits, auto, bypassPermissions,
-    /// manual, dontAsk, plan. Composes with an allowlist rather than replacing one.
+    /// deliberately no global toggle for it. Real CLI choices, read off `claude --help`
+    /// on 2026-08-30: acceptEdits, auto, bypassPermissions, manual, dontAsk, plan.
+    /// Composes with an allowlist rather than replacing one.
     /// </summary>
     public const string PermissionModeOption = "permissionMode";
 

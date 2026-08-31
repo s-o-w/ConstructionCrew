@@ -5,8 +5,7 @@ namespace ConstructionCrew.Providers;
 /// <summary>
 /// Drives the OpenAI Codex CLI non-interactively via `codex exec`. Every flag here
 /// was read off real `codex --help` / `codex exec --help` / `codex exec resume --help`
-/// output captured on this machine, committed verbatim at
-/// docs/provider-flags/codex-help.txt. Nothing is recalled from memory.
+/// output captured on this machine on 2026-08-30. Nothing is recalled from memory.
 ///
 /// MCP wiring is the one non-obvious part: Codex has no `--mcp-config` file flag.
 /// Servers live in `$CODEX_HOME/config.toml` under `[mcp_servers.&lt;name&gt;]`, which was

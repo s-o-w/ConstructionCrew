@@ -23,8 +23,6 @@ public sealed record McpWiring(string ConfigPath, IReadOnlyDictionary<string, st
 /// - copilot: `--additional-mcp-config @&lt;file&gt;` with
 ///            {"mcpServers":{"&lt;name&gt;":{"type":"http","url":"..."}}} -- shape read out
 ///            of the CLI's own bundled validation schema, not guessed.
-///
-/// See docs/provider-flags/ for the committed evidence.
 /// </summary>
 public static class McpConfigWriter
 {

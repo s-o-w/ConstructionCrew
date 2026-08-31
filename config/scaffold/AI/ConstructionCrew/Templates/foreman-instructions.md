@@ -322,8 +322,9 @@ and test commands above both pass. One workorder produces exactly one PR.
    `gh pr edit --add-reviewer` does. Do not collapse this into a single
    `gh pr create --reviewer "@copilot"` call.
 
-   **That slug is researched, not proven.** `docs/gh-copilot-reviewer-verified.txt`
-   in the ConstructionCrew repo records exactly what was and was not verified.
+   **That slug is researched, not proven** -- it is what `gh pr edit --help`
+   documents, not a live success confirmed on every repo (Copilot code review
+   also has to be enabled for the repo/org, which this cannot check for you).
    So if this command fails: run it once, do not retry it in a loop, do not
    start debugging GitHub, and do not abandon or close the PR over it. Quote
    the error verbatim in your sitrep body and in your report, and carry on to

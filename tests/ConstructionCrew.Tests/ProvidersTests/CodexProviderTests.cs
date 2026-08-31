@@ -4,9 +4,8 @@ using ConstructionCrew.Providers;
 namespace ConstructionCrew.Tests.ProvidersTests;
 
 /// <summary>
-/// Locks in the flag mapping captured from the real codex CLI on 2026-08-30
-/// (docs/provider-flags/codex-help.txt). The full argv shape asserted here was also
-/// run end to end against the live binary.
+/// Locks in the flag mapping captured from the real codex CLI on 2026-08-30. The
+/// full argv shape asserted here was also run end to end against the live binary.
 /// </summary>
 public class CodexProviderTests
 {
