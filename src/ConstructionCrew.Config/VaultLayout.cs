@@ -134,4 +134,40 @@ public static class VaultLayout
 
     /// <summary>Where the scaffold templates live inside a ConstructionCrew clone.</summary>
     public static string ScaffoldSourceDirectory(string repoRoot) => Path.Combine(repoRoot, "config", "scaffold");
+
+    /// <summary>
+    /// The Boss's standing crew preferences, vault-relative. Both instructions
+    /// templates point the crew at this path unconditionally, so it has to exist on
+    /// every vault -- not just a scaffolded one. Kept in sync with
+    /// <see cref="InstructionsComposer.CrewPreferencesPath"/>.
+    /// </summary>
+    public const string CrewPreferencesRelativePath = "AI/Context/crew-preferences.md";
+
+    /// <summary>
+    /// Copies exactly one scaffold file into a vault when it is absent, for a file
+    /// both instructions templates reference unconditionally. Existing files are
+    /// never touched, matching Scaffold's own rule. Returns true when it wrote one.
+    /// </summary>
+    public static bool EnsureScaffoldFile(string scaffoldSourceDirectory, string vaultRoot, string relativePath)
+    {
+        // Path.Combine on a relative path holding '/' works on both platforms; the
+        // separators are normalized by the OS. Kept as one segment string so callers
+        // pass the same literal the templates use.
+        var source = Path.Combine(scaffoldSourceDirectory, relativePath.Replace('/', Path.DirectorySeparatorChar));
+        if (!File.Exists(source))
+        {
+            throw new FileNotFoundException(
+                $"Scaffold file not found at '{source}'. It ships in this repo under config/scaffold/.", source);
+        }
+
+        var destination = Path.Combine(vaultRoot, relativePath.Replace('/', Path.DirectorySeparatorChar));
+        if (File.Exists(destination))
+        {
+            return false;
+        }
+
+        Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+        File.Copy(source, destination);
+        return true;
+    }
 }

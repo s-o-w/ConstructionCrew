@@ -1,5 +1,6 @@
 using ConstructionCrew.App.Tui;
 using ConstructionCrew.Core.Models;
+using ConstructionCrew.Providers;
 
 namespace ConstructionCrew.Tests.AppTests;
 
@@ -105,35 +106,61 @@ public class ForemanDetailsCommandTests
     }
 
     [Fact]
-    public void ToolPolicyForSwitch_ForemanRole_UsesTheForemanPolicy()
+    public void ComposeProviderOptions_ForemanRole_UsesTheForemanPolicy()
     {
         // Codex has no per-tool allow-list -- sandbox is its analogue, and a
         // Foreman needs write access to do its job.
-        var policy = ForemanDetailsCommand.ToolPolicyForSwitch(CrewRole.Foreman, "codex");
+        var policy = ProviderDefaults.ComposeProviderOptions(CrewRole.Foreman, "codex", NoMcpWiring);
 
         Assert.Equal("workspace-write", policy["sandbox"]);
     }
 
     [Fact]
-    public void ToolPolicyForSwitch_GcRole_UsesTheGcPolicy()
+    public void ComposeProviderOptions_GcRole_UsesTheGcPolicy()
     {
         // GC also writes now (the workorder is step one of the work loop), so codex's
         // sandbox no longer tells the two roles apart -- GC's WorkingDirectory is the
         // Vault, which is what workspace-write scopes it to. Claude's allow-list is
         // where the roles still differ: GC dispatches and never runs shell commands.
-        Assert.Equal("workspace-write", ForemanDetailsCommand.ToolPolicyForSwitch(CrewRole.GC, "codex")["sandbox"]);
+        Assert.Equal(
+            "workspace-write",
+            ProviderDefaults.ComposeProviderOptions(CrewRole.GC, "codex", NoMcpWiring)["sandbox"]);
 
-        var allowed = ForemanDetailsCommand.ToolPolicyForSwitch(CrewRole.GC, "claude")["allowedTools"].Split(',');
+        var allowed = ProviderDefaults
+            .ComposeProviderOptions(CrewRole.GC, "claude", NoMcpWiring)["allowedTools"]
+            .Split(',');
 
         Assert.Contains("mcp__home_office__dispatch_task", allowed);
         Assert.DoesNotContain("Bash", allowed);
     }
 
     [Fact]
-    public void ToolPolicyForSwitch_ClaudeForeman_GrantsTheHomeOfficeToolsNotJustBashEditReadWrite()
+    public void ComposeProviderOptions_ClaudeForeman_GrantsTheHomeOfficeToolsNotJustBashEditReadWrite()
     {
-        var policy = ForemanDetailsCommand.ToolPolicyForSwitch(CrewRole.Foreman, "claude");
+        var policy = ProviderDefaults.ComposeProviderOptions(CrewRole.Foreman, "claude", NoMcpWiring);
 
         Assert.Contains("mcp__home_office__file_sitrep", policy["allowedTools"]);
     }
+
+    /// <summary>
+    /// A provider switch resets the tool policy but must NOT drop the Home Office
+    /// wiring Program.cs stamped: the switched-to Foreman still has to reach the MCP
+    /// server, or it works and never reports.
+    /// </summary>
+    [Fact]
+    public void ComposeProviderOptions_KeepsTheHomeOfficeWiringAcrossASwitch()
+    {
+        var wiring = new Dictionary<string, IReadOnlyDictionary<string, string>>
+        {
+            ["codex"] = new Dictionary<string, string> { ["mcpServerUrl"] = "http://localhost:5099/mcp" },
+        };
+
+        var policy = ProviderDefaults.ComposeProviderOptions(CrewRole.Foreman, "codex", wiring);
+
+        Assert.Equal("workspace-write", policy["sandbox"]);
+        Assert.Equal("http://localhost:5099/mcp", policy["mcpServerUrl"]);
+    }
+
+    private static readonly IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> NoMcpWiring =
+        new Dictionary<string, IReadOnlyDictionary<string, string>>();
 }

@@ -1,3 +1,4 @@
+using ConstructionCrew.Core.Models;
 using ConstructionCrew.Providers;
 
 namespace ConstructionCrew.Tests.ProvidersTests;
@@ -130,4 +131,60 @@ public class ProviderDefaultsTests
         var codex = new Dictionary<string, string>(ProviderDefaults.GcToolPolicy("codex"));
         Assert.Same(codex, ProviderDefaults.EnsureGcToolPolicy("codex", codex));
     }
+
+    /// <summary>
+    /// The whole point of the composer: the tool policy AND the Home Office wiring,
+    /// so a provider switch cannot silently drop what Program.cs stamped.
+    /// </summary>
+    [Fact]
+    public void ComposeProviderOptions_Foreman_CarriesToolPolicyAndMcpWiring()
+    {
+        var composed = ProviderDefaults.ComposeProviderOptions(
+            CrewRole.Foreman,
+            "claude",
+            McpWiring(("claude", new Dictionary<string, string> { ["mcpConfigPath"] = "/tmp/claude-mcp.json" })));
+
+        Assert.Equal("/tmp/claude-mcp.json", composed["mcpConfigPath"]);
+        Assert.Contains("Bash", composed["allowedTools"].Split(','));
+        Assert.Contains("mcp__home_office__file_sitrep", composed["allowedTools"].Split(','));
+    }
+
+    /// <summary>
+    /// Role decides which policy is the base. GC dispatches and authors; it never runs
+    /// shell commands, so Bash must not appear in its claude allow-list.
+    /// </summary>
+    [Fact]
+    public void ComposeProviderOptions_Gc_UsesGcPolicy()
+    {
+        var composed = ProviderDefaults.ComposeProviderOptions(
+            CrewRole.GC,
+            "claude",
+            McpWiring(("claude", new Dictionary<string, string> { ["mcpConfigPath"] = "/tmp/gc-mcp.json" })));
+
+        var allowed = composed["allowedTools"].Split(',');
+
+        Assert.DoesNotContain("Bash", allowed);
+        Assert.Contains("mcp__home_office__dispatch_task", allowed);
+        Assert.Equal("/tmp/gc-mcp.json", composed["mcpConfigPath"]);
+    }
+
+    /// <summary>
+    /// A provider the Home Office could not wire (not installed, no verified MCP shape)
+    /// still gets its own tool policy -- the overlay is the only part that is skipped.
+    /// </summary>
+    [Fact]
+    public void ComposeProviderOptions_UnwiredProvider_StillReturnsToolPolicy()
+    {
+        var composed = ProviderDefaults.ComposeProviderOptions(
+            CrewRole.Foreman,
+            "codex",
+            McpWiring(("claude", new Dictionary<string, string> { ["mcpConfigPath"] = "/tmp/claude-mcp.json" })));
+
+        Assert.Equal("workspace-write", composed["sandbox"]);
+        Assert.False(composed.ContainsKey("mcpConfigPath"));
+    }
+
+    private static IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> McpWiring(
+        params (string Provider, IReadOnlyDictionary<string, string> Options)[] entries) =>
+        entries.ToDictionary(e => e.Provider, e => e.Options);
 }

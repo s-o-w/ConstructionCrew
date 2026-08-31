@@ -136,15 +136,9 @@ public static class HireWizard
                 vaultRoot));
 
         // Tool policy is provider-specific -- Claude Code's "Bash,Edit,Read,Write" means
-        // nothing to Copilot, and Codex has no tool allowlist at all.
-        var providerOptions = new Dictionary<string, string>(ProviderDefaults.ToolPolicy(provider));
-        if (mcpOptionsByProvider.TryGetValue(provider, out var mcpOptions))
-        {
-            foreach (var option in mcpOptions)
-            {
-                providerOptions[option.Key] = option.Value;
-            }
-        }
+        // nothing to Copilot, and Codex has no tool allowlist at all. Same composer the
+        // provider switch in ForemanDetailsCommand uses, so the two cannot drift.
+        var providerOptions = ProviderDefaults.ComposeProviderOptions(CrewRole.Foreman, provider, mcpOptionsByProvider);
 
         var config = new ForemanConfig(
             name,

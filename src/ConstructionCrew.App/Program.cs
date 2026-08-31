@@ -60,6 +60,31 @@ if (!File.Exists(settings.ForemenConfigPath))
     settings = settings with { VaultRoot = resolvedVaultRoot };
 }
 
+// Both instructions templates tell every crew member to read the Boss's crew
+// preferences file, unconditionally. Scaffolding alone doesn't cover that: it only
+// runs when the Boss chose "scaffold a new Vault", and most Bosses point at an
+// existing one. So ensure the single file on every start, for whatever vault is
+// configured now (including one the first-run wizard just resolved).
+//
+// Never fatal. A read-only vault, a permissions problem, a vault on a disconnected
+// share -- none of that is a reason to refuse to start. The crew reading a missing
+// preferences file is a correct outcome; not starting is not.
+if (!string.IsNullOrWhiteSpace(settings.VaultRoot) && Directory.Exists(settings.VaultRoot))
+{
+    try
+    {
+        VaultLayout.EnsureScaffoldFile(
+            VaultLayout.ScaffoldSourceDirectory(repoRoot),
+            settings.VaultRoot,
+            VaultLayout.CrewPreferencesRelativePath);
+    }
+    catch (Exception ex)
+    {
+        AnsiConsole.MarkupLine(
+            $"[yellow]Could not create {VaultLayout.CrewPreferencesRelativePath} in the Vault:[/] {Markup.Escape(ex.Message)}");
+    }
+}
+
 IReadOnlyList<ForemanConfig> foremenSeed;
 try
 {
@@ -165,64 +190,74 @@ if (isDebug)
 // stamped with the wiring for the provider they actually run.
 var mcpOptionsByProvider = WriteMcpWiring(providerRegistry, settings.GeneratedConfigDirectory, homeOffice.BaseAddress);
 
-foreach (var foreman in foremanDirectory.All().ToList())
+// A local function, not a straight-line loop, because /settings re-probes and
+// reassigns mcpOptionsByProvider: without re-stamping, the roster keeps pointing at
+// the config paths written before the re-probe. The capture is by reference (C#
+// closes over the VARIABLE, not a snapshot of its value), so the /settings call
+// below reads the freshly assigned dictionary, not the startup one.
+void StampMcpWiring()
 {
-    var updated = foreman;
-
-    if (mcpOptionsByProvider.TryGetValue(foreman.Provider, out var mcpOptions))
+    foreach (var foreman in foremanDirectory.All().ToList())
     {
-        var merged = new Dictionary<string, string>(foreman.ProviderOptions);
-        foreach (var option in mcpOptions)
+        var updated = foreman;
+
+        if (mcpOptionsByProvider.TryGetValue(foreman.Provider, out var mcpOptions))
         {
-            merged[option.Key] = option.Value;
+            var merged = new Dictionary<string, string>(foreman.ProviderOptions);
+            foreach (var option in mcpOptions)
+            {
+                merged[option.Key] = option.Value;
+            }
+
+            updated = updated with { ProviderOptions = merged };
+        }
+        else if (foreman.Role != CrewRole.GC)
+        {
+            continue;
         }
 
-        updated = updated with { ProviderOptions = merged };
-    }
-    else if (foreman.Role != CrewRole.GC)
-    {
-        continue;
-    }
-
-    // GC only: a roster that already exists (hand-written, or copied from an older
-    // foremen.yaml.example) never picks up a ProviderDefaults change, because
-    // GcToolPolicy is consulted at first-run hire and nowhere else. That is the
-    // actual cause of "GC stopped to ask for interactive approval on a Home Office
-    // tool": under `claude -p` a tool outside --allowedTools is auto-denied. Repair
-    // it here, and persist the repair so the next start is already correct.
-    if (foreman.Role == CrewRole.GC)
-    {
-        var repairs = new List<string>();
-
-        var policed = ProviderDefaults.EnsureGcToolPolicy(foreman.Provider, updated.ProviderOptions);
-        if (!ReferenceEquals(policed, updated.ProviderOptions))
+        // GC only: a roster that already exists (hand-written, or copied from an older
+        // foremen.yaml.example) never picks up a ProviderDefaults change, because
+        // GcToolPolicy is consulted at first-run hire and nowhere else. That is the
+        // actual cause of "GC stopped to ask for interactive approval on a Home Office
+        // tool": under `claude -p` a tool outside --allowedTools is auto-denied. Repair
+        // it here, and persist the repair so the next start is already correct.
+        if (foreman.Role == CrewRole.GC)
         {
-            updated = updated with { ProviderOptions = new Dictionary<string, string>(policed) };
-            repairs.Add("tool policy");
+            var repairs = new List<string>();
+
+            var policed = ProviderDefaults.EnsureGcToolPolicy(foreman.Provider, updated.ProviderOptions);
+            if (!ReferenceEquals(policed, updated.ProviderOptions))
+            {
+                updated = updated with { ProviderOptions = new Dictionary<string, string>(policed) };
+                repairs.Add("tool policy");
+            }
+
+            if (updated.VaultFolders is null or { Count: 0 })
+            {
+                updated = updated with { VaultFolders = FirstRunWizard.GcVaultFolders };
+                repairs.Add("vault write scope");
+            }
+
+            if (repairs.Count > 0)
+            {
+                ForemanConfigWriter.RemoveForeman(settings.ForemenConfigPath, foreman.Name);
+                ForemanConfigWriter.AppendForeman(settings.ForemenConfigPath, updated, repoRoot, settings.VaultRoot);
+
+                AnsiConsole.MarkupLine(
+                    $"[grey]Repaired {Markup.Escape(foreman.Name)}'s config in " +
+                    $"{Markup.Escape(settings.ForemenConfigPath)}: {Markup.Escape(string.Join(", ", repairs))}.[/]");
+            }
         }
 
-        if (updated.VaultFolders is null or { Count: 0 })
+        if (!ReferenceEquals(updated, foreman))
         {
-            updated = updated with { VaultFolders = FirstRunWizard.GcVaultFolders };
-            repairs.Add("vault write scope");
+            foremanDirectory.Add(updated);
         }
-
-        if (repairs.Count > 0)
-        {
-            ForemanConfigWriter.RemoveForeman(settings.ForemenConfigPath, foreman.Name);
-            ForemanConfigWriter.AppendForeman(settings.ForemenConfigPath, updated, repoRoot, settings.VaultRoot);
-
-            AnsiConsole.MarkupLine(
-                $"[grey]Repaired {Markup.Escape(foreman.Name)}'s config in " +
-                $"{Markup.Escape(settings.ForemenConfigPath)}: {Markup.Escape(string.Join(", ", repairs))}.[/]");
-        }
-    }
-
-    if (!ReferenceEquals(updated, foreman))
-    {
-        foremanDirectory.Add(updated);
     }
 }
+
+StampMcpWiring();
 
 gcConfig = foremanDirectory.Find(settings.GcForemanName)!;
 
@@ -460,6 +495,11 @@ async Task<bool> HandleBossLine(string input)
         availableProviderIds = providerRegistry.AvailableIds();
         mcpOptionsByProvider = WriteMcpWiring(providerRegistry, settings.GeneratedConfigDirectory, homeOffice.BaseAddress);
 
+        // The re-probe just rewrote the MCP configs (and may have wired a provider that
+        // was not installed at startup), so the roster's stamped paths are stale until
+        // this runs. It re-heals GC's tool policy on the way past, same as at startup.
+        StampMcpWiring();
+
         var table = new Table().Border(TableBorder.Rounded);
         table.AddColumn("provider");
         table.AddColumn("status");
@@ -494,7 +534,7 @@ async Task<bool> HandleBossLine(string input)
         AnsiConsole.Clear();
         ForemanDetailsCommand.Run(
             foremanDirectory, jobsiteDirectory, jobRegistry, settings.ForemenConfigPath, settings.JobsitesConfigPath,
-            repoRoot, settings.VaultRoot, availableProviderIds, foremanDetailsTarget);
+            repoRoot, settings.VaultRoot, availableProviderIds, mcpOptionsByProvider, foremanDetailsTarget);
         state.View = TuiView.Chat;
         return true;
     }

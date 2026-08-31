@@ -1,3 +1,5 @@
+using ConstructionCrew.Core.Models;
+
 namespace ConstructionCrew.Providers;
 
 /// <summary>
@@ -117,6 +119,33 @@ public static class ProviderDefaults
 
             _ => new Dictionary<string, string>(),
         };
+
+    /// <summary>
+    /// A crew member's full ProviderOptions for <paramref name="provider"/>: that
+    /// CLI's own tool policy, plus the Home Office wiring for it. Tool policies are
+    /// NOT portable across CLIs (see ToolPolicy's own comment), so a provider switch
+    /// resets the policy -- but the wiring has to be re-applied, not dropped.
+    /// Any hand-tuning done via "provider options" is lost on a provider switch,
+    /// same as it would be re-hiring under the new provider.
+    /// </summary>
+    public static IReadOnlyDictionary<string, string> ComposeProviderOptions(
+        CrewRole role,
+        string provider,
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> mcpOptionsByProvider)
+    {
+        var composed = new Dictionary<string, string>(
+            role == CrewRole.GC ? GcToolPolicy(provider) : ToolPolicy(provider));
+
+        if (mcpOptionsByProvider.TryGetValue(provider, out var mcpOptions))
+        {
+            foreach (var option in mcpOptions)
+            {
+                composed[option.Key] = option.Value;
+            }
+        }
+
+        return composed;
+    }
 
     /// <summary>
     /// The GC options a roster MUST end up with, merged over whatever foremen.yaml

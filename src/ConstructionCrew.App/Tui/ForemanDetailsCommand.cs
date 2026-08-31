@@ -87,6 +87,7 @@ public static class ForemanDetailsCommand
         string repoRoot,
         string? vaultRoot,
         IReadOnlyList<string> availableProviderIds,
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> mcpOptionsByProvider,
         string argument)
     {
         var foreman = ResolveTarget(foremen, argument);
@@ -149,7 +150,7 @@ public static class ForemanDetailsCommand
             }
             else
             {
-                var updated = EditForemanField(foreman, choice, foremen, jobsites, availableProviderIds);
+                var updated = EditForemanField(foreman, choice, foremen, jobsites, availableProviderIds, mcpOptionsByProvider);
                 ForemanConfigWriter.RemoveForeman(foremenConfigPath, foreman.Name);
                 ForemanConfigWriter.AppendForeman(foremenConfigPath, updated, repoRoot, vaultRoot);
                 foremen.Add(updated);
@@ -237,7 +238,8 @@ public static class ForemanDetailsCommand
         string field,
         ForemanDirectory foremen,
         JobsiteDirectory jobsites,
-        IReadOnlyList<string> availableProviderIds)
+        IReadOnlyList<string> availableProviderIds,
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> mcpOptionsByProvider)
     {
         switch (field)
         {
@@ -258,7 +260,11 @@ public static class ForemanDetailsCommand
                 var provider = AnsiConsole.Prompt(
                     new SelectionPrompt<string>().Title("[bold]Provider[/]").AddChoices(availableProviderIds));
 
-                return foreman with { Provider = provider, ProviderOptions = ToolPolicyForSwitch(foreman.Role, provider) };
+                return foreman with
+                {
+                    Provider = provider,
+                    ProviderOptions = ProviderDefaults.ComposeProviderOptions(foreman.Role, provider, mcpOptionsByProvider),
+                };
 
             case "jobsite":
                 return ReassignJobsite(foreman, foremen, jobsites);
@@ -362,18 +368,6 @@ public static class ForemanDetailsCommand
         AnsiConsole.Markup("[grey]Press enter to continue...[/]");
         Console.ReadLine();
     }
-
-    /// <summary>
-    /// Each CLI has its own permission vocabulary (ProviderDefaults' own doc
-    /// comment) -- carrying the old provider's ProviderOptions over on a switch
-    /// would silently grant the new one nothing (Claude's allowedTools means
-    /// nothing to Codex's sandbox policy, and vice versa). Reset to the new
-    /// provider's own working default instead of leaving stale keys behind; any
-    /// hand-tuning done via "provider options" is lost on a provider switch,
-    /// same as it would be re-hiring under the new provider.
-    /// </summary>
-    internal static IReadOnlyDictionary<string, string> ToolPolicyForSwitch(CrewRole role, string provider) =>
-        role == CrewRole.GC ? ProviderDefaults.GcToolPolicy(provider) : ProviderDefaults.ToolPolicy(provider);
 
     /// <summary>
     /// One Foreman per Jobsite, by design (JobsiteConfig's own doc comment). A

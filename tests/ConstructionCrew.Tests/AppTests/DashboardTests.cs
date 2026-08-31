@@ -71,6 +71,25 @@ public class DashboardTests
         Assert.NotEqual(working, parked);
     }
 
+    /// <summary>
+    /// /foreman was reachable only from /help, so the footer is where it gets
+    /// discovered. The driving footer stays the reminder it was -- it is not a
+    /// command list.
+    /// </summary>
+    [Fact]
+    public void Footer_ListsForeman()
+    {
+        var footer = Dashboard.FooterFor(null);
+
+        Assert.Contains("/foreman <Name>", footer);
+        Assert.Contains("/drive <Name>", footer);
+        Assert.DoesNotContain("<Foreman>", footer);
+
+        var driving = Dashboard.FooterFor("Frontend");
+        Assert.Contains("Frontend", driving);
+        Assert.DoesNotContain("/foreman", driving);
+    }
+
     /// <summary>A job that is genuinely running still wins over a stale parked flag.</summary>
     [Fact]
     public void StatusBadge_BusyWinsOverParked()

@@ -64,14 +64,26 @@ public static class Dashboard
         // Boss prompt gets positioned next, so nothing after this ever needs an
         // extra line (i.e. never scrolls the pinned header out of view).
         root["footer"].Update(new Rows(
-            new Markup(state.DrivenForeman is null
-                ? "[grey]/tasks /hire /fire /chat /drive <Foreman> /settings /help /exit[/]"
-                : $"[grey]driving [/][yellow]{Markup.Escape(state.DrivenForeman)}[/][grey] -- /exit returns to GC[/]"),
+            new Markup(FooterFor(state.DrivenForeman)),
             Text.Empty));
 
         AnsiConsole.Write(root);
         PositionCursorOnPromptRow();
     }
+
+    /// <summary>
+    /// The one-line command hint under the board. Two states: the GC-level command
+    /// list, and the reminder shown while the Boss is driving a Foreman directly.
+    /// Named rather than inlined so a test can assert the command list without
+    /// scraping a rendered layout.
+    ///
+    /// The placeholders are both &lt;Name&gt;, not &lt;Foreman&gt;: the line has to
+    /// survive a narrow console, and /foreman had to be added to it.
+    /// </summary>
+    internal static string FooterFor(string? drivenForeman) =>
+        drivenForeman is null
+            ? "[grey]/tasks /hire /fire /foreman <Name> /chat /drive <Name> /settings /help /exit[/]"
+            : $"[grey]driving [/][yellow]{Markup.Escape(drivenForeman)}[/][grey] -- /exit returns to GC[/]";
 
     private static void PositionCursorOnPromptRow()
     {

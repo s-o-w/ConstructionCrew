@@ -160,6 +160,92 @@ public class VaultLayoutTests
         }
     }
 
+    /// <summary>
+    /// The crew-preferences file both instructions templates reference has to land
+    /// on a vault that never went through the scaffold wizard.
+    /// </summary>
+    [Fact]
+    public void EnsureScaffoldFile_MissingFile_WritesIt()
+    {
+        var repoRoot = FindRepoRoot();
+        var root = NewTempDir();
+        try
+        {
+            var wrote = VaultLayout.EnsureScaffoldFile(
+                VaultLayout.ScaffoldSourceDirectory(repoRoot), root, VaultLayout.CrewPreferencesRelativePath);
+
+            Assert.True(wrote);
+
+            var destination = Path.Combine(root, "AI", "Context", "crew-preferences.md");
+            Assert.True(File.Exists(destination));
+
+            var source = Path.Combine(
+                VaultLayout.ScaffoldSourceDirectory(repoRoot), "AI", "Context", "crew-preferences.md");
+            Assert.Equal(File.ReadAllText(source), File.ReadAllText(destination));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// This runs on every start, so the Boss's own edits have to survive it. An
+    /// existing file is left byte for byte alone and the call reports it wrote nothing.
+    /// </summary>
+    [Fact]
+    public void EnsureScaffoldFile_ExistingFile_LeavesContentAlone()
+    {
+        var repoRoot = FindRepoRoot();
+        var root = NewTempDir();
+        try
+        {
+            var destination = Path.Combine(root, "AI", "Context", "crew-preferences.md");
+            Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+            File.WriteAllText(destination, "MY OWN PREFERENCES");
+
+            var wrote = VaultLayout.EnsureScaffoldFile(
+                VaultLayout.ScaffoldSourceDirectory(repoRoot), root, VaultLayout.CrewPreferencesRelativePath);
+
+            Assert.False(wrote);
+            Assert.Equal("MY OWN PREFERENCES", File.ReadAllText(destination));
+
+            // And still alone on a second pass -- the every-start case.
+            Assert.False(VaultLayout.EnsureScaffoldFile(
+                VaultLayout.ScaffoldSourceDirectory(repoRoot), root, VaultLayout.CrewPreferencesRelativePath));
+            Assert.Equal("MY OWN PREFERENCES", File.ReadAllText(destination));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// A vault with no AI/Context/ at all is the common case, so the copy has to
+    /// build the directories on the way down rather than throwing.
+    /// </summary>
+    [Fact]
+    public void EnsureScaffoldFile_CreatesIntermediateDirectories()
+    {
+        var repoRoot = FindRepoRoot();
+        var root = NewTempDir();
+        try
+        {
+            Assert.False(Directory.Exists(Path.Combine(root, "AI")));
+
+            var wrote = VaultLayout.EnsureScaffoldFile(
+                VaultLayout.ScaffoldSourceDirectory(repoRoot), root, VaultLayout.CrewPreferencesRelativePath);
+
+            Assert.True(wrote);
+            Assert.True(Directory.Exists(Path.Combine(root, "AI", "Context")));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     private static string NewTempDir()
     {
         var path = Path.Combine(Path.GetTempPath(), "ccrew-vault-test-" + Guid.NewGuid().ToString("n")[..8]);
