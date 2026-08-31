@@ -484,8 +484,6 @@ $RECYCLE.BIN/
 # ConstructionCrew runtime state and generated files
 /state/
 /config/generated/
-/sandbox/*
-!/sandbox/.gitkeep
 
 # Personal Foreman/Jobsite config: real local repo paths and hired-Foreman
 # rosters. Never commit these; copy the .example files to get started (see

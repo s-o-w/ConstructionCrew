@@ -77,7 +77,6 @@ config/generated/              # MCP config ConstructionCrew writes at startup (
 appsettings.json.example       # Reference only: shows the shape; first-run setup writes the real file
 appsettings.json               # Home Office port, Vault root, notification command (git-ignored)
 docs/USER-GUIDE.md             # Full first-time walkthrough
-sandbox/                       # Scratch working directory (git-ignored)
 state/                         # Runtime state: jobs.jsonl, tools.json, worktrees/ (git-ignored)
 src/ConstructionCrew.Core/         # Domain models + interfaces, no external deps
 src/ConstructionCrew.Providers/    # One class per CLI tool (CliWrap-based) + PATH discovery
