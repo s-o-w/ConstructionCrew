@@ -42,7 +42,10 @@ public sealed class LocalCliAgent : ILocalCliAgent
             WorkingDirectory: _config.WorkingDirectory,
             ProviderOptions: _config.ProviderOptions,
             ContinuePreviousConversation: _hasSentFirstMessage,
-            AddDirs: _config.AddDirs);
+            AddDirs: _config.AddDirs,
+            // Only ever set after a turn has reported one, so the very first
+            // turn asks to resume nothing and genuinely starts fresh.
+            ResumeSessionId: SessionId);
 
         var invocation = _provider.BuildInvocation(request);
         var result = await _runner.RunAsync(invocation, cancellationToken);

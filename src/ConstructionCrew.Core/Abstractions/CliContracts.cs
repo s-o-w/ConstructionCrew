@@ -2,15 +2,26 @@ namespace ConstructionCrew.Core.Abstractions;
 
 /// <summary>
 /// One turn to a CLI-backed agent: the prompt, where it runs, its
-/// provider-specific options, and whether it continues a prior conversation in
-/// the same working directory (used by GC's ongoing chat with the Boss).
+/// provider-specific options, and how it rejoins a prior conversation (used by
+/// GC's ongoing chat with the Boss).
 /// </summary>
+/// <param name="ContinuePreviousConversation">
+/// "Rejoin whatever ran here last." A directory-scoped guess, and the weaker of
+/// the two: only correct while nothing else runs the same CLI in the same
+/// working directory.
+/// </param>
+/// <param name="ResumeSessionId">
+/// The exact conversation to rejoin. Preferred over
+/// <paramref name="ContinuePreviousConversation"/> whenever it is known,
+/// because it names one session instead of describing a place.
+/// </param>
 public sealed record CliTaskRequest(
     string Prompt,
     string WorkingDirectory,
     IReadOnlyDictionary<string, string> ProviderOptions,
     bool ContinuePreviousConversation = false,
-    IReadOnlyList<string>? AddDirs = null);
+    IReadOnlyList<string>? AddDirs = null,
+    string? ResumeSessionId = null);
 
 /// <summary>
 /// A provider's answer to "how do I run this": an executable plus argv.

@@ -43,8 +43,26 @@ public sealed class ClaudeCodeProvider : ICliToolProvider
     {
         var args = new List<string> { "-p" };
 
-        if (request.ContinuePreviousConversation)
+        // --resume names one exact conversation; --continue only describes a
+        // place ("the most recent one in this directory"), which stops being
+        // this Foreman's conversation the moment anything else runs `claude`
+        // there. Prefer the id whenever one is known.
+        //
+        // `-r, --resume [value]  Resume a conversation by session ID` and
+        // `-c, --continue  Continue the most recent conversation in ...`, both
+        // read off real `claude --help` output on 2026-08-31.
+        if (!string.IsNullOrWhiteSpace(request.ResumeSessionId))
         {
+            args.Add("--resume");
+            args.Add(request.ResumeSessionId!);
+        }
+        else if (request.ContinuePreviousConversation)
+        {
+            // The gap case: not the first turn, but no id was ever reported
+            // (an older roster, or a turn whose envelope did not parse). Kept
+            // as the honest fallback rather than silently dropped -- a
+            // directory-scoped guess still beats starting a fresh session and
+            // losing the whole conversation.
             args.Add("--continue");
         }
 

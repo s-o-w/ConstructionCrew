@@ -159,6 +159,48 @@ public class LocalCliAgentTests
         Assert.Null(agent.SessionId);
     }
 
+    /// <summary>
+    /// Once an id is known, every later turn carries it: the provider then asks
+    /// to resume that exact conversation rather than whatever ran in the
+    /// directory last. The first turn carries none, so it starts genuinely fresh.
+    /// </summary>
+    [Fact]
+    public async Task SendAsync_OnceASessionIdIsKnown_EveryLaterTurnCarriesIt()
+    {
+        var provider = new FakeCliToolProvider
+        {
+            NextUsage = new CliUsage(null, null, null, null, "abc-123"),
+        };
+        var agent = NewAgent(provider);
+
+        await agent.SendAsync("first", CancellationToken.None);
+        await agent.SendAsync("second", CancellationToken.None);
+
+        Assert.Null(provider.Requests[0].ResumeSessionId);
+        Assert.False(provider.Requests[0].ContinuePreviousConversation);
+
+        Assert.Equal("abc-123", provider.Requests[1].ResumeSessionId);
+        Assert.True(provider.Requests[1].ContinuePreviousConversation);
+    }
+
+    /// <summary>
+    /// A provider that never reports an id still gets the continuation flag, so
+    /// the conversation survives on the weaker directory-scoped guess rather
+    /// than restarting every turn.
+    /// </summary>
+    [Fact]
+    public async Task SendAsync_ProviderWithNoSessionId_StillAsksToContinue()
+    {
+        var provider = new FakeCliToolProvider();
+        var agent = NewAgent(provider);
+
+        await agent.SendAsync("first", CancellationToken.None);
+        await agent.SendAsync("second", CancellationToken.None);
+
+        Assert.Null(provider.Requests[1].ResumeSessionId);
+        Assert.True(provider.Requests[1].ContinuePreviousConversation);
+    }
+
     private static LocalCliAgent NewAgent(FakeCliToolProvider provider) =>
         new(
             new ForemanConfig(

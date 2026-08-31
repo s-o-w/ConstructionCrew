@@ -202,6 +202,61 @@ public class ClaudeCodeProviderTests
         Assert.Equal("6f0d1e0e-1b7a-4c33-9a24-2f2c1f5f1a10", processed.Usage!.SessionId);
     }
 
+    /// <summary>
+    /// --resume names one exact conversation. --continue only describes a place,
+    /// and stops meaning this Foreman's conversation the moment anything else
+    /// runs `claude` in the same directory. Both flags read off real
+    /// `claude --help` output on 2026-08-31.
+    /// </summary>
+    [Fact]
+    public void BuildInvocation_WithASessionId_ResumesThatExactConversation()
+    {
+        var provider = new ClaudeCodeProvider();
+        var request = new CliTaskRequest(
+            "hello", "/work", new Dictionary<string, string>(),
+            ContinuePreviousConversation: true,
+            ResumeSessionId: "6f0d1e0e-1b7a-4c33-9a24-2f2c1f5f1a10");
+
+        var args = provider.BuildInvocation(request).Arguments.ToList();
+
+        var flagIndex = args.IndexOf("--resume");
+        Assert.True(flagIndex >= 0, "Expected --resume when a session id is known.");
+        Assert.Equal("6f0d1e0e-1b7a-4c33-9a24-2f2c1f5f1a10", args[flagIndex + 1]);
+        Assert.DoesNotContain("--continue", args);
+    }
+
+    /// <summary>A Foreman's very first turn has no conversation to rejoin, so it asks to rejoin neither.</summary>
+    [Fact]
+    public void BuildInvocation_FirstTurn_ResumesNothingAtAll()
+    {
+        var provider = new ClaudeCodeProvider();
+        var request = new CliTaskRequest("hello", "/work", new Dictionary<string, string>());
+
+        var args = provider.BuildInvocation(request).Arguments;
+
+        Assert.DoesNotContain("--resume", args);
+        Assert.DoesNotContain("--continue", args);
+    }
+
+    /// <summary>
+    /// The gap case: not a first turn, but no id was ever reported (a roster
+    /// older than session accounting, or a turn whose envelope did not parse).
+    /// --continue is kept as the honest fallback -- a directory-scoped guess
+    /// still beats starting fresh and losing the conversation outright.
+    /// </summary>
+    [Fact]
+    public void BuildInvocation_ContinuingWithNoSessionId_StillFallsBackToContinue()
+    {
+        var provider = new ClaudeCodeProvider();
+        var request = new CliTaskRequest(
+            "hello", "/work", new Dictionary<string, string>(), ContinuePreviousConversation: true);
+
+        var args = provider.BuildInvocation(request).Arguments;
+
+        Assert.Contains("--continue", args);
+        Assert.DoesNotContain("--resume", args);
+    }
+
     /// <summary>An envelope with no session_id is not an error: accounting still lands, the id just stays unavailable.</summary>
     [Fact]
     public void PostProcess_EnvelopeWithoutASessionId_LeavesItNull()
