@@ -1,0 +1,11 @@
+{
+  "HomeOffice": {
+    "Port": 5199
+  },
+  "Vault": {
+    "Root": "/path/to/your/vault"
+  },
+  "Notifications": {
+    "Command": "notify-send 'ConstructionCrew' '{event} {foreman} {jobId}'"
+  }
+}

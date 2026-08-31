@@ -852,7 +852,8 @@ Inside the ConstructionCrew repo:
 | `config/jobsites.yaml`                   | Your Jobsites                                                  |
 | `config/scaffold/`                       | The starter vault, incl. `AI/Context/crew-preferences.md` and both instructions templates |
 | `config/generated/`                      | Home Office wiring written at startup                          |
-| `appsettings.json`                       | Vault root, port, notification command                         |
+| `appsettings.json`                       | Vault root, port, notification command (git-ignored; first-run setup writes it) |
+| `appsettings.json.example`                | Reference only, showing the shape; not a file to copy          |
 | `state/jobs.jsonl`                       | Every job transition, append-only                              |
 | `state/tools.json`                       | Cached CLI discovery (`/settings` refreshes it)                |
 | `state/worktrees/`                       | Worker worktrees, per jobsite                                  |

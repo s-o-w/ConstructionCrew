@@ -55,7 +55,7 @@ On a fresh clone (no `config/foremen.yaml`), the app runs guided first-run setup
 
 A Vault is "recognized" when `HOME.md`, `CLAUDE.md`, `Notes/`, `Plans/` and `AI/` are all present. An unrecognized directory is still usable; the app just asks for the write scope instead of deriving it, and says which markers were missing.
 
-(`foremen.yaml`/`jobsites.yaml` are git-ignored, personal to whoever runs the tool. `jobsites.yaml` needs no setup; it is created the first time a Jobsite is added.)
+(`foremen.yaml`/`jobsites.yaml`/`appsettings.json` are git-ignored, personal to whoever runs the tool. `jobsites.yaml` needs no setup; it is created the first time a Jobsite is added. `appsettings.json.example` shows the shape for reference; first-run setup writes the real file, so there is no need to copy it.)
 
 You land at a prompt talking to the GC. Type `/help` for commands, `/exit` to quit. Anything not starting with `/` is sent to GC (or to the Foreman being driven) as a message and runs in the background, so typing never blocks on an agent turn.
 
@@ -74,7 +74,8 @@ config/foremen.yaml            # Hired Foremen + the GC (git-ignored)
 config/jobsites.yaml           # Jobsites (git-ignored)
 config/scaffold/               # Starter vault: both instructions templates, crew-preferences, graph ontology
 config/generated/              # MCP config ConstructionCrew writes at startup (git-ignored)
-appsettings.json               # Home Office port, Vault root, notification command
+appsettings.json.example       # Reference only: shows the shape; first-run setup writes the real file
+appsettings.json               # Home Office port, Vault root, notification command (git-ignored)
 docs/USER-GUIDE.md             # Full first-time walkthrough
 sandbox/                       # Scratch working directory (git-ignored)
 state/                         # Runtime state: jobs.jsonl, tools.json, worktrees/ (git-ignored)
