@@ -204,6 +204,53 @@ public class InstructionsMigrationTests
         }
     }
 
+    [Fact]
+    public void MigrateToVault_LegacyCrewPreferences_MovesToConstructionCrewFolder()
+    {
+        var root = NewTempDir();
+        try
+        {
+            var vaultRoot = Path.Combine(root, "vault");
+            var legacyDir = Path.Combine(vaultRoot, "AI", "Context");
+            Directory.CreateDirectory(legacyDir);
+            var legacyPath = Path.Combine(legacyDir, "crew-preferences.md");
+            File.WriteAllText(legacyPath, "# Crew preferences\n\nPrefer codex for review.");
+
+            var foremenYamlPath = Path.Combine(root, "foremen.yaml");
+
+            InstructionsMigration.MigrateToVault(RepoRoot, vaultRoot, foremenYamlPath, []);
+
+            Assert.False(File.Exists(legacyPath));
+            var newPath = Path.Combine(vaultRoot, "AI", "ConstructionCrew", "crew-preferences.md");
+            Assert.True(File.Exists(newPath));
+            Assert.Equal("# Crew preferences\n\nPrefer codex for review.", File.ReadAllText(newPath));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void MigrateToVault_NoLegacyCrewPreferences_DoesNothing()
+    {
+        var root = NewTempDir();
+        try
+        {
+            var vaultRoot = Path.Combine(root, "vault");
+            Directory.CreateDirectory(vaultRoot);
+            var foremenYamlPath = Path.Combine(root, "foremen.yaml");
+
+            InstructionsMigration.MigrateToVault(RepoRoot, vaultRoot, foremenYamlPath, []);
+
+            Assert.False(File.Exists(Path.Combine(vaultRoot, "AI", "ConstructionCrew", "crew-preferences.md")));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     private static string NewTempDir()
     {
         var path = Path.Combine(Path.GetTempPath(), "ccrew-migration-test-" + Guid.NewGuid().ToString("n")[..8]);

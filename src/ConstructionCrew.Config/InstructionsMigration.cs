@@ -41,6 +41,12 @@ public static class InstructionsMigration
             }
         }
 
+        // Crew preferences moved from AI/Context/ to AI/ConstructionCrew/ --
+        // a vault seeded before that move has the file at the old path.
+        TryMigrateLegacyFile(
+            Path.Combine(vaultRoot, "AI", "Context", "crew-preferences.md"),
+            Path.Combine(vaultRoot, VaultLayout.CrewPreferencesRelativePath.Replace('/', Path.DirectorySeparatorChar)));
+
         var instructionsDir = Path.Combine(vaultRoot, "AI", "ConstructionCrew", "Instructions");
         var migrated = new List<string>();
         var updatedForemen = new List<ForemanConfig>(foremen.Count);

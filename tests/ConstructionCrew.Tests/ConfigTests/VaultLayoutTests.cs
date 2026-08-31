@@ -165,11 +165,11 @@ public class VaultLayoutTests
 
             Assert.True(wrote);
 
-            var destination = Path.Combine(root, "AI", "Context", "crew-preferences.md");
+            var destination = Path.Combine(root, "AI", "ConstructionCrew", "crew-preferences.md");
             Assert.True(File.Exists(destination));
 
             var source = Path.Combine(
-                VaultLayout.ScaffoldSourceDirectory(repoRoot), "AI", "Context", "crew-preferences.md");
+                VaultLayout.ScaffoldSourceDirectory(repoRoot), "AI", "ConstructionCrew", "crew-preferences.md");
             Assert.Equal(File.ReadAllText(source), File.ReadAllText(destination));
         }
         finally
@@ -189,7 +189,7 @@ public class VaultLayoutTests
         var root = NewTempDir();
         try
         {
-            var destination = Path.Combine(root, "AI", "Context", "crew-preferences.md");
+            var destination = Path.Combine(root, "AI", "ConstructionCrew", "crew-preferences.md");
             Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
             File.WriteAllText(destination, "MY OWN PREFERENCES");
 
@@ -211,7 +211,7 @@ public class VaultLayoutTests
     }
 
     /// <summary>
-    /// A vault with no AI/Context/ at all is the common case, so the copy has to
+    /// A vault with no AI/ConstructionCrew/ at all is the common case, so the copy has to
     /// build the directories on the way down rather than throwing.
     /// </summary>
     [Fact]
@@ -227,7 +227,7 @@ public class VaultLayoutTests
                 VaultLayout.ScaffoldSourceDirectory(repoRoot), root, VaultLayout.CrewPreferencesRelativePath);
 
             Assert.True(wrote);
-            Assert.True(Directory.Exists(Path.Combine(root, "AI", "Context")));
+            Assert.True(Directory.Exists(Path.Combine(root, "AI", "ConstructionCrew")));
         }
         finally
         {

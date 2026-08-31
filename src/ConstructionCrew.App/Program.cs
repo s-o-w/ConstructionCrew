@@ -483,7 +483,7 @@ async Task<bool> HandleBossLine(string input)
 
     if (command.Equals("/help", StringComparison.OrdinalIgnoreCase))
     {
-        AnsiConsole.MarkupLine("[grey]/chat  /tasks  /monitor  /memory  /hire  /fire  /foreman <Name>  /view <path>  /drive <Foreman>  /settings  /migrate  /exit (bare \"quit\" or \"exit\" also work) -- anything else is sent to the GC (or the driven Foreman) as a message.[/]");
+        AnsiConsole.MarkupLine("[grey]/chat  /tasks  /monitor  /memory  /hire  /fire  /foreman <Name>  /view <path>  /preferences [add]  /drive <Foreman>  /settings  /migrate  /exit (bare \"quit\" or \"exit\" also work) -- anything else is sent to the GC (or the driven Foreman) as a message.[/]");
         AnsiConsole.Markup("[grey]Press enter to continue...[/]");
         Console.ReadLine();
         return true;
@@ -614,6 +614,16 @@ async Task<bool> HandleBossLine(string input)
     {
         AnsiConsole.Clear();
         ViewCommand.Run(viewTarget, settings.VaultRoot, repoRoot);
+        state.View = TuiView.Chat;
+        return true;
+    }
+
+    if (command.Equals("/preferences", StringComparison.OrdinalIgnoreCase) ||
+        command.StartsWith("/preferences ", StringComparison.OrdinalIgnoreCase))
+    {
+        var preferencesArgument = command.Length > "/preferences".Length ? command["/preferences".Length..].Trim() : null;
+        AnsiConsole.Clear();
+        PreferencesCommand.Run(preferencesArgument, settings.VaultRoot, repoRoot);
         state.View = TuiView.Chat;
         return true;
     }

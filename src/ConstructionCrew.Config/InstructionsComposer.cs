@@ -43,8 +43,8 @@ public static class InstructionsComposer
     /// </summary>
     public static string CrewPreferencesPath(string? vaultRoot) =>
         string.IsNullOrWhiteSpace(vaultRoot)
-            ? "AI/Context/crew-preferences.md (relative to the Vault root, once one is configured)"
-            : Path.Combine(vaultRoot, "AI", "Context", "crew-preferences.md");
+            ? "AI/ConstructionCrew/crew-preferences.md (relative to the Vault root, once one is configured)"
+            : Path.Combine(vaultRoot, "AI", "ConstructionCrew", "crew-preferences.md");
 
     /// <summary>Where a crew member's raw briefing is kept, verbatim, so its
     /// instructions can be re-rendered later without asking the Boss again.</summary>

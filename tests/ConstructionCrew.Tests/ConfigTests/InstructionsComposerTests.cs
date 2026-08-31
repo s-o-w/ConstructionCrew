@@ -50,7 +50,7 @@ public class InstructionsComposerTests
         Assert.Contains("https://github.com/orgs/example-org/projects/73", rendered);
         Assert.Contains("Notes/Lighthouse", rendered);
         Assert.Contains("Foreman:Frontend:Lighthouse", rendered);
-        Assert.Contains(Path.Combine(RealVaultRoot, "AI", "Context", "crew-preferences.md"), rendered);
+        Assert.Contains(Path.Combine(RealVaultRoot, "AI", "ConstructionCrew", "crew-preferences.md"), rendered);
         Assert.Contains("claude, codex", rendered);
         // The adversarial-review workflow is template text, and it must be
         // provider-agnostic -- no vault skill is ever named.

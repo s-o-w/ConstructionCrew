@@ -132,12 +132,12 @@ public static class VaultLayout
     /// at it unconditionally. Kept in sync with
     /// <see cref="InstructionsComposer.CrewPreferencesPath"/>.
     /// </summary>
-    public const string CrewPreferencesRelativePath = "AI/Context/crew-preferences.md";
+    public const string CrewPreferencesRelativePath = "AI/ConstructionCrew/crew-preferences.md";
 
     /// <summary>Copies one scaffold file into a vault when absent, matching Scaffold's never-overwrite rule. Returns true when it wrote one.</summary>
     public static bool EnsureScaffoldFile(string scaffoldSourceDirectory, string vaultRoot, string relativePath)
     {
-        // relativePath is one literal (e.g. "AI/Context/x.md"), the same string
+        // relativePath is one literal (e.g. "AI/ConstructionCrew/x.md"), the same string
         // callers share with the templates; '/' is converted here for both platforms.
         var source = Path.Combine(scaffoldSourceDirectory, relativePath.Replace('/', Path.DirectorySeparatorChar));
         if (!File.Exists(source))
