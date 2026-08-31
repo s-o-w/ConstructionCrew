@@ -34,10 +34,13 @@ public static class InstructionsComposer
     /// <summary>
     /// The authoredBy string this role stamps on every Vault note it writes.
     /// GC always yields "GC" regardless of DisplayName; a Foreman yields
-    /// "Foreman:&lt;JobsiteName&gt;" (Architecture §3.1).
+    /// "Foreman:&lt;ForemanName&gt;:&lt;JobsiteName&gt;" (Architecture §3.1). The
+    /// Foreman name is load-bearing, not decorative: more than one Foreman can
+    /// share a Jobsite, and "Foreman:&lt;JobsiteName&gt;" alone would make every
+    /// note either of them writes byte-identical in attribution.
     /// </summary>
-    public static string AuthoredBy(CrewRole role, string? jobsiteName) =>
-        role == CrewRole.GC ? "GC" : $"Foreman:{jobsiteName ?? "unassigned"}";
+    public static string AuthoredBy(CrewRole role, string foremanName, string? jobsiteName) =>
+        role == CrewRole.GC ? "GC" : $"Foreman:{foremanName}:{jobsiteName ?? "unassigned"}";
 
     /// <summary>
     /// The vault-relative path to the Boss's crew preferences. Read by agents as
@@ -133,7 +136,7 @@ public static class InstructionsComposer
             ["Upstream"] = RenderMap(jobsite?.Upstream),
             ["VaultRoot"] = Fallback(vaultRoot, NotConfigured),
             ["VaultFolders"] = RenderList(vaultFolders),
-            ["AuthoredBy"] = AuthoredBy(role, jobsite?.Name),
+            ["AuthoredBy"] = AuthoredBy(role, name, jobsite?.Name),
             ["CrewPreferencesPath"] = CrewPreferencesPath(vaultRoot),
             ["AvailableEngines"] = availableEngines is { Count: > 0 }
                 ? string.Join(", ", availableEngines)

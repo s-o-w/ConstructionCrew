@@ -87,6 +87,34 @@ public class FileSitrepToolTests
         }
     }
 
+    /// <summary>
+    /// Regression coverage for sharing a Jobsite: authoredBy has to carry the
+    /// Foreman's own name, not just the Jobsite's, or two Foremen on the same
+    /// Jobsite would stamp identical attribution on every note they write.
+    /// </summary>
+    [Fact]
+    public async Task FileSitrep_AuthoredByCarriesTheForemansOwnName()
+    {
+        var vaultRoot = NewVault();
+        try
+        {
+            var foremen = new FakeForemanDirectory(Foreman(), Gc());
+            var factory = new RecordingAgentFactory();
+            var registry = NewRegistry(foremen, factory);
+            var jobId = registry.StartJob("Frontend", "work");
+            var tool = new FileSitrepTool(foremen, new HomeOfficeVaultOptions(vaultRoot), registry, new SitrepWriter());
+
+            await tool.FileSitrep("Frontend", jobId, "summary", "status", "still going", CancellationToken.None);
+
+            var path = Path.Combine(vaultRoot, "Notes", "XINFRA", "Sitreps", $"{DateTimeOffset.UtcNow:yyyy-MM-dd}-summary.md");
+            Assert.Contains("authoredBy: \"Foreman:Frontend:XINFRA\"", File.ReadAllText(path));
+        }
+        finally
+        {
+            Directory.Delete(vaultRoot, recursive: true);
+        }
+    }
+
     [Fact]
     public async Task FileSitrep_KindMilestone_AsksTheGcExactlyOnceAndSurfacesTheReply()
     {

@@ -121,7 +121,7 @@ public sealed class FileSitrepTool
     /// purpose: that method lives in Config, which HomeOffice does not reference.
     /// </summary>
     private static string AuthoredBy(ForemanConfig caller) =>
-        caller.Role == CrewRole.GC ? "GC" : $"Foreman:{caller.JobsiteName ?? "unassigned"}";
+        caller.Role == CrewRole.GC ? "GC" : $"Foreman:{caller.Name}:{caller.JobsiteName ?? "unassigned"}";
 
     private static string Normalize(string value, string[] allowed, string parameterName)
     {

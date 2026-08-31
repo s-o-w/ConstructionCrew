@@ -49,7 +49,7 @@ public class InstructionsComposerTests
         Assert.Contains("develop", rendered);
         Assert.Contains("https://github.com/orgs/spatialbiz/projects/73", rendered);
         Assert.Contains("Notes/XINFRA", rendered);
-        Assert.Contains("Foreman:XINFRA", rendered);
+        Assert.Contains("Foreman:Frontend:XINFRA", rendered);
         Assert.Contains(Path.Combine(RealVaultRoot, "AI", "Context", "crew-preferences.md"), rendered);
         Assert.Contains("claude, codex", rendered);
         // The adversarial-review workflow is template text, and it must be
@@ -135,10 +135,15 @@ public class InstructionsComposerTests
     }
 
     [Fact]
-    public void AuthoredBy_IsGcForAGcAndForemanJobsiteForAForeman()
+    public void AuthoredBy_IsGcForAGcAndForemanNameJobsiteForAForeman()
     {
-        Assert.Equal("GC", InstructionsComposer.AuthoredBy(CrewRole.GC, "XINFRA"));
-        Assert.Equal("Foreman:XINFRA", InstructionsComposer.AuthoredBy(CrewRole.Foreman, "XINFRA"));
+        Assert.Equal("GC", InstructionsComposer.AuthoredBy(CrewRole.GC, "GC", "XINFRA"));
+        Assert.Equal("Foreman:Frontend:XINFRA", InstructionsComposer.AuthoredBy(CrewRole.Foreman, "Frontend", "XINFRA"));
+
+        // The whole point: two Foremen sharing a Jobsite must not collide.
+        Assert.NotEqual(
+            InstructionsComposer.AuthoredBy(CrewRole.Foreman, "Frontend", "XINFRA"),
+            InstructionsComposer.AuthoredBy(CrewRole.Foreman, "Backend", "XINFRA"));
     }
 
     /// <summary>
