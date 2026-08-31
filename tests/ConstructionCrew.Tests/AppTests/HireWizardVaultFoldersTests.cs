@@ -178,6 +178,26 @@ public class HireWizardVaultFoldersTests
         }
     }
 
+    /// <summary>
+    /// Regression test for a real bug hit live (2026-08-30): the Jobsite-name and
+    /// Repo-path prompts inside PickOrCreateJobsite used Spectre's declarative
+    /// TextPrompt.Validate, which has no escape of its own -- a rejected answer
+    /// just re-prompts forever. A Boss who gave a nonexistent repo path with no
+    /// way to fix or cancel it was stuck. Fixed by hand-rolling those two prompts
+    /// as loops that check for this sentinel first.
+    /// </summary>
+    [Theory]
+    [InlineData("cancel", true)]
+    [InlineData("Cancel", true)]
+    [InlineData("  cancel  ", true)]
+    [InlineData("Frontend", false)]
+    [InlineData("", false)]
+    [InlineData(null, false)]
+    public void IsCancel_MatchesTheSentinelCaseInsensitivelyAndTrimmed(string? input, bool expected)
+    {
+        Assert.Equal(expected, HireWizard.IsCancel(input));
+    }
+
     private static string NewRecognizedVault(string? path = null)
     {
         path ??= Path.Combine(Path.GetTempPath(), "ccrew-hire-test-" + Guid.NewGuid().ToString("n")[..8]);

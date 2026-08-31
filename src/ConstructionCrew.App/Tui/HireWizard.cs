@@ -332,6 +332,18 @@ public static class HireWizard
         return folders;
     }
 
+    /// <summary>
+    /// Typed at any free-text prompt inside <see cref="PickOrCreateJobsite"/> to
+    /// bail out of hiring entirely. Spectre's <c>TextPrompt.Validate</c> has no
+    /// escape of its own -- a rejected answer just re-prompts forever -- so the
+    /// two validated prompts here (Jobsite name, Repo path) are hand-rolled loops
+    /// instead, specifically so a real cancel path exists.
+    /// </summary>
+    private const string CancelSentinel = "cancel";
+
+    internal static bool IsCancel(string? input) =>
+        input is not null && input.Trim().Equals(CancelSentinel, StringComparison.OrdinalIgnoreCase);
+
     private static JobsiteConfig? PickOrCreateJobsite(JobsiteDirectory jobsites, ForemanDirectory foremen, string repoRoot, string vaultRoot)
     {
         const string addNew = "+ add a new jobsite";
@@ -352,19 +364,73 @@ public static class HireWizard
             return jobsites.Find(picked);
         }
 
-        var jobsiteName = AnsiConsole.Prompt(
-            new TextPrompt<string>("[bold]Jobsite name[/] (e.g. the repo's name):")
-                .Validate(n => string.IsNullOrWhiteSpace(n)
-                    ? ValidationResult.Error("Name can't be empty.")
-                    : jobsites.Find(n) is not null
-                        ? ValidationResult.Error($"Jobsite '{n}' already exists.")
-                        : ValidationResult.Success()));
+        string? jobsiteName = null;
+        while (jobsiteName is null)
+        {
+            var input = AnsiConsole.Prompt(
+                new TextPrompt<string>("[bold]Jobsite name[/] (e.g. the repo's name; 'cancel' to stop hiring):"));
 
-        var repoPath = AnsiConsole.Prompt(
-            new TextPrompt<string>("[bold]Repo path[/] -- an existing local clone:")
-                .Validate(p => Directory.Exists(p)
-                    ? ValidationResult.Success()
-                    : ValidationResult.Error($"'{p}' doesn't exist. Clone the repo first, then hire.")));
+            if (IsCancel(input))
+            {
+                return null;
+            }
+
+            if (string.IsNullOrWhiteSpace(input))
+            {
+                AnsiConsole.MarkupLine("[red]Name can't be empty.[/]");
+                continue;
+            }
+
+            if (jobsites.Find(input) is not null)
+            {
+                AnsiConsole.MarkupLine($"[red]Jobsite '{Markup.Escape(input)}' already exists.[/]");
+                continue;
+            }
+
+            jobsiteName = input;
+        }
+
+        string? repoPath = null;
+        while (repoPath is null)
+        {
+            var input = AnsiConsole.Prompt(
+                new TextPrompt<string>(
+                    "[bold]Repo path[/] -- an existing local clone, or a new folder to create it as an empty project ('cancel' to stop hiring):"));
+
+            if (IsCancel(input))
+            {
+                return null;
+            }
+
+            var candidate = input.Trim();
+            if (string.IsNullOrEmpty(candidate))
+            {
+                AnsiConsole.MarkupLine("[red]Path can't be empty.[/]");
+                continue;
+            }
+
+            if (Directory.Exists(candidate))
+            {
+                repoPath = candidate;
+                break;
+            }
+
+            if (!AnsiConsole.Confirm(
+                    $"'{Markup.Escape(candidate)}' doesn't exist. Create it as a new, empty project folder?", true))
+            {
+                continue;
+            }
+
+            try
+            {
+                Directory.CreateDirectory(candidate);
+                repoPath = candidate;
+            }
+            catch (Exception ex)
+            {
+                AnsiConsole.MarkupLine($"[red]Could not create it:[/] {Markup.Escape(ex.Message)}");
+            }
+        }
 
         var repoUrl = AnsiConsole.Prompt(
             new TextPrompt<string>("[bold]Repo URL[/] (optional, blank to skip):").AllowEmpty());
