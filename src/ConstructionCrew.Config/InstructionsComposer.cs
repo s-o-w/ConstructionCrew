@@ -125,7 +125,7 @@ public static class InstructionsComposer
             ["DefaultBranch"] = Fallback(jobsite?.DefaultBranch, "main"),
             ["BuildCommand"] = Fallback(jobsite?.BuildCommand, "(no build command configured -- ask the Boss before guessing one)"),
             ["TestCommand"] = Fallback(jobsite?.TestCommand, "(no test command configured -- ask the Boss before guessing one)"),
-            ["Upstream"] = RenderMap(jobsite?.Upstream),
+            ["Backlog"] = Fallback(jobsite?.BacklogUrl, "(none configured)"),
             ["VaultRoot"] = Fallback(vaultRoot, NotConfigured),
             ["VaultFolders"] = RenderList(vaultFolders),
             ["AuthoredBy"] = AuthoredBy(role, name, jobsite?.Name),
@@ -151,9 +151,4 @@ public static class InstructionsComposer
         values is { Count: > 0 }
             ? string.Join(Environment.NewLine, values.Select(v => $"- {v}"))
             : "- (none configured -- ask the Boss before writing anywhere in the Vault)";
-
-    private static string RenderMap(IReadOnlyDictionary<string, string>? values) =>
-        values is { Count: > 0 }
-            ? string.Join(Environment.NewLine, values.Select(kv => $"- {kv.Key}: {kv.Value}"))
-            : "- (none configured)";
 }

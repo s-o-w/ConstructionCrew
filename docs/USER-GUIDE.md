@@ -277,7 +277,7 @@ You get two tables. The first is the Foreman: name, role, display name,
 provider, working directory, instructions file, jobsite, extra readable
 directories, vault folders, and provider options. The second is that Foreman's
 Jobsite: repo path, description, repo URL, color, default branch, build
-command, test command, upstream trackers, and vault folders.
+command, test command, backlog URL, and vault folders.
 
 Some fields are marked **fixed** and are not editable here: name, role, working
 directory, instructions file path, and the Jobsite's repo path. Everything else
@@ -303,9 +303,10 @@ Below the field list there are two **actions**, and then "done":
 
 **A useful thing to set now, if you have it:**
 
-- `jobsite: upstream` → `issues=https://github.com/your-org/lighthouse/issues`
-  (comma-separated `key=value` pairs). The sitewalk reads this as "the
-  backlog".
+- `jobsite: backlog` → `https://github.com/your-org/lighthouse/issues` (a
+  single URL). The sitewalk reads this as "the backlog". `/hire` also asks
+  for it up front now, so this is only needed for a jobsite hired before
+  that existed.
 
 When you change a Jobsite field, two things behave differently:
 
@@ -337,7 +338,7 @@ tell it to:
 1. Read the code, starting at the repo root: build files, layout, entry point,
    tests. Cite real files and line numbers. An empty directory with no git
    repository is a valid *finding*, not a failure.
-2. Read the backlog, whatever the upstream trackers point at.
+2. Read the backlog, whatever the backlog link points at.
 3. Read the docs: the repo's README plus anything already in its vault folders.
 4. Write findings to `Notes/Lighthouse/Sitewalk.md` in your vault. It writes
    the file fresh if it does not exist yet, or appends a new dated,

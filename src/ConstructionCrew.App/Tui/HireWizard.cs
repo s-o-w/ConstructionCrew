@@ -445,6 +445,9 @@ public static class HireWizard
         var repoUrl = AnsiConsole.Prompt(
             new TextPrompt<string>("[bold]Repo URL[/] (optional, blank to skip):").AllowEmpty());
 
+        var backlogUrl = AnsiConsole.Prompt(
+            new TextPrompt<string>("[bold]Backlog URL[/] (GitHub Project, Jira board, issue tracker -- optional, blank to skip):").AllowEmpty());
+
         var defaultBranch = NormalizeBranch(AnsiConsole.Prompt(
             new TextPrompt<string>("[bold]Default branch[/] (blank for [grey]main[/]):").AllowEmpty()));
 
@@ -492,6 +495,7 @@ public static class HireWizard
             DefaultBranch: defaultBranch,
             BuildCommand: buildCommand,
             TestCommand: testCommand,
+            BacklogUrl: string.IsNullOrWhiteSpace(backlogUrl) ? null : backlogUrl.Trim(),
             // Resolved here, where the Jobsite name is first known, since the
             // answer must be on the config before AppendJobsite writes it.
             VaultFolders: ResolveVaultFolders(vaultRoot, jobsiteName));

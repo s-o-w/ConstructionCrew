@@ -52,15 +52,9 @@ public static class JobsiteConfigWriter
             block.AppendLine($"    testCommand: {ForemanConfigWriter.Quote(config.TestCommand.ReplaceLineEndings(" "))}");
         }
 
-        if (config.Upstream is { Count: > 0 })
+        if (!string.IsNullOrWhiteSpace(config.BacklogUrl))
         {
-            // Same CollapseRepoRoot-then-Quote ordering as ForemanConfigWriter's
-            // providerOptions: an upstream value can be a repo-relative path, not just a URL.
-            block.AppendLine("    upstream:");
-            foreach (var (key, value) in config.Upstream)
-            {
-                block.AppendLine($"      {key}: {ForemanConfigWriter.Quote(CollapseRepoRoot(value, repoRoot))}");
-            }
+            block.AppendLine($"    backlog: {ForemanConfigWriter.Quote(config.BacklogUrl)}");
         }
 
         if (config.VaultFolders is { Count: > 0 })

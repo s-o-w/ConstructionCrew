@@ -20,10 +20,9 @@ public sealed record JobsiteConfig(
     // instructions; never parsed or executed by ConstructionCrew itself.
     string? BuildCommand = null,
     string? TestCommand = null,
-    // Open string map for whatever tracker this jobsite reports into (board
-    // URL, project number, issue prefix). Open for exactly the reason
-    // ProviderOptions is: no typed subclass per tracker.
-    IReadOnlyDictionary<string, string>? Upstream = null,
+    // URL to this jobsite's backlog or issue tracker (a GitHub Project board, a
+    // Jira board, etc). Optional; null means none configured.
+    string? BacklogUrl = null,
     // Vault-relative write scope for this Jobsite: "Notes/<Jobsite>",
     // "Plans/<Jobsite>" on a recognized vault layout, or whatever the Boss
     // named on an unrecognized one. Never absolute; resolved against the

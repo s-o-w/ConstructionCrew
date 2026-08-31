@@ -74,7 +74,7 @@ public static class ForemanDetailsCommand
         ["display name", "provider", "jobsite", "add dirs", "vault folders", "provider options"];
 
     private static readonly string[] EditableJobsiteFields =
-        ["description", "repo url", "color", "default branch", "build command", "test command", "upstream", "vault folders"];
+        ["description", "repo url", "color", "default branch", "build command", "test command", "backlog", "vault folders"];
 
     private const string RerenderInstructionsAction = "re-render instructions";
 
@@ -236,7 +236,7 @@ public static class ForemanDetailsCommand
         table.AddRow("default branch", Markup.Escape(jobsite.DefaultBranch ?? "-"), "[green]editable[/]");
         table.AddRow("build command", Markup.Escape(jobsite.BuildCommand ?? "-"), "[green]editable[/]");
         table.AddRow("test command", Markup.Escape(jobsite.TestCommand ?? "-"), "[green]editable[/]");
-        table.AddRow("upstream", Markup.Escape(FormatDict(jobsite.Upstream)), "[green]editable[/]");
+        table.AddRow("backlog", Markup.Escape(jobsite.BacklogUrl ?? "-"), "[green]editable[/]");
         table.AddRow("vault folders", Markup.Escape(FormatList(jobsite.VaultFolders)), "[green]editable[/]");
 
         return table;
@@ -512,12 +512,12 @@ public static class ForemanDetailsCommand
                     new TextPrompt<string>("[bold]Test command[/] (blank to clear):").DefaultValue(jobsite.TestCommand ?? string.Empty).AllowEmpty());
                 return jobsite with { TestCommand = string.IsNullOrWhiteSpace(testCommand) ? null : testCommand.Trim() };
 
-            case "upstream":
-                var upstreamInput = AnsiConsole.Prompt(
-                    new TextPrompt<string>("[bold]Upstream[/], comma-separated key=value (blank to clear):")
-                        .DefaultValue(FormatDict(jobsite.Upstream))
+            case "backlog":
+                var backlogInput = AnsiConsole.Prompt(
+                    new TextPrompt<string>("[bold]Backlog URL[/] (GitHub Project, Jira board, issue tracker -- blank to clear):")
+                        .DefaultValue(jobsite.BacklogUrl ?? string.Empty)
                         .AllowEmpty());
-                return jobsite with { Upstream = ParseDict(upstreamInput) };
+                return jobsite with { BacklogUrl = string.IsNullOrWhiteSpace(backlogInput) ? null : backlogInput.Trim() };
 
             case "vault folders":
                 var vaultFoldersInput = AnsiConsole.Prompt(

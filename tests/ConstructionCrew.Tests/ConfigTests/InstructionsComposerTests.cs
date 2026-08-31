@@ -26,7 +26,7 @@ public class InstructionsComposerTests
             DefaultBranch: "develop",
             BuildCommand: "dotnet build",
             TestCommand: "dotnet test",
-            Upstream: new Dictionary<string, string> { ["board"] = "https://github.com/orgs/example-org/projects/73" },
+            BacklogUrl: "https://github.com/orgs/example-org/projects/73",
             VaultFolders: ["Notes/Lighthouse", "Plans/Lighthouse"]);
 
     [Fact]

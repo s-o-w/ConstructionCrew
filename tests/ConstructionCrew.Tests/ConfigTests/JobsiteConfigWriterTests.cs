@@ -44,7 +44,7 @@ public class JobsiteConfigWriterTests
     /// instructions telling it no build command is configured.
     /// </summary>
     [Fact]
-    public void AppendJobsite_WithBranchCommandsAndUpstream_RoundTripsAllOfThem()
+    public void AppendJobsite_WithBranchCommandsAndBacklog_RoundTripsAllOfThem()
     {
         var repoRoot = Path.GetTempPath().TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         var repoPath = Path.Combine(repoRoot, "repos", "phase5fields");
@@ -64,7 +64,7 @@ public class JobsiteConfigWriterTests
                     DefaultBranch: "develop",
                     BuildCommand: "dotnet build",
                     TestCommand: "dotnet test",
-                    Upstream: new Dictionary<string, string> { ["board"] = "https://github.com/orgs/example-org/projects/73" }),
+                    BacklogUrl: "https://github.com/orgs/example-org/projects/73"),
                 repoRoot);
 
             var reloaded = Assert.Single(new JobsiteConfigLoader().LoadFromFile(yamlPath, repoRoot));
@@ -72,7 +72,7 @@ public class JobsiteConfigWriterTests
             Assert.Equal("develop", reloaded.DefaultBranch);
             Assert.Equal("dotnet build", reloaded.BuildCommand);
             Assert.Equal("dotnet test", reloaded.TestCommand);
-            Assert.Equal("https://github.com/orgs/example-org/projects/73", reloaded.Upstream!["board"]);
+            Assert.Equal("https://github.com/orgs/example-org/projects/73", reloaded.BacklogUrl);
         }
         finally
         {
