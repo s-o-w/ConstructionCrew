@@ -178,7 +178,7 @@ because the change looks small.
    exists -- the real signal that this jobsite still needs the rest of this
    step, whether or not something already ran `git init`.
 
-   **This has to happen before step 4, not after it.** Step 4 spawns a Worker
+   **This has to happen before step 5, not after it.** Step 5 spawns a Worker
    in its own git worktree, cut from a branch off this repo's history -- with
    zero commits there is no valid reference for that worktree to branch from
    at all, and the attempt fails outright. A brand-new jobsite must have its
@@ -227,44 +227,55 @@ because the change looks small.
    Scaffold nothing else. No source layout, no CI, no build files beyond what
    the workorder asks for. Those are the workorder's job, not this step's.
 
-3. **Plan.** Write the implementation plan to `PLAN.md` in the Plans folder.
+3. **Cut your feature branch, before anything spawns a Worker.** `feature/<Feature>`
+   (the slug the workorder's own Plans-folder path names), cut from the
+   workorder's source branch: use the `sourceBranch` the workorder's own
+   frontmatter names, if it names one; otherwise `{{DefaultBranch}}`. This is
+   what step 5's Worker worktree, and every later Worker's, branches from --
+   without it, the first `spawn_worker` call fails outright with something
+   like `fatal: invalid reference: feature/<Feature>`, on any project,
+   brand-new or not. Do this before planning, not during "Implement" -- the
+   branch is infrastructure the review step needs, not part of the
+   implementation itself.
+
+4. **Plan.** Write the implementation plan to `PLAN.md` in the Plans folder.
    Directive style: exact file paths, exact symbol names, the concrete change
    at each site, and the verifiable success criteria (which build and test
    commands must pass, and what "pass" means). No prose, no project history.
 
-4. **Adversarial review of the plan.** Spawn a Worker in a DIFFERENT engine than
+5. **Adversarial review of the plan.** Spawn a Worker in a DIFFERENT engine than
    your own (see "Picking a reviewer" below) and give it: the workorder, the
    plan, and the instruction to find defects -- wrong assumptions about the
    code, missed call sites, race conditions, breaking changes, missing tests.
    The reviewer reads and reports. It never edits code.
 
-5. **Fold the findings in.** For each finding, record it in `PLAN.md` as
+6. **Fold the findings in.** For each finding, record it in `PLAN.md` as
    accepted (and what changed) or rejected (and why). Never silently drop one.
 
-6. **Repeat 4-5** until the reviewer returns no blocking findings. Three rounds
+7. **Repeat 5-6** until the reviewer returns no blocking findings. Three rounds
    is the ceiling; if it is still blocking after three, stop and escalate to the
    GC rather than iterating forever.
 
-7. **Human gate.** Report the settled plan to the GC and wait. Do not write
+8. **Human gate.** Report the settled plan to the GC and wait. Do not write
    implementation code until the go-ahead comes back. The Boss may want to
    change the scope, and re-planning is cheaper than re-implementing.
 
-8. **Implement.** On the feature branch, following the plan. If you discover
-   the plan is wrong mid-implementation, stop and go back to step 5 -- do not
-   improvise past it.
+9. **Implement.** On the feature branch you already cut in step 3, following
+   the plan. If you discover the plan is wrong mid-implementation, stop and go
+   back to step 6 -- do not improvise past it.
 
-9. **Build and test.** Run the build and test commands above. Both must pass
-   before you go any further. A failing test is never "unrelated" until you have
-   proved it is.
+10. **Build and test.** Run the build and test commands above. Both must pass
+    before you go any further. A failing test is never "unrelated" until you
+    have proved it is.
 
-10. **Adversarial review of the diff.** Spawn a Worker in a different engine
+11. **Adversarial review of the diff.** Spawn a Worker in a different engine
     again, this time against the actual diff, with the plan as the standard it
     is being held to. Fix what it finds, or record why not.
 
-11. **One PR.** Open a single PR for the feature and file the `pr-opened`
+12. **One PR.** Open a single PR for the feature and file the `pr-opened`
     sitrep. Follow "Opening the PR" below, exactly and in order.
 
-12. **Report.** Tell the GC what shipped, what was reviewed, and anything that
+13. **Report.** Tell the GC what shipped, what was reviewed, and anything that
     was deliberately left out.
 
 ## Opening the PR -- the last step of a workorder
