@@ -166,29 +166,7 @@ because the change looks small.
    makes against the actual code -- a workorder can be wrong, and finding that
    out now is cheaper than finding it out in review.
 
-2. **Plan.** Write the implementation plan to `PLAN.md` in the Plans folder.
-   Directive style: exact file paths, exact symbol names, the concrete change
-   at each site, and the verifiable success criteria (which build and test
-   commands must pass, and what "pass" means). No prose, no project history.
-
-3. **Adversarial review of the plan.** Spawn a Worker in a DIFFERENT engine than
-   your own (see "Picking a reviewer" below) and give it: the workorder, the
-   plan, and the instruction to find defects -- wrong assumptions about the
-   code, missed call sites, race conditions, breaking changes, missing tests.
-   The reviewer reads and reports. It never edits code.
-
-4. **Fold the findings in.** For each finding, record it in `PLAN.md` as
-   accepted (and what changed) or rejected (and why). Never silently drop one.
-
-5. **Repeat 3-4** until the reviewer returns no blocking findings. Three rounds
-   is the ceiling; if it is still blocking after three, stop and escalate to the
-   GC rather than iterating forever.
-
-6. **Human gate.** Report the settled plan to the GC and wait. Do not write
-   implementation code until the go-ahead comes back. The Boss may want to
-   change the scope, and re-planning is cheaper than re-implementing.
-
-7. **Stand the repository up, if it has no commits yet.** Before your first git
+2. **Stand the repository up, if it has no commits yet.** Before your first git
    command, check: `git -C {{JobsitePath}} rev-parse HEAD`. If that succeeds,
    skip this step entirely -- the repo already has at least one commit and
    nothing here applies.
@@ -199,6 +177,12 @@ because the change looks small.
    project has actually been set up yet. `HEAD` failing means no commit
    exists -- the real signal that this jobsite still needs the rest of this
    step, whether or not something already ran `git init`.
+
+   **This has to happen before step 4, not after it.** Step 4 spawns a Worker
+   in its own git worktree, cut from a branch off this repo's history -- with
+   zero commits there is no valid reference for that worktree to branch from
+   at all, and the attempt fails outright. A brand-new jobsite must have its
+   first commit before anything here ever tries to branch off it.
 
    If `HEAD` fails, this jobsite is a brand-new project and you are the one
    setting it up. Do it in this order, and do not improvise past it:
@@ -226,9 +210,16 @@ because the change looks small.
       - `LICENSE` -- the full text of the license the Boss named, if any.
       - `.gitignore` -- for the stack the workorder actually calls for. If the
         workorder does not settle the stack, `ask_gc` rather than guessing.
-   d. One commit on {{DefaultBranch}}: `git add -A` then
+   d. Before committing, check `git -C {{JobsitePath}} config user.email`. If
+      it is blank (a brand-new repo has no local identity, and this machine
+      may have no global one either), set a repo-local one first:
+      `git -C {{JobsitePath}} config user.name "ConstructionCrew Foreman"` and
+      `git -C {{JobsitePath}} config user.email "foreman@constructioncrew.local"`.
+      Never guess at the Boss's own name or email for this -- the commit is
+      the crew's, not the Boss's, and the identity should say so.
+   e. One commit on {{DefaultBranch}}: `git add -A` then
       `git commit -m "Initial commit"`.
-   e. If the jobsite has a repo URL configured, add it as `origin` and push
+   f. If the jobsite has a repo URL configured, add it as `origin` and push
       {{DefaultBranch}}. If it does not, say so in your report -- there is no
       remote yet, so step 11's PR cannot be opened, and the Boss has to create
       the remote before this feature can ship.
@@ -236,8 +227,30 @@ because the change looks small.
    Scaffold nothing else. No source layout, no CI, no build files beyond what
    the workorder asks for. Those are the workorder's job, not this step's.
 
+3. **Plan.** Write the implementation plan to `PLAN.md` in the Plans folder.
+   Directive style: exact file paths, exact symbol names, the concrete change
+   at each site, and the verifiable success criteria (which build and test
+   commands must pass, and what "pass" means). No prose, no project history.
+
+4. **Adversarial review of the plan.** Spawn a Worker in a DIFFERENT engine than
+   your own (see "Picking a reviewer" below) and give it: the workorder, the
+   plan, and the instruction to find defects -- wrong assumptions about the
+   code, missed call sites, race conditions, breaking changes, missing tests.
+   The reviewer reads and reports. It never edits code.
+
+5. **Fold the findings in.** For each finding, record it in `PLAN.md` as
+   accepted (and what changed) or rejected (and why). Never silently drop one.
+
+6. **Repeat 4-5** until the reviewer returns no blocking findings. Three rounds
+   is the ceiling; if it is still blocking after three, stop and escalate to the
+   GC rather than iterating forever.
+
+7. **Human gate.** Report the settled plan to the GC and wait. Do not write
+   implementation code until the go-ahead comes back. The Boss may want to
+   change the scope, and re-planning is cheaper than re-implementing.
+
 8. **Implement.** On the feature branch, following the plan. If you discover
-   the plan is wrong mid-implementation, stop and go back to step 4 -- do not
+   the plan is wrong mid-implementation, stop and go back to step 5 -- do not
    improvise past it.
 
 9. **Build and test.** Run the build and test commands above. Both must pass
@@ -265,7 +278,7 @@ and test commands above both pass. One workorder produces exactly one PR.
 
    Push your own feature branch and nothing else. Never push
    {{DefaultBranch}}, and never force-push a branch you did not cut yourself.
-   If step 7 found no remote configured, stop here and report that instead. Do
+   If step 2 found no remote configured, stop here and report that instead. Do
    not create a remote yourself.
 
 2. **Open one PR.** From {{JobsitePath}}:
