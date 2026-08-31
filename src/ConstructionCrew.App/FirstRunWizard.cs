@@ -354,8 +354,18 @@ public static class FirstRunWizard
     /// A missing template (a broken clone) falls back to a minimal stand-in
     /// rather than failing the whole first run -- the loader hard-fails on an
     /// instructionsFilePath that isn't there.
+    ///
+    /// Called from two places, not just first run: <see cref="Run"/> (a genuinely
+    /// new install), and Program.cs unconditionally, right before the roster
+    /// loads. The second call site is the one that matters for an EXISTING
+    /// roster -- foremen.yaml already names this file's conventional path, so
+    /// first run never triggers again, but the file itself is no longer shipped
+    /// (Phase 4's decision) and can be missing on disk for reasons unrelated to a
+    /// fresh clone: a `git rm` picked up by a pull, a manual delete, a restore
+    /// from a backup that predates it. Without the second call site, the loader's
+    /// hard-fail above is not hypothetical -- it is the only thing the Boss sees.
     /// </summary>
-    private static string EnsureGcInstructions(
+    internal static string EnsureGcInstructions(
         string repoRoot,
         string vaultRoot,
         string gcForemanName,

@@ -85,6 +85,25 @@ if (!string.IsNullOrWhiteSpace(settings.VaultRoot) && Directory.Exists(settings.
     }
 }
 
+// GC.md is no longer shipped (Phase 4) -- it's rendered fresh, per install, the
+// first time it's needed. First run's own call to EnsureGcInstructions only
+// fires when foremen.yaml doesn't exist yet; an EXISTING roster (the far more
+// common case) already names this file's conventional path, so first run never
+// runs again to regenerate it. Ensure it here too, unconditionally, right before
+// the loader -- which hard-fails on a missing instructionsFilePath -- ever gets
+// a chance to see it missing.
+if (!string.IsNullOrWhiteSpace(settings.VaultRoot) && Directory.Exists(settings.VaultRoot))
+{
+    try
+    {
+        FirstRunWizard.EnsureGcInstructions(repoRoot, settings.VaultRoot, settings.GcForemanName, availableProviderIds);
+    }
+    catch (Exception ex)
+    {
+        AnsiConsole.MarkupLine($"[yellow]Could not render GC's instructions file:[/] {Markup.Escape(ex.Message)}");
+    }
+}
+
 IReadOnlyList<ForemanConfig> foremenSeed;
 try
 {

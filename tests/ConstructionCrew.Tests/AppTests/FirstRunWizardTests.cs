@@ -73,6 +73,40 @@ public class FirstRunWizardTests
         Assert.Equal(FirstRunWizard.GcVaultFolders, config.VaultFolders);
     }
 
+    /// <summary>
+    /// Regression test for a real bug hit live (2026-08-30): GC.md is no longer
+    /// shipped (Phase 4 -- it's per-install state, rendered fresh). First run's
+    /// own call to EnsureGcInstructions only fires when foremen.yaml doesn't
+    /// exist yet -- an EXISTING roster (the common case: the Boss already ran
+    /// the app before, or foremen.yaml survives a git pull that deletes the
+    /// tracked GC.md alongside it) never re-triggers first run, so nothing
+    /// regenerated the file. ForemanConfigLoader.LoadFromFile hard-fails on a
+    /// missing instructionsFilePath, so the app refused to start at all. Fixed
+    /// by calling EnsureGcInstructions unconditionally in Program.cs, right
+    /// before the roster loads -- this test pins that it's actually callable
+    /// (internal, not private) and produces a real file for a missing path.
+    /// </summary>
+    [Fact]
+    public void EnsureGcInstructions_MissingFile_RendersOneEvenOutsideFirstRun()
+    {
+        var root = NewTempDir();
+        try
+        {
+            var repoRoot = Path.Combine(root, "repo");
+            var vaultRoot = Path.Combine(root, "vault");
+            Directory.CreateDirectory(vaultRoot);
+
+            var path = FirstRunWizard.EnsureGcInstructions(repoRoot, vaultRoot, "GC", ["claude"]);
+
+            Assert.True(File.Exists(path));
+            Assert.Contains("General Contractor", File.ReadAllText(path));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     [Fact]
     public void WrittenGcConfig_RoundTripsThroughTheLoadersValidation()
     {
