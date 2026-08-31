@@ -34,7 +34,7 @@ foremen:
     role: GC
     provider: claude
     workingDirectory: ${vaultRoot}
-    instructionsFilePath: ${repoRoot}/config/instructions/GC.md
+    instructionsFilePath: ${vaultRoot}/AI/ConstructionCrew/Instructions/GC.md
     addDirs:
       - ${repoRoot}
     vaultFolders:
@@ -49,7 +49,7 @@ foremen:
   #   role: Foreman
   #   provider: claude
   #   workingDirectory: /home/you/Projects/frontend
-  #   instructionsFilePath: ${repoRoot}/config/instructions/Frontend.md
+  #   instructionsFilePath: ${vaultRoot}/AI/ConstructionCrew/Instructions/Frontend.md
   #   jobsiteName: frontend
   #   addDirs:
   #     - ${vaultRoot}

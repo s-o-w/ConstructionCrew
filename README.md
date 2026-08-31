@@ -55,8 +55,12 @@ shape first-run setup itself writes, not a manual setup step.
 On a genuinely fresh clone (no `config/foremen.yaml`), the app runs guided
 first-run setup instead: point it at an existing Vault or let it scaffold a new
 one, then hire the GC. This writes `config/foremen.yaml`, `appsettings.json`
-(the Vault path), and `config/instructions/GC.md` (rendered locally from
-`config/templates/gc-instructions.md`; no instructions file ships with the repo).
+(the Vault path), and `AI/ConstructionCrew/Instructions/GC.md` in the Vault
+(rendered from `AI/ConstructionCrew/Templates/gc-instructions.md`, seeded into
+the Vault from this repo's `config/scaffold/` the first time it's needed --
+neither file ships as a live copy in this repo). A roster hired before this
+moved into the Vault migrates automatically on the next start, or on demand
+via `/migrate`.
 
 (`foremen.yaml`/`jobsites.yaml` are git-ignored -- personal to whoever's
 running the tool, never committed. `jobsites.yaml` doesn't need any setup; it's
@@ -83,9 +87,7 @@ config/foremen.yaml.example    # Reference only -- what first-run setup writes; 
 config/jobsites.yaml.example   # Reference only -- jobsites.yaml self-creates
 config/foremen.yaml            # Your hired Foremen + the GC (git-ignored)
 config/jobsites.yaml           # Your Jobsites (git-ignored)
-config/templates/*.md          # The GC/Foreman instructions templates (these ship)
-config/instructions/GC.md      # GC's instructions, rendered at first run (git-ignored)
-config/instructions/*.md       # Per-Foreman instructions, written by /hire (git-ignored)
+config/scaffold/AI/ConstructionCrew/Templates/*.md   # The GC/Foreman instructions template masters (these ship)
 config/generated/              # MCP config ConstructionCrew writes at startup (git-ignored)
 sandbox/                       # Scratch working directory (git-ignored)
 state/                         # Runtime state (git-ignored)
@@ -97,6 +99,12 @@ src/ConstructionCrew.Config/       # YAML config loading/writing
 src/ConstructionCrew.App/          # Spectre.Console TUI + composition root
 tests/ConstructionCrew.Tests/      # Fakes only, no real process spawns
 ```
+
+The live, Boss-editable instructions templates and every crew member's
+rendered instructions file live outside this repo, in the Vault, under
+`AI/ConstructionCrew/Templates/` and `AI/ConstructionCrew/Instructions/`
+respectively -- not in this tree. A vault missing its `AI/` folder is treated
+as unrecognized, same as one missing `Notes/` or `Plans/`.
 
 ## License
 
