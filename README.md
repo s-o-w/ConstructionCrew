@@ -40,22 +40,26 @@ can all reach -- is a small MCP server ConstructionCrew hosts itself (the
 
 ## Running it
 
-First time only:
-
-```bash
-cp config/foremen.yaml.example config/foremen.yaml
-```
-
-(`foremen.yaml`/`jobsites.yaml` are git-ignored -- personal to whoever's
-running the tool, never committed. `jobsites.yaml` doesn't need copying; it's
-created automatically the first time you add a Jobsite.)
-
-Then:
-
 ```bash
 dotnet build ConstructionCrew.slnx
 dotnet run --project src/ConstructionCrew.App
 ```
+
+**Do not manually `cp config/foremen.yaml.example config/foremen.yaml` before
+your first run.** Guided first-run setup only triggers when `config/foremen.yaml`
+does not exist yet -- copying the example file first creates a hand-written
+roster, skips the wizard entirely, and drops you at a prompt with a GC that was
+never pointed at a Vault. `foremen.yaml.example` is a reference showing the
+shape first-run setup itself writes, not a manual setup step.
+
+On a genuinely fresh clone (no `config/foremen.yaml`), the app runs guided
+first-run setup instead: point it at an existing Vault or let it scaffold a new
+one, then hire the GC. This writes `config/foremen.yaml`, `appsettings.json`
+(the Vault path), and `config/instructions/GC.md`.
+
+(`foremen.yaml`/`jobsites.yaml` are git-ignored -- personal to whoever's
+running the tool, never committed. `jobsites.yaml` doesn't need any setup; it's
+created automatically the first time you add a Jobsite.)
 
 You'll land in a prompt talking to the GC. Type `/help` for commands, `exit`
 to quit.
@@ -74,7 +78,7 @@ First run needs `claude` already authenticated in a real terminal
 ## Layout
 
 ```
-config/foremen.yaml.example    # Copy to foremen.yaml to get started
+config/foremen.yaml.example    # Reference only -- what first-run setup writes; don't copy manually
 config/jobsites.yaml.example   # Reference only -- jobsites.yaml self-creates
 config/foremen.yaml            # Your hired Foremen + the GC (git-ignored)
 config/jobsites.yaml           # Your Jobsites (git-ignored)
