@@ -188,16 +188,26 @@ because the change looks small.
    implementation code until the go-ahead comes back. The Boss may want to
    change the scope, and re-planning is cheaper than re-implementing.
 
-7. **Stand the repository up, if there isn't one yet.** Before your first git
-   command, check: `git -C {{JobsitePath}} rev-parse --git-dir`. If that
-   succeeds, skip this step entirely -- the repo exists and nothing here
-   applies.
+7. **Stand the repository up, if it has no commits yet.** Before your first git
+   command, check: `git -C {{JobsitePath}} rev-parse HEAD`. If that succeeds,
+   skip this step entirely -- the repo already has at least one commit and
+   nothing here applies.
 
-   If it fails, this jobsite is a brand-new project and you are the one
+   Check `HEAD`, not merely whether `.git` exists (`rev-parse --git-dir`
+   alone): hiring against a brand-new jobsite already runs a bare `git init`,
+   so a `.git` directory being present proves nothing about whether this
+   project has actually been set up yet. `HEAD` failing means no commit
+   exists -- the real signal that this jobsite still needs the rest of this
+   step, whether or not something already ran `git init`.
+
+   If `HEAD` fails, this jobsite is a brand-new project and you are the one
    setting it up. Do it in this order, and do not improvise past it:
 
-   a. `git init -b {{DefaultBranch}}` in {{JobsitePath}}. The branch name is
-      the one configured above, not whatever git defaults to.
+   a. `git init -b {{DefaultBranch}}` in {{JobsitePath}}, if it is not already
+      a repository (check with `rev-parse --git-dir` first this time) --
+      harmless to skip when hiring already did this, but never assume it did.
+      The branch name is the one configured above, not whatever git defaults
+      to.
    b. Ask the Boss about licensing, through the GC, and WAIT for the answer:
 
           ask_gc(foreman="{{Name}}", jobId=<your job id>,

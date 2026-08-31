@@ -599,7 +599,9 @@ async Task<bool> HandleBossLine(string input)
         }
 
         AnsiConsole.Clear();
-        HireWizard.Run(foremanDirectory, jobsiteDirectory, jobRegistry, availableProviderIds, repoRoot, settings.VaultRoot, mcpOptionsByProvider);
+        await HireWizard.Run(
+            foremanDirectory, jobsiteDirectory, jobRegistry, availableProviderIds, repoRoot, settings.VaultRoot,
+            mcpOptionsByProvider, runner, cts.Token);
         AnsiConsole.Markup("[grey]Press enter to continue...[/]");
         Console.ReadLine();
         state.View = TuiView.Chat;

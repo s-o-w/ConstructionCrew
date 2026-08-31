@@ -1,6 +1,7 @@
 using ConstructionCrew.App.Tui;
 using ConstructionCrew.Config;
 using ConstructionCrew.Core.Models;
+using ConstructionCrew.Providers;
 
 namespace ConstructionCrew.Tests.AppTests;
 
@@ -196,6 +197,68 @@ public class HireWizardVaultFoldersTests
     public void IsCancel_MatchesTheSentinelCaseInsensitivelyAndTrimmed(string? input, bool expected)
     {
         Assert.Equal(expected, HireWizard.IsCancel(input));
+    }
+
+    /// <summary>
+    /// Regression test for a real bug hit live (2026-08-31): hiring against a
+    /// brand-new project folder created the folder (the prior fix) but never
+    /// made it a real git repository -- the Foreman's own bootstrap step had
+    /// nothing to "skip" because there was nothing to check against yet, and a
+    /// Boss inspecting the new folder found a plain directory, not a repo.
+    /// Against a REAL scratch directory and the REAL CliProcessRunner, not a
+    /// fake -- same convention as WorktreeManagerTests.
+    /// </summary>
+    [Fact]
+    public async Task EnsureGitRepo_EmptyDirectory_InitializesARealRepoOnTheConfiguredBranch()
+    {
+        var repoPath = Path.Combine(Path.GetTempPath(), "ccrew-hire-repo-test-" + Guid.NewGuid().ToString("n")[..8]);
+        Directory.CreateDirectory(repoPath);
+        try
+        {
+            await HireWizard.EnsureGitRepo(repoPath, "trunk", new CliProcessRunner(), CancellationToken.None);
+
+            Assert.True(Directory.Exists(Path.Combine(repoPath, ".git")));
+
+            var branch = await new CliProcessRunner().RunAsync(
+                new ConstructionCrew.Core.Abstractions.CliInvocation(
+                    "git", ["-C", repoPath, "symbolic-ref", "--short", "HEAD"], repoPath),
+                CancellationToken.None);
+
+            Assert.True(branch.Succeeded);
+            Assert.Equal("trunk", branch.StandardOutput.Trim());
+        }
+        finally
+        {
+            Directory.Delete(repoPath, recursive: true);
+        }
+    }
+
+    /// <summary>Idempotent: calling it again on an already-initialized repo must not fail or reset the branch.</summary>
+    [Fact]
+    public async Task EnsureGitRepo_AlreadyARepo_IsANoOp()
+    {
+        var repoPath = Path.Combine(Path.GetTempPath(), "ccrew-hire-repo-test-" + Guid.NewGuid().ToString("n")[..8]);
+        Directory.CreateDirectory(repoPath);
+        try
+        {
+            var runner = new CliProcessRunner();
+            await HireWizard.EnsureGitRepo(repoPath, "trunk", runner, CancellationToken.None);
+
+            // A second call, with a DIFFERENT branch name, must not touch the repo --
+            // it already exists, so EnsureGitRepo's own rev-parse probe must short-circuit.
+            await HireWizard.EnsureGitRepo(repoPath, "some-other-branch", runner, CancellationToken.None);
+
+            var branch = await runner.RunAsync(
+                new ConstructionCrew.Core.Abstractions.CliInvocation(
+                    "git", ["-C", repoPath, "symbolic-ref", "--short", "HEAD"], repoPath),
+                CancellationToken.None);
+
+            Assert.Equal("trunk", branch.StandardOutput.Trim());
+        }
+        finally
+        {
+            Directory.Delete(repoPath, recursive: true);
+        }
     }
 
     private static string NewRecognizedVault(string? path = null)

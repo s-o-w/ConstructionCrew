@@ -1,5 +1,6 @@
 using ConstructionCrew.Config;
 using ConstructionCrew.Core;
+using ConstructionCrew.Core.Abstractions;
 using ConstructionCrew.Core.Models;
 using ConstructionCrew.HomeOffice;
 using ConstructionCrew.Providers;
@@ -16,14 +17,16 @@ namespace ConstructionCrew.App.Tui;
 /// </summary>
 public static class HireWizard
 {
-    public static ForemanConfig? Run(
+    public static async Task<ForemanConfig?> Run(
         ForemanDirectory foremen,
         JobsiteDirectory jobsites,
         JobRegistry jobRegistry,
         IReadOnlyList<string> availableProviderIds,
         string repoRoot,
         string vaultRoot,
-        IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> mcpOptionsByProvider)
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> mcpOptionsByProvider,
+        ICliProcessRunner runner,
+        CancellationToken cancellationToken)
     {
         AnsiConsole.Write(new Rule("[bold yellow]hire a foreman[/]").LeftJustified());
 
@@ -48,7 +51,7 @@ public static class HireWizard
                 }));
 
         // 2. Workspace -- pick or create the one Jobsite this Foreman owns
-        var jobsite = PickOrCreateJobsite(jobsites, foremen, repoRoot, vaultRoot);
+        var jobsite = await PickOrCreateJobsite(jobsites, foremen, repoRoot, vaultRoot, runner, cancellationToken);
         if (jobsite is null)
         {
             AnsiConsole.MarkupLine("[yellow]Cancelled -- no jobsite.[/]");
@@ -344,7 +347,9 @@ public static class HireWizard
     internal static bool IsCancel(string? input) =>
         input is not null && input.Trim().Equals(CancelSentinel, StringComparison.OrdinalIgnoreCase);
 
-    private static JobsiteConfig? PickOrCreateJobsite(JobsiteDirectory jobsites, ForemanDirectory foremen, string repoRoot, string vaultRoot)
+    private static async Task<JobsiteConfig?> PickOrCreateJobsite(
+        JobsiteDirectory jobsites, ForemanDirectory foremen, string repoRoot, string vaultRoot,
+        ICliProcessRunner runner, CancellationToken cancellationToken)
     {
         const string addNew = "+ add a new jobsite";
         var assignedNames = new HashSet<string>(
@@ -438,6 +443,17 @@ public static class HireWizard
         var defaultBranch = NormalizeBranch(AnsiConsole.Prompt(
             new TextPrompt<string>("[bold]Default branch[/] (blank for [grey]main[/]):").AllowEmpty()));
 
+        // The repo-path step above only ensures the FOLDER exists -- an
+        // existing local clone already has a real repo, but a brand-new folder
+        // (whether just created above, or an empty one the Boss mkdir'd before
+        // hiring) does not. `git init` is safe to run unconditionally here: it
+        // is a no-op on a directory that is already a git repo (confirmed via
+        // `rev-parse --git-dir` first, rather than assumed), and the Foreman's
+        // own later bootstrap step (config/templates/foreman-instructions.md's
+        // "Stand the repository up" step) checks the same way, so this and
+        // that step can never disagree about whether a repo already exists.
+        await EnsureGitRepo(repoPath, defaultBranch, runner, cancellationToken);
+
         var buildCommand = NormalizeOptionalCommand(AnsiConsole.Prompt(
             new TextPrompt<string>("[bold]Build command[/] (blank if you don't know yet):").AllowEmpty()));
 
@@ -488,6 +504,37 @@ public static class HireWizard
         jobsites.Add(jobsite);
 
         return jobsite;
+    }
+
+    /// <summary>
+    /// Makes <paramref name="repoPath"/> a real git repository if it isn't one
+    /// yet. Checked via `rev-parse --git-dir`, the same command the Foreman's
+    /// own bootstrap step (config/templates/foreman-instructions.md) checks with
+    /// -- deliberately the identical check, so hire time and the Foreman's own
+    /// later dispatch can never disagree about whether `git init` still needs to
+    /// run. Never throws: a repo the Foreman will need to bootstrap for real
+    /// (license, README, first commit) is exactly what a bare `git init` here
+    /// produces, and a failure here is reported but does not block the hire --
+    /// the Boss can always run `git init` by hand afterward.
+    /// </summary>
+    internal static async Task EnsureGitRepo(
+        string repoPath, string defaultBranch, ICliProcessRunner runner, CancellationToken cancellationToken)
+    {
+        var probe = await runner.RunAsync(
+            new CliInvocation("git", ["-C", repoPath, "rev-parse", "--git-dir"], repoPath), cancellationToken);
+
+        if (probe.Succeeded)
+        {
+            return;
+        }
+
+        var init = await runner.RunAsync(
+            new CliInvocation("git", ["init", "-b", defaultBranch], repoPath), cancellationToken);
+
+        AnsiConsole.MarkupLine(
+            init.Succeeded
+                ? $"[green]Initialized an empty git repository[/] at {Markup.Escape(repoPath)} (branch {Markup.Escape(defaultBranch)})."
+                : $"[yellow]Could not run 'git init' in {Markup.Escape(repoPath)}:[/] {Markup.Escape(init.StandardError)}");
     }
 
     private static string Truncate(string text, int max) => text.Length > max ? text[..max] + "..." : text;

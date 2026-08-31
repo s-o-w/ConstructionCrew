@@ -106,6 +106,10 @@ public class InstructionsComposerTests
             RepoRoot,
             "/home/shawn/Vault");
 
+        // HEAD, not just --git-dir, is the real gate: hiring against a new
+        // jobsite already runs a bare `git init`, so a .git directory existing
+        // proves nothing about whether this project has an actual commit yet.
+        Assert.Contains("rev-parse HEAD", rendered);
         Assert.Contains("rev-parse --git-dir", rendered);
         Assert.DoesNotContain("{{", rendered);
     }
