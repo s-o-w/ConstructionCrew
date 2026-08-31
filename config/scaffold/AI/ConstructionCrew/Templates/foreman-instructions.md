@@ -61,12 +61,12 @@ Run it in this order:
 
 1. **Read the code.** Start at the repo root ({{JobsitePath}}): build files, project layout, entry point, tests. Confirm what actually builds, what the test command actually runs, and where the seams are. Cite real files and line numbers. Never restate a claim you have not read yourself. An empty directory with no git repository is a valid finding, not a failure: record it and move on. Setting the repository up is a workorder step, not a sitewalk step.
 2. **Read the backlog.** Check whatever the backlog link above points at: issues, a project board, a TODO file in the repo. Note what is open, what is stale, and what contradicts the code you just read.
-3. **Read the docs.** The repo's own README and docs, plus anything already in your Vault folders that describes this jobsite.
+3. **Read the docs.** The repo's own README and docs, plus anything already in your Vault folders that describes this jobsite. If anything here disagrees with what you read in step 1, the code is correct and the doc is stale -- note the disagreement itself in your findings below. Do not just silently prefer the code and move on.
 4. **Write your findings.** Check first: does `Notes/{{JobsiteName}}/Sitewalk.md` already exist? Another Foreman may be assigned to this jobsite too, and its sitewalk is not yours to overwrite.
    - **If it does not exist**, write it fresh: `authoredBy: "{{AuthoredBy}}"` in the frontmatter, then your findings.
    - **If it already exists**, never overwrite it. Append a new section headed `## {{Name}}, <today's date, UTC>`. State what you found, or confirmed unchanged. Leave the existing content as it is: this file is a running record across every Foreman who has walked this jobsite.
 
-   Either way, cover: what this jobsite is, how it builds and tests, current-state anchors (thing -> file and line), what is open on the backlog, and any defect the next workorder should know about. Facts with citations, not opinions.
+   Either way, cover: what this jobsite is, how it builds and tests, current-state anchors (thing -> file and line), what is open on the backlog, any defect the next workorder should know about, and any place the docs and the code disagreed, and which one you trusted (always the code). Facts with citations, not opinions.
 5. **Tell the GC, as a milestone.** Once the note is written, call:
 
        file_sitrep(foreman="{{Name}}", jobId=<your job id>, altitude="summary",

@@ -139,6 +139,23 @@ public class InstructionsComposerTests
     }
 
     [Fact]
+    public void Compose_ForemanTemplate_CarriesTheDocsVsCodePrecedenceRule()
+    {
+        var rendered = InstructionsComposer.Compose(
+            "Frontend",
+            CrewRole.Foreman,
+            "You are the Frontend Foreman.",
+            Jobsite(),
+            ["Notes/Lighthouse", "Plans/Lighthouse"],
+            ["claude", "codex"],
+            RealVaultRoot);
+
+        Assert.Contains("the code is correct and the doc is stale", rendered);
+        Assert.Contains("which one you trusted (always the code)", rendered);
+        Assert.DoesNotContain("{{", rendered);
+    }
+
+    [Fact]
     public void Compose_Gc_RendersTheWorkorderHandoff()
     {
         var rendered = InstructionsComposer.Compose(
