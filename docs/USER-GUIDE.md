@@ -549,7 +549,9 @@ out in this order. The order matters because the Plans folder is deleted last.
    Home Office maintains itself: one line per completed unit of work, with
    started and finished stamps, actual hours net of parked time, queue time,
    tokens and cost. A number the run log does not have is written as
-   "unavailable", never as zero.
+   "unavailable", never as zero. Claude-backed crew members report their
+   tokens and cost by default now, so those columns are usually real numbers
+   rather than "unavailable".
 2. Link it from the "recently completed" entry in `Notes/Lighthouse/Status.md`.
 3. Only then delete `Plans/Lighthouse/csv-export/`. Git history is the record
    of the work; the delivery note is the record of what it cost.
@@ -803,13 +805,98 @@ refused, including a path that tries to climb out with `..`.
 
 Reach for this whenever GC or a Foreman tells you it wrote something.
 
+### `/watch Casey`: seeing what a Foreman is actually doing
+
+`/tasks` tells you Casey is working. `/monitor` tells you for how long. Neither
+tells you *what* Casey is doing right now. `/watch` does:
+
+```
+/watch Casey
+```
+
+A panel opens beside the chat, headed with Casey's name. The top line is the
+most recent thing Casey actually did, refreshed as work lands:
+
+- `running: Bash`, `running: Edit`, `running: exec` when a tool is in flight
+- Casey's own last words when it has said something, clipped to fit
+- a clock reading under it, so a feed that has stopped moving is visibly stale
+  rather than silently wrong
+
+Under that is the same read-only git panel `/drive` has always shown: branch,
+whether the working tree is clean, and recent commits from Casey's most recent
+worktree.
+
+**The important part: watching does not change where your typing goes.** The
+prompt stays `Boss>`, and everything you type still goes to GC. You can carry on
+a normal conversation with GC about the Tidepool roadmap while Casey's real
+activity ticks along in the corner. The footer spells this out while a watch is
+live: *watching Casey -- you are still talking to GC; /watch stops, /drive
+redirects.*
+
+This is the whole difference from `/drive`. Driving implies watching: whoever
+you drive gets the same panel automatically, with no `/watch` needed. Watching
+implies nothing about routing.
+
+`/watch Casey` again turns it off, as does a bare `/watch`. `/watch` on somebody
+else moves the panel to them.
+
+**A worked example.** Casey has been on the CSV export for twenty minutes and
+`/monitor` says it is still working. You want to know whether it is close, but
+you do not want to interrupt GC mid-thread:
+
+```
+Boss> /watch Casey
+home office: Watching Casey. What you type still goes to GC. /watch again to stop.
+```
+
+The panel fills in. Over the next minute it moves through `running: Read`,
+`running: Edit`, then *"Adding the delimiter option to the export writer, then
+I'll run the tests."* You keep talking to GC the whole time, and GC has no idea
+anything happened.
+
+Then the panel shows *"The export writer now takes a delimiter, so I'm about to
+thread it through the CLI flags too."* That is scope you did not ask for, and
+this is the natural point to say something:
+
+```
+Boss> /drive Casey
+home office: Driving Casey. /exit returns to GC.
+
+Boss[Casey]> Skip the CLI flags for now -- ship the writer change on its own and
+open the PR.
+```
+
+The panel is still there, still showing Casey's activity, because driving
+carries the watch with it. Your redirect queues behind whatever turn is in
+flight rather than interrupting it, exactly as `/drive` always has. `/exit`
+returns you to GC and closes the panel.
+
+That is "watch, then redirect": see the work, and steer it at a natural break,
+without ever having been blocked on it.
+
+**Which engines can be watched.** Claude Code and Codex both keep a readable
+session transcript on disk while they work, and that is what the panel reads.
+Copilot keeps its state in a database instead, so `/watch` on a Copilot-backed
+Foreman refuses outright and tells you why, rather than opening a panel that
+would sit empty forever and read as "this Foreman is doing nothing". The roster
+and `/monitor` still show whether it is working.
+
+A crew member you have not dispatched anything to yet has no conversation to
+read, and the panel says so. So does a first turn that has not reported a
+session yet. Nothing here is guesswork about idleness: "could not look" and
+"nothing happening" are always different answers.
+
+Watching is read-only, and one at a time. It never sends anything, and pointing
+`/watch` at somebody new moves the panel rather than opening a second one.
+
 ### `/drive Casey`: talking to a Foreman directly
 
 Switches your prompt so everything you type goes to Casey instead of GC. The
 prompt changes to `Boss[Casey]>` and the chat pane shows Casey's own
-conversation. Beside it is a small read-only panel showing the branch, whether
-the working tree is clean, and recent commits from the most recent worktree
-Casey or one of its Workers is in.
+conversation. Beside it is the same panel `/watch` opens: what Casey is doing
+right now, over a read-only view of the branch, whether the working tree is
+clean, and recent commits from the most recent worktree Casey or one of its
+Workers is in. You never need to `/watch` somebody you are already driving.
 
 If Casey is mid-turn when you start driving, you are told so: *"queued behind
 …, started 14:32."* Your message queues behind that turn rather than
@@ -821,7 +908,8 @@ not driving quits the app. `/drive GC` returns you to the main chat, since that
 is who you already talk to.
 
 Driving is a message relay, not a terminal. You are not attached to a live
-process.
+process. The activity panel is how you see what that process is doing; your
+messages still arrive between turns, never in the middle of one.
 
 ### `/fire`: letting someone go
 
@@ -895,7 +983,8 @@ Inside your vault:
 | `/foreman <Name>`                  | View a crew member's details and edit the safe fields, plus two actions: **re-render instructions** and **run sitewalk**. A bare `/foreman` gives a picker.         |
 | `/preferences [add]`               | Show `AI/ConstructionCrew/crew-preferences.md`, the tiebreaker every crew member reads. `/preferences add` appends one without hand-editing the file.              |
 | `/inbox`                           | Pick through messages Foremen sent while you were doing something else. Reading one never disturbs what is on screen in the chat. The footer badges unread ones.   |
-| `/drive <Foreman>`                 | Route your typing to that Foreman instead of GC, with a read-only git panel beside the chat.                                                                       |
+| `/watch <Name>`                    | Show what that crew member is doing right now, beside the chat. Does **not** change where your typing goes. `/watch` again, or bare `/watch`, stops.               |
+| `/drive <Foreman>`                 | Route your typing to that Foreman instead of GC, and show the same activity panel for them automatically.                                                          |
 | `/settings`                        | Offer vault setup if none is configured, then re-scan for installed CLIs, re-stamp Home Office wiring, and show what is wired.                                     |
 | `/migrate`                         | Move any crew member's instructions file, and briefing sidecar, still in the old repo-side location into the Vault, and seed missing templates. Runs automatically at every start; this is an on-demand re-trigger. |
 | `/help`                            | One line listing the commands.                                                                                                                                    |
