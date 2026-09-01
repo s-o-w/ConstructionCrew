@@ -1,14 +1,23 @@
 namespace ConstructionCrew.Providers.Activity;
 
 /// <summary>
-/// One readable line about what a crew member is doing right now, plus when
-/// that happened. <paramref name="Error"/> is set instead when the transcript
+/// A short tail of what a crew member has been doing, plus the timestamp of the
+/// most recent event. <paramref name="Error"/> is set instead when the transcript
 /// could not be read at all.
 /// </summary>
-/// <param name="Summary">Already truncated and already human-readable: the caller renders it, never parses it.</param>
-/// <param name="At">The engine's own stamp for that activity, when it recorded one.</param>
-/// <param name="Error">Why nothing could be read. Mutually exclusive with a useful <paramref name="Summary"/>.</param>
-public sealed record ForemanActivitySnapshot(string Summary, DateTimeOffset? At, string? Error = null);
+/// <param name="Summary">Most recent event, one line. Equals <c>Lines.Last()</c> when Lines is set.</param>
+/// <param name="At">The engine's own stamp for the most recent event, when it recorded one.</param>
+/// <param name="Error">Why nothing could be read. Mutually exclusive with Lines/Summary.</param>
+/// <param name="Lines">
+/// Last N activity events in chronological order (oldest first, newest last).
+/// Null for sentinel states ("starting up", "no turns yet"). When set, the
+/// dashboard renders the whole list as a mini-transcript tail.
+/// </param>
+public sealed record ForemanActivitySnapshot(
+    string Summary,
+    DateTimeOffset? At,
+    string? Error = null,
+    IReadOnlyList<string>? Lines = null);
 
 /// <summary>
 /// Reads a CLI engine's own on-disk session transcript and reports the most
@@ -34,4 +43,12 @@ public interface IForemanActivityReader
     /// an unreadable file must never take that loop down.
     /// </summary>
     ForemanActivitySnapshot? Read(string sessionId, string workingDirectory);
+
+    /// <summary>
+    /// Finds the most recent in-flight session for a given working directory,
+    /// without knowing the session ID yet. Used to show activity while the
+    /// foreman's first turn is still running. Default returns null (not
+    /// supported by this provider).
+    /// </summary>
+    ForemanActivitySnapshot? TryReadForCwd(string cwd) => null;
 }

@@ -29,10 +29,18 @@ internal abstract record BossEvent
     internal sealed record PassiveRefreshed(GitWorkspaceSnapshot? Snapshot) : BossEvent;
 
     /// <summary>
-    /// A finished activity read of the watched Foreman's session transcript.
-    /// Separate from <see cref="PassiveRefreshed"/> on purpose: the two read
-    /// different things at different speeds, and one must never make the
-    /// other wait.
+    /// A finished activity read of one Foreman's session transcript.
+    /// <paramref name="ForemanName"/> distinguishes GC's read (always running
+    /// when GC is busy, shown in the main pane) from the watch subject's read
+    /// (shown in the side panel). Separate from <see cref="PassiveRefreshed"/>:
+    /// the two read different things at different speeds.
     /// </summary>
-    internal sealed record ActivityRefreshed(ForemanActivitySnapshot? Snapshot) : BossEvent;
+    internal sealed record ActivityRefreshed(string ForemanName, ForemanActivitySnapshot? Snapshot) : BossEvent;
+
+    /// <summary>
+    /// Periodic tick fired while any agent is busy. Drives continuous activity
+    /// reads for GC (main pane) and the watch subject (side panel) without
+    /// needing a job-transition event to trigger them.
+    /// </summary>
+    internal sealed record ActivityHeartbeat : BossEvent;
 }

@@ -44,6 +44,71 @@ public sealed class CodexActivityReader : IForemanActivityReader
 
     public string ProviderId => "codex";
 
+    /// <summary>
+    /// Finds the most recently written rollout whose <c>session_meta.cwd</c>
+    /// matches <paramref name="cwd"/>. Used while a job is in-flight and the
+    /// session ID has not yet been extracted from stderr. Scans today's and
+    /// yesterday's <c>sessions/</c> directories (UTC), newest file first.
+    /// </summary>
+    public ForemanActivitySnapshot? TryReadForCwd(string cwd)
+    {
+        if (string.IsNullOrWhiteSpace(cwd))
+        {
+            return null;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var candidates = new List<string>();
+
+        for (var offset = 0; offset <= 1; offset++)
+        {
+            var day = now.AddDays(-offset);
+            var dir = Path.Combine(_codexHome, "sessions",
+                day.Year.ToString("D4"), day.Month.ToString("D2"), day.Day.ToString("D2"));
+
+            try
+            {
+                candidates.AddRange(Directory.EnumerateFiles(dir, "rollout-*.jsonl"));
+            }
+            catch (DirectoryNotFoundException) { }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
+        }
+
+        // Newest file first — the active session is the most recently written one.
+        var sorted = candidates
+            .Select(p => (Path: p, Modified: File.GetLastWriteTimeUtc(p)))
+            .OrderByDescending(x => x.Modified)
+            .ToList();
+
+        foreach (var (path, _) in sorted)
+        {
+            try
+            {
+                var firstLine = File.ReadLines(path).FirstOrDefault();
+                if (firstLine is null) continue;
+
+                using var doc = JsonDocument.Parse(firstLine);
+                var root = doc.RootElement;
+
+                if (!root.TryGetProperty("type", out var typeEl) || typeEl.GetString() != "session_meta") continue;
+                if (!root.TryGetProperty("payload", out var payload)) continue;
+                if (!payload.TryGetProperty("cwd", out var cwdEl)) continue;
+
+                if (!string.Equals(cwdEl.GetString(), cwd, StringComparison.OrdinalIgnoreCase)) continue;
+
+                var lines = SessionTranscriptTail.ReadLines(path, out var error);
+                return lines is null
+                    ? new ForemanActivitySnapshot("no activity yet", null, error)
+                    : Summarize(lines);
+            }
+            catch (JsonException) { }
+            catch (IOException) { }
+        }
+
+        return null;
+    }
+
     public ForemanActivitySnapshot? Read(string sessionId, string workingDirectory)
     {
         if (string.IsNullOrWhiteSpace(sessionId))
@@ -105,18 +170,19 @@ public sealed class CodexActivityReader : IForemanActivityReader
         return null;
     }
 
+    private const int MaxActivityLines = 8;
+
     private static ForemanActivitySnapshot Summarize(IReadOnlyList<string> lines)
     {
         var sawSessionMeta = false;
+        var collected = new List<(string Text, DateTimeOffset? At)>();
 
-        for (var i = lines.Count - 1; i >= 0; i--)
+        for (var i = lines.Count - 1; i >= 0 && collected.Count < MaxActivityLines; i--)
         {
             JsonDocument document;
 
             try
             {
-                // Expected, not exceptional: the CLI is appending to this file
-                // while it is being read.
                 document = JsonDocument.Parse(lines[i]);
             }
             catch (JsonException)
@@ -149,16 +215,22 @@ public sealed class CodexActivityReader : IForemanActivityReader
                 var summary = SummarizePayload(entryType, payload);
                 if (summary is not null)
                 {
-                    return new ForemanActivitySnapshot(summary, ReadTimestamp(root), null);
+                    collected.Add((summary, ReadTimestamp(root)));
                 }
             }
         }
 
-        // A rollout holding only its own header is a turn that has started but
-        // not yet done anything. That is a real state, not a failure to read.
-        return sawSessionMeta
-            ? new ForemanActivitySnapshot("just started", null, null)
-            : new ForemanActivitySnapshot("working", null, null);
+        if (collected.Count == 0)
+        {
+            return sawSessionMeta
+                ? new ForemanActivitySnapshot("just started", null, null)
+                : new ForemanActivitySnapshot("working", null, null);
+        }
+
+        // collected is newest-first; reverse to chronological for display.
+        collected.Reverse();
+        var lineTexts = collected.Select(c => c.Text).ToList();
+        return new ForemanActivitySnapshot(lineTexts[^1], collected[^1].At, null, lineTexts);
     }
 
     private static string? SummarizePayload(string? entryType, JsonElement payload)

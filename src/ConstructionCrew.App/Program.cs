@@ -316,11 +316,8 @@ var gitInspector = new GitWorkspaceInspector(runner);
 // mutation happen on one thread with no locking.
 var events = Channel.CreateUnbounded<BossEvent>(new UnboundedChannelOptions { SingleReader = true });
 
-var bossInput = new BossInputReader(Console.ReadLine);
-bossInput.Start();
-
-_ = PumpInputAsync(bossInput.Reader, events.Writer, cts.Token);
 _ = PumpJobStatusAsync(statusSink.Reader, events.Writer, cts.Token);
+_ = PumpActivityHeartbeatAsync(events.Writer, cts.Token);
 
 // 0 = no passive refresh in flight. Interlocked: the refresh completes on a
 // thread-pool thread while the loop may already be starting another.
@@ -330,146 +327,197 @@ var passiveRefreshInFlight = 0;
 // the git read, or the other way round.
 var activityRefreshInFlight = 0;
 
+// Separate guard for GC's own activity read: it runs regardless of WatchSubject
+// so it must never block or be blocked by the watch-subject read.
+var gcActivityRefreshInFlight = 0;
+
 // Which engines keep a session transcript this app can tail. Built once: the
 // lookup is pure, and /watch consults it before setting a watch that could
 // only ever render blank.
 var activityReaders = ForemanActivityReaders.Default();
 
-// Starts true so the first render is followed immediately by the first prompt.
-var wantsInput = true;
 var running = true;
+var inputBuffer = new System.Text.StringBuilder();
 
-while (running)
-{
-    Dashboard.Render(foremanDirectory, jobsiteDirectory, jobRegistry, state);
-    Console.Write(state.DrivenForeman is null ? "Boss> " : $"Boss[{state.DrivenForeman}]> ");
+// Pre-allocate the layout tree once; leaf content is swapped in place on every
+// refresh so LiveDisplay can use cursor-up + overwrite instead of a full clear.
+var (liveRoot, liveBody) = Dashboard.CreateLayout();
+Console.Write("\x1b[2J\x1b[H");
+Dashboard.UpdateLayout(liveRoot, liveBody, foremanDirectory, jobsiteDirectory, jobRegistry, state, "");
 
-    // Granted only after render, once per line: while a modal wizard owns the
-    // console, input stays parked here instead of racing the wizard for stdin.
-    if (wantsInput)
+await AnsiConsole.Live(liveRoot)
+    .AutoClear(false)
+    .StartAsync(async ctx =>
     {
-        wantsInput = false;
-        bossInput.Resume();
-    }
+        ctx.Refresh();
 
-    BossEvent first;
-    try
-    {
-        first = await events.Reader.ReadAsync(cts.Token);
-    }
-    catch (OperationCanceledException)
-    {
-        break;
-    }
-    catch (ChannelClosedException)
-    {
-        break;
-    }
-
-    // Drain whatever's already queued and render once for the batch: a burst
-    // of Worker transitions is one redraw, not five.
-    var batch = new List<BossEvent> { first };
-    while (events.Reader.TryRead(out var next))
-    {
-        batch.Add(next);
-    }
-
-    var refreshPassive = false;
-
-    foreach (var bossEvent in batch)
-    {
-        switch (bossEvent)
+        while (running)
         {
-            case BossEvent.JobTransition transition:
-                // A milestone sitrep's synthetic record (JobRegistry.NotifyMilestone)
-                // is never a Boss-dispatched job -- it queues into the Inbox
-                // instead of the chat transcript, so an unrelated background
-                // message never rewrites what's currently on screen.
-                if (transition.Record.JobId.StartsWith("milestone:", StringComparison.Ordinal))
+            var needsRefresh = false;
+
+            // ── keyboard ──────────────────────────────────────────────────
+            // Console.ReadKey(intercept:true) reads one character at a time
+            // without echoing, so the input buffer is rendered as part of the
+            // footer layout instead of raw terminal output.
+            while (Console.KeyAvailable)
+            {
+                var key = Console.ReadKey(intercept: true);
+                switch (key.Key)
                 {
-                    state.Inbox.Add(new InboxItem(
-                        transition.Record.ForemanName, transition.Record.Summary ?? string.Empty, transition.Record.CreatedAt));
+                    case ConsoleKey.Enter:
+                        var line = inputBuffer.ToString().Trim();
+                        inputBuffer.Clear();
+                        needsRefresh = true;
+
+                        if (!string.IsNullOrWhiteSpace(line))
+                        {
+                            var watchedBefore = state.WatchSubject;
+                            var drivenBefore = state.DrivenForeman;
+                            try
+                            {
+                                running = await HandleBossLine(line);
+                            }
+                            catch (Exception ex)
+                            {
+                                state.ActiveTranscript.Add(new TranscriptLine("home office", ex.Message, IsError: true));
+                            }
+
+                            // Cursor-home so ctx.Refresh() redraws the layout
+                            // cleanly after any modal that wrote to the screen.
+                            // LiveDisplay's "move up N lines" from row 0 is a
+                            // no-op, so it clears from the top and redraws.
+                            Console.Write("\x1b[H");
+
+                            if (running &&
+                                (!string.Equals(drivenBefore, state.DrivenForeman, StringComparison.OrdinalIgnoreCase) ||
+                                 !string.Equals(watchedBefore, state.WatchSubject, StringComparison.OrdinalIgnoreCase)))
+                            {
+                                if (state.WatchSubject is { } newSubject)
+                                {
+                                    if (Interlocked.CompareExchange(ref passiveRefreshInFlight, 1, 0) == 0)
+                                        _ = RefreshPassiveAsync(ResolveWorktreePath(jobRegistry, foremanDirectory, newSubject));
+                                    if (Interlocked.CompareExchange(ref activityRefreshInFlight, 1, 0) == 0)
+                                        _ = RefreshActivityAsync(newSubject);
+                                }
+                            }
+                        }
+                        break;
+
+                    case ConsoleKey.Backspace:
+                        if (inputBuffer.Length > 0)
+                            inputBuffer.Remove(inputBuffer.Length - 1, 1);
+                        needsRefresh = true;
+                        break;
+
+                    case ConsoleKey.C when (key.Modifiers & ConsoleModifiers.Control) != 0:
+                        running = false;
+                        break;
+
+                    default:
+                        if (key.KeyChar != '\0' && !char.IsControl(key.KeyChar))
+                        {
+                            inputBuffer.Append(key.KeyChar);
+                            needsRefresh = true;
+                        }
+                        break;
                 }
-                // Every other drained record is checked against the pending set; a
-                // tracked id gone terminal becomes a transcript line in the
-                // Boss's addressed conversation.
-                else if (pendingBossTurns.TryTakeCompletion(transition.Record, out var speaker, out var completion))
+            }
+
+            // ── background events ──────────────────────────────────────────
+            var refreshPassive = false;
+
+            while (events.Reader.TryRead(out var bossEvent))
+            {
+                switch (bossEvent)
                 {
-                    state.TranscriptFor(speaker).Add(completion);
+                    case BossEvent.JobTransition transition:
+                        // A milestone sitrep's synthetic record (JobRegistry.NotifyMilestone)
+                        // queues into the Inbox instead of the chat transcript.
+                        if (transition.Record.JobId.StartsWith("milestone:", StringComparison.Ordinal))
+                        {
+                            state.Inbox.Add(new InboxItem(
+                                transition.Record.ForemanName, transition.Record.Summary ?? string.Empty, transition.Record.CreatedAt));
+                        }
+                        else if (pendingBossTurns.TryTakeCompletion(transition.Record, out var speaker, out var completion))
+                        {
+                            state.TranscriptFor(speaker).Add(completion);
+                        }
+                        refreshPassive = true;
+                        needsRefresh = true;
+                        break;
+
+                    case BossEvent.InputClosed:
+                        running = false;
+                        break;
+
+                    case BossEvent.PassiveRefreshed refreshed:
+                        state.Passive = refreshed.Snapshot;
+                        needsRefresh = true;
+                        break;
+
+                    case BossEvent.ActivityRefreshed refreshedActivity:
+                        if (refreshedActivity.ForemanName.Equals(state.GcForemanName, StringComparison.OrdinalIgnoreCase))
+                            state.GcActivity = refreshedActivity.Snapshot;
+                        else
+                            state.Activity = refreshedActivity.Snapshot;
+                        needsRefresh = true;
+                        break;
+
+                    case BossEvent.ActivityHeartbeat:
+                        // Kick off async reads; the resulting ActivityRefreshed
+                        // events will set needsRefresh when they arrive. The
+                        // heartbeat itself does NOT trigger a redraw -- that's
+                        // what was wiping the input line.
+                        if (jobRegistry.IsForemanBusy(state.GcForemanName))
+                        {
+                            if (Interlocked.CompareExchange(ref gcActivityRefreshInFlight, 1, 0) == 0)
+                                _ = RefreshGcActivityAsync(state.GcForemanName);
+                        }
+                        else if (state.GcActivity is not null)
+                        {
+                            state.GcActivity = null;
+                            needsRefresh = true;
+                        }
+
+                        if (state.WatchSubject is { } heartbeatSubject)
+                        {
+                            if (Interlocked.CompareExchange(ref passiveRefreshInFlight, 1, 0) == 0)
+                                _ = RefreshPassiveAsync(ResolveWorktreePath(jobRegistry, foremanDirectory, heartbeatSubject));
+                            if (Interlocked.CompareExchange(ref activityRefreshInFlight, 1, 0) == 0)
+                                _ = RefreshActivityAsync(heartbeatSubject);
+                        }
+                        break;
                 }
 
-                refreshPassive = true;
-                break;
+                if (!running) break;
+            }
 
-            case BossEvent.InputClosed:
-                running = false;
-                break;
+            // Not triggered by PassiveRefreshed/ActivityRefreshed themselves:
+            // that would loop forever. Trigger on job transitions and commands
+            // that change the watch subject.
+            if (refreshPassive && running && state.WatchSubject is { } watchSubject)
+            {
+                if (Interlocked.CompareExchange(ref passiveRefreshInFlight, 1, 0) == 0)
+                    _ = RefreshPassiveAsync(ResolveWorktreePath(jobRegistry, foremanDirectory, watchSubject));
+                if (Interlocked.CompareExchange(ref activityRefreshInFlight, 1, 0) == 0)
+                    _ = RefreshActivityAsync(watchSubject);
+            }
 
-            case BossEvent.PassiveRefreshed refreshed:
-                state.Passive = refreshed.Snapshot;
-                break;
+            // ── render ────────────────────────────────────────────────────
+            if (needsRefresh && running)
+            {
+                Dashboard.UpdateLayout(liveRoot, liveBody, foremanDirectory, jobsiteDirectory, jobRegistry, state, inputBuffer.ToString());
+                ctx.Refresh();
+            }
 
-            case BossEvent.ActivityRefreshed refreshedActivity:
-                state.Activity = refreshedActivity.Snapshot;
-                break;
-
-            case BossEvent.InputLine line:
-                var watchedBefore = state.WatchSubject;
-                var drivenBefore = state.DrivenForeman;
-                try
-                {
-                    running = await HandleBossLine(line.Text);
-                }
-                catch (Exception ex)
-                {
-                    // The loop is the only thing keeping Home Office and
-                    // background jobs running; one bad command must not take
-                    // those down. Report and continue.
-                    state.ActiveTranscript.Add(new TranscriptLine("home office", ex.Message, IsError: true));
-                }
-                finally
-                {
-                    // Always, even on throw: skipping this parks input forever.
-                    wantsInput = true;
-                }
-
-                // Either changing tells the side panel to re-read: /watch moves
-                // the panel's subject without touching who is driven, and
-                // /drive moves it without an explicit watch existing.
-                if (!string.Equals(drivenBefore, state.DrivenForeman, StringComparison.OrdinalIgnoreCase) ||
-                    !string.Equals(watchedBefore, state.WatchSubject, StringComparison.OrdinalIgnoreCase))
-                {
-                    refreshPassive = true;
-                }
-
-                break;
+            if (running)
+            {
+                try { await Task.Delay(16, cts.Token); }
+                catch (OperationCanceledException) { break; }
+            }
         }
+    });
 
-        if (!running)
-        {
-            break;
-        }
-    }
-
-    // Not triggered by PassiveRefreshed/ActivityRefreshed themselves: that would
-    // loop forever without idling. The subject is whoever the panel is about,
-    // which is the explicit /watch when there is one and the driven Foreman
-    // otherwise -- so both halves of the panel always describe one crew member.
-    if (running && refreshPassive && state.WatchSubject is { } watchSubject)
-    {
-        if (Interlocked.CompareExchange(ref passiveRefreshInFlight, 1, 0) == 0)
-        {
-            _ = RefreshPassiveAsync(ResolveWorktreePath(jobRegistry, watchSubject));
-        }
-
-        if (Interlocked.CompareExchange(ref activityRefreshInFlight, 1, 0) == 0)
-        {
-            _ = RefreshActivityAsync(watchSubject);
-        }
-    }
-}
-
-bossInput.Dispose();
 cts.Cancel();
 await homeOffice.DisposeAsync();
 return 0;
@@ -689,6 +737,14 @@ async Task<bool> HandleBossLine(string input)
         return true;
     }
 
+    if (command.Equals("/job", StringComparison.OrdinalIgnoreCase))
+    {
+        AnsiConsole.Clear();
+        JobDetailCommand.Run(jobRegistry);
+        state.View = TuiView.Tasks;
+        return true;
+    }
+
     if (command.Equals("/hire", StringComparison.OrdinalIgnoreCase))
     {
         // Scoped to /hire, not startup: a startup-level gate would make the
@@ -760,15 +816,17 @@ async Task<bool> HandleBossLine(string input)
     return true;
 }
 
-// The most recent worktree belonging to this Foreman or one of its Workers.
-// Foremen work in their configured directory; a worktree appears once they
-// spawn a Worker, which is what the passive column watches.
-static string? ResolveWorktreePath(JobRegistry jobs, string foremanName) =>
+// The most recent worktree belonging to this Foreman or one of its Workers,
+// or their configured working directory when no worktree has been allocated.
+// Claude Code Foremen create worktrees via the worktree tool; Codex Foremen
+// work directly in their configured directory and never set WorktreePath.
+static string? ResolveWorktreePath(JobRegistry jobs, ForemanDirectory foremen, string foremanName) =>
     jobs.GetAllJobs()
         .Where(j => j.WorktreePath is not null && DriveCommands.BelongsTo(foremanName, j.ForemanName))
         .OrderByDescending(j => j.CreatedAt)
         .Select(j => j.WorktreePath)
-        .FirstOrDefault();
+        .FirstOrDefault()
+    ?? foremen.Find(foremanName)?.WorkingDirectory;
 
 async Task RefreshPassiveAsync(string? worktreePath)
 {
@@ -801,7 +859,7 @@ async Task RefreshActivityAsync(string foremanName)
     try
     {
         var snapshot = ReadActivity(foremanName);
-        await events.Writer.WriteAsync(new BossEvent.ActivityRefreshed(snapshot), cts.Token);
+        await events.Writer.WriteAsync(new BossEvent.ActivityRefreshed(foremanName, snapshot), cts.Token);
     }
     catch (OperationCanceledException)
     {
@@ -812,6 +870,27 @@ async Task RefreshActivityAsync(string foremanName)
     finally
     {
         Interlocked.Exchange(ref activityRefreshInFlight, 0);
+    }
+}
+
+// GC-specific variant: clears gcActivityRefreshInFlight (not activityRefreshInFlight)
+// so GC's guard and the watch-subject's guard stay independent.
+async Task RefreshGcActivityAsync(string foremanName)
+{
+    try
+    {
+        var snapshot = ReadActivity(foremanName);
+        await events.Writer.WriteAsync(new BossEvent.ActivityRefreshed(foremanName, snapshot), cts.Token);
+    }
+    catch (OperationCanceledException)
+    {
+    }
+    catch (ChannelClosedException)
+    {
+    }
+    finally
+    {
+        Interlocked.Exchange(ref gcActivityRefreshInFlight, 0);
     }
 }
 
@@ -834,6 +913,15 @@ ForemanActivitySnapshot? ReadActivity(string foremanName)
 
     if (string.IsNullOrWhiteSpace(info.Value.SessionId))
     {
+        // Session ID is only extracted from stderr after the process exits.
+        // While the job is in-flight, try to find the active transcript by CWD scan.
+        var cwd = foremanDirectory.Find(foremanName)?.WorkingDirectory;
+        if (!string.IsNullOrWhiteSpace(cwd))
+        {
+            var liveActivity = reader.TryReadForCwd(cwd);
+            if (liveActivity is not null) return liveActivity;
+        }
+
         return new ForemanActivitySnapshot("starting up", null, "its first turn has not reported a session yet");
     }
 
@@ -841,16 +929,18 @@ ForemanActivitySnapshot? ReadActivity(string foremanName)
     return reader.Read(info.Value.SessionId!, workingDirectory);
 }
 
-static async Task PumpInputAsync(ChannelReader<string> source, ChannelWriter<BossEvent> sink, CancellationToken ct)
+// Fires ActivityHeartbeat every 500 ms while the app is running. The loop
+// uses these ticks to read GC's live activity for the main pane and the watch
+// subject's activity for the side panel, without waiting for a job transition.
+static async Task PumpActivityHeartbeatAsync(ChannelWriter<BossEvent> sink, CancellationToken ct)
 {
     try
     {
-        await foreach (var line in source.ReadAllAsync(ct))
+        while (true)
         {
-            await sink.WriteAsync(new BossEvent.InputLine(line), ct);
+            await Task.Delay(500, ct);
+            await sink.WriteAsync(new BossEvent.ActivityHeartbeat(), ct);
         }
-
-        await sink.WriteAsync(new BossEvent.InputClosed(), ct);
     }
     catch (OperationCanceledException)
     {

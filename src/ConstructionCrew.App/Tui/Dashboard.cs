@@ -8,9 +8,10 @@ using Spectre.Console.Rendering;
 namespace ConstructionCrew.App.Tui;
 
 /// <summary>
-/// Renders the full-screen shell once per Boss turn: header, roster sidebar,
-/// tab strip, and the active view's content. Not a Live-updating region;
-/// each call clears and redraws, matching a chat-driven interaction model.
+/// Renders the full-screen shell. Supports both a one-shot <see cref="Render"/>
+/// path (used for non-interactive runs) and a LiveDisplay path via
+/// <see cref="CreateLayout"/> + <see cref="UpdateLayout"/>: allocate once,
+/// mutate leaf nodes in place, call <c>ctx.Refresh()</c> — no full-screen clear.
 /// </summary>
 public static class Dashboard
 {
@@ -29,37 +30,63 @@ public static class Dashboard
     private static readonly HashSet<string> LiveTabs =
         new(StringComparer.OrdinalIgnoreCase) { "chat", "tasks", "hire", "memory", "monitor" };
 
-    public static void Render(ForemanDirectory foremen, JobsiteDirectory jobsites, JobRegistry jobs, DashboardState state)
+    /// <summary>
+    /// Allocates the Layout tree structure once. Call once at startup, then pass
+    /// root and body to <see cref="UpdateLayout"/> on every redraw. The tree
+    /// structure (splits, sizes) never changes; only leaf-node content changes.
+    /// </summary>
+    public static (Layout Root, Layout Body) CreateLayout()
     {
-        ClearScreen();
-
-        // Spectre's root Layout always renders exactly ConsoleSize.Height total
-        // lines; .Size() on a child only divides that fixed total, it never
-        // shrinks it. Leave "body" unsized (ratio-based) so it absorbs
-        // whatever's left between header and footer, and rescales on resize
-        // since it's recomputed from the real console size every call.
         var root = new Layout("root").SplitRows(
             new Layout("header").Size(3),
             new Layout("body"),
             new Layout("footer").Size(2));
 
-        root["header"].Update(BuildHeader());
-
         var body = new Layout("body").SplitColumns(
-            new Layout("sidebar").Size(26),
+            new Layout("sidebar").Size(34),
             new Layout("main"));
 
-        body["sidebar"].Update(BuildSidebar(foremen, jobsites, jobs));
-        body["main"].Update(BuildMain(foremen, jobsites, jobs, state));
+        body["sidebar"].SplitRows(
+            new Layout("sidebar-roster"),
+            new Layout("sidebar-commands").Size(13));
 
         root["body"].Update(body);
 
-        // footer's second line stays blank: it's where the Boss prompt is
-        // positioned next, so nothing after this scrolls the pinned header out of view.
+        return (root, body);
+    }
+
+    /// <summary>
+    /// Updates all leaf-node content in the pre-allocated Layout tree.
+    /// Does NOT clear the screen — call <c>ctx.Refresh()</c> after this
+    /// to push the changes to the terminal without flicker.
+    /// </summary>
+    public static void UpdateLayout(
+        Layout root, Layout body,
+        ForemanDirectory foremen, JobsiteDirectory jobsites, JobRegistry jobs,
+        DashboardState state, string inputBuffer)
+    {
+        root["header"].Update(BuildHeader());
+        body["sidebar"]["sidebar-roster"].Update(BuildRoster(foremen, jobsites, jobs));
+        body["sidebar"]["sidebar-commands"].Update(BuildCommandsPanel());
+        body["main"].Update(BuildMain(foremen, jobsites, jobs, state));
         root["footer"].Update(new Rows(
             new Markup(FooterFor(state.DrivenForeman, state.Inbox.Count(i => !i.Read), state.WatchedForeman)),
-            Text.Empty));
+            new Markup(BuildInputLine(state.DrivenForeman, inputBuffer))));
+    }
 
+    private static string BuildInputLine(string? drivenForeman, string inputBuffer)
+    {
+        var prompt = drivenForeman is null
+            ? "[cyan]Boss[/]"
+            : $"[cyan]Boss[/][grey][{Markup.Escape(drivenForeman)}][/]";
+        return $"{prompt}[grey]>[/] {Markup.Escape(inputBuffer)}[grey]▋[/]";
+    }
+
+    public static void Render(ForemanDirectory foremen, JobsiteDirectory jobsites, JobRegistry jobs, DashboardState state)
+    {
+        ClearScreen();
+        var (root, body) = CreateLayout();
+        UpdateLayout(root, body, foremen, jobsites, jobs, state, string.Empty);
         AnsiConsole.Write(root);
         PositionCursorOnPromptRow();
     }
@@ -88,7 +115,7 @@ public static class Dashboard
         }
 
         var badge = unreadInboxCount > 0 ? $"  [yellow]{unreadInboxCount} new in /inbox[/]" : string.Empty;
-        return "[grey]/tasks /monitor /memory /hire /fire /foreman <Name> /view <path> /preferences /inbox /chat /watch <Name> /drive <Name> /settings /migrate /help /exit (or bare \"quit\"/\"exit\")[/]" + badge;
+        return $"[grey]commands in sidebar -- /help for full list[/]{badge}";
     }
 
     private static void PositionCursorOnPromptRow()
@@ -136,9 +163,14 @@ public static class Dashboard
             .Border(BoxBorder.Rounded)
             .Expand();
 
-    private static IRenderable BuildSidebar(ForemanDirectory foremen, JobsiteDirectory jobsites, JobRegistry jobs)
+    private static IRenderable BuildRoster(ForemanDirectory foremen, JobsiteDirectory jobsites, JobRegistry jobs)
     {
         var rows = new List<IRenderable>();
+
+        // Available content rows: total height minus header(3), footer(2),
+        // commands panel(13), this panel's own borders(2).
+        var contentHeight = Math.Max(4, AnsiConsole.Profile.Height - 20);
+        var usedRows = 0;
 
         var gc = foremen.Find("GC");
         if (gc is not null)
@@ -146,18 +178,60 @@ public static class Dashboard
             rows.Add(new Markup($"[bold]GC[/]  {StatusBadge(jobs.IsForemanBusy("GC"), jobs.IsForemanParked("GC"))}"));
             rows.Add(new Markup($"[grey]{gc.Provider}[/]"));
             rows.Add(Text.Empty);
+            usedRows += 3;
         }
 
-        foreach (var foreman in foremen.All().Where(f => !f.Name.Equals("GC", StringComparison.OrdinalIgnoreCase)))
+        var others = foremen.All()
+            .Where(f => !f.Name.Equals("GC", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        var skipped = 0;
+
+        for (var i = 0; i < others.Count; i++)
         {
+            var foreman = others[i];
+            // Estimate: plain entry = 3 rows; jobsite-colored panel entry = 5 rows.
+            // Reserve 2 rows for the hint/overflow line at the bottom.
+            var cost = foreman.JobsiteName is null ? 3 : 5;
+            if (usedRows + cost > contentHeight - 2)
+            {
+                skipped = others.Count - i;
+                break;
+            }
+
             rows.Add(BuildForemanEntry(foreman, jobsites, jobs));
             rows.Add(Text.Empty);
+            usedRows += cost;
         }
 
-        rows.Add(new Markup("[grey]/hire to add, /fire to remove[/]"));
+        rows.Add(skipped > 0
+            ? new Markup($"[grey]+{skipped} more -- /hire /fire[/]")
+            : new Markup("[grey]/hire to add, /fire to remove[/]"));
 
         return new Panel(new Rows(rows))
             .Header("[bold]site roster[/]")
+            .Border(BoxBorder.Rounded)
+            .Expand();
+    }
+
+    private static IRenderable BuildCommandsPanel()
+    {
+        var commands = new[]
+        {
+            "[grey]/tasks[/]    view job board",
+            "[grey]/job[/]      job details",
+            "[grey]/monitor[/]  crew status",
+            "[grey]/memory[/]   browse notes",
+            "[grey]/hire[/]     add foreman",
+            "[grey]/fire[/]     remove foreman",
+            "[grey]/inbox[/]    read messages",
+            "[grey]/chat[/]     return to chat",
+            "[grey]/watch[/]    watch foreman",
+            "[grey]/drive[/]    talk to foreman",
+            "[grey]/help[/]     all commands",
+        };
+
+        return new Panel(new Rows(commands.Select(c => (IRenderable)new Markup(c))))
+            .Header("[bold]commands[/]")
             .Border(BoxBorder.Rounded)
             .Expand();
     }
@@ -244,14 +318,15 @@ public static class Dashboard
     private static IRenderable BuildChatPane(DashboardState state)
     {
         var chat = BuildChat(state);
-        if (state.WatchSubject is null)
+        var hasWatchPanel = state.WatchSubject is not null;
+        if (!hasWatchPanel)
         {
             return chat;
         }
 
         var grid = new Grid().Expand();
         grid.AddColumn(new GridColumn());
-        grid.AddColumn(new GridColumn().Width(38).NoWrap());
+        grid.AddColumn(new GridColumn().Width(46).NoWrap());
         grid.AddRow(chat, BuildPassiveColumn(state));
         return grid;
     }
@@ -286,7 +361,7 @@ public static class Dashboard
 
             rows.AddRange(snapshot.RecentCommits.Count == 0
                 ? [new Markup("[grey]no commits yet[/]")]
-                : snapshot.RecentCommits.Select(c => (IRenderable)new Markup($"[grey]{Markup.Escape(Truncate(c, 34))}[/]")));
+                : snapshot.RecentCommits.Select(c => (IRenderable)new Markup($"[grey]{Markup.Escape(Truncate(c, 42))}[/]")));
         }
 
         // The header is the watched-or-driven name either way, so driving and
@@ -313,10 +388,26 @@ public static class Dashboard
         // means the Foreman is idle.
         if (activity.Error is not null)
         {
-            return [new Markup($"[grey]{Markup.Escape(Truncate(activity.Error, 34))}[/]")];
+            return [new Markup($"[grey]{Markup.Escape(Truncate(activity.Error, 42))}[/]")];
         }
 
-        var rows = new List<IRenderable> { new Markup($"[white]{Markup.Escape(Truncate(activity.Summary, 34))}[/]") };
+        var rows = new List<IRenderable>();
+
+        if (activity.Lines is { Count: > 0 } lines)
+        {
+            // Chronological order (oldest first, newest last). Older lines are
+            // dimmed so the most recent event reads first at a glance.
+            for (var i = 0; i < lines.Count; i++)
+            {
+                var isNewest = i == lines.Count - 1;
+                var style = isNewest ? "white" : "grey";
+                rows.Add(new Markup($"[{style}]{Markup.Escape(Truncate(lines[i], 42))}[/]"));
+            }
+        }
+        else
+        {
+            rows.Add(new Markup($"[white]{Markup.Escape(Truncate(activity.Summary, 42))}[/]"));
+        }
 
         if (activity.At is { } at)
         {
@@ -330,22 +421,41 @@ public static class Dashboard
     {
         var transcript = state.ActiveTranscript;
 
-        if (transcript.Count == 0)
+        if (transcript.Count == 0 && state.GcActivity is null)
         {
             return new Markup(state.DrivenForeman is null
                 ? "[grey]Say something to the GC to get started.[/]"
                 : $"[grey]Driving {Markup.Escape(state.DrivenForeman)} -- anything you type goes to them. /exit returns to GC.[/]");
         }
 
-        // Height-budgeted walk from the newest entry backward, not
-        // TakeLast(10)/Truncate(...,400): the newest reply must always render
-        // in full, never chopped. See WindowToBudget for the guard that makes
-        // that true even when the newest entry alone exceeds the budget.
-        var budget = Math.Max(4, AnsiConsole.Profile.Height - 8);
-        var windowed = WindowToBudget(transcript, budget, line =>
-            Pager.EstimateLines(RenderLine(line)));
+        // Height-budgeted walk from the newest entry backward.
+        // Reserve rows for the GC live-activity tail when it's present.
+        var activityRows = BuildActivityRows(state.GcActivity);
+        var activityIsLive = state.GcActivity?.Error is null && state.GcActivity?.Lines is { Count: > 0 };
+        var activityHeight = activityIsLive ? activityRows.Count + 2 : 0; // +2 for separator + label
 
-        return new Rows(windowed.Select(RenderLine));
+        var budget = Math.Max(4, AnsiConsole.Profile.Height - 8 - activityHeight);
+        var rows = new List<IRenderable>();
+
+        if (transcript.Count > 0)
+        {
+            var windowed = WindowToBudget(transcript, budget, line =>
+                Pager.EstimateLines(RenderLine(line)));
+            rows.AddRange(windowed.Select(RenderLine));
+        }
+
+        // GC live-activity tail: only when GC is actively working (Lines set,
+        // no error) and we are in the GC conversation (not driving someone else).
+        if (activityIsLive && state.DrivenForeman is null)
+        {
+            if (rows.Count > 0) rows.Add(Text.Empty);
+            rows.Add(new Markup("[grey]GC is working...[/]"));
+            rows.AddRange(activityRows);
+        }
+
+        return rows.Count == 0
+            ? new Markup("[grey]Say something to the GC to get started.[/]")
+            : new Rows(rows);
     }
 
     private static Markup RenderLine(TranscriptLine line)
@@ -405,7 +515,20 @@ public static class Dashboard
     {
         var body = jobs.Count == 0
             ? new Markup("[grey]none[/]")
-            : (IRenderable)new Rows(jobs.Select(j => (IRenderable)new Markup($"[bold]{Markup.Escape(j.ForemanName)}[/] {Markup.Escape(Truncate(j.Task, 40))}")));
+            : (IRenderable)new Rows(jobs.Select(j =>
+            {
+                var lines = new List<IRenderable>
+                {
+                    new Markup($"[bold]{Markup.Escape(j.ForemanName)}[/] {Markup.Escape(Truncate(j.Task, 40))}"),
+                };
+
+                if (!string.IsNullOrWhiteSpace(j.Summary))
+                {
+                    lines.Add(new Markup($"[grey]{Markup.Escape(Truncate(j.Summary, 60))}[/]"));
+                }
+
+                return (IRenderable)new Rows(lines);
+            }));
 
         return new Panel(body)
             .Header($"[bold {color}]{title} ({jobs.Count})[/]")

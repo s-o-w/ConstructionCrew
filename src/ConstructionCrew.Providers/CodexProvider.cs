@@ -34,15 +34,23 @@ public sealed class CodexProvider : ICliToolProvider
         // `codex exec` is the non-interactive entry point. `codex exec resume --last`
         // continues the newest session for this cwd (`codex exec resume --help`:
         // "[SESSION_ID] [PROMPT]", --last picks newest).
+        //
+        // IMPORTANT: `codex exec resume` has a different (smaller) flag set than bare
+        // `codex exec`. Verified against `codex exec resume --help` on 2026-08-31:
+        // --sandbox, --approve-for-me, and --add-dir are absent from `resume` and will
+        // hard-fail the process if passed. Only -c, -m, --dangerously-bypass-*,
+        // --skip-git-repo-check, and --last are shared. Gate accordingly below.
+        var isResume = request.ContinuePreviousConversation;
         var args = new List<string> { "exec" };
-        if (request.ContinuePreviousConversation)
+        if (isResume)
         {
             args.Add("resume");
             args.Add("--last");
         }
 
         // -c takes key=value parsed as TOML, so the URL must be a quoted TOML
-        // string. The only per-invocation MCP transport Codex has.
+        // string. The only per-invocation MCP transport Codex has. Supported on
+        // both exec and exec resume.
         if (request.ProviderOptions.TryGetValue("mcpServerUrl", out var mcpServerUrl) && !string.IsNullOrWhiteSpace(mcpServerUrl))
         {
             args.Add("-c");
@@ -58,37 +66,65 @@ public sealed class CodexProvider : ICliToolProvider
         // Codex's permission model is a sandbox policy, not a tool allowlist.
         // `allowedTools` has no Codex equivalent, so it's ignored rather than
         // mapped onto an unrelated flag.
-        if (request.ProviderOptions.TryGetValue("sandbox", out var sandbox) && !string.IsNullOrWhiteSpace(sandbox))
+        // --sandbox is only valid on bare `exec`, not on `exec resume`.
+        if (!isResume)
         {
-            args.Add("--sandbox");
-            args.Add(sandbox);
+            if (request.ProviderOptions.TryGetValue("sandbox", out var sandbox) && !string.IsNullOrWhiteSpace(sandbox))
+            {
+                if (sandbox.Equals("workspace-write", StringComparison.OrdinalIgnoreCase))
+                {
+                    // --approve-for-me implies workspace-write sandbox AND auto-approves
+                    // MCP tool-call approval requests instead of failing with
+                    // "approval policy is never". Using --sandbox workspace-write alone
+                    // sets approval_policy:never (all approval requests are rejected).
+                    // --approve-for-me and --sandbox are mutually exclusive: verified
+                    // against `codex exec --help` on 2026-08-31.
+                    args.Add("--approve-for-me");
+                }
+                else
+                {
+                    // read-only or danger-full-access: no auto-approve equivalent.
+                    args.Add("--sandbox");
+                    args.Add(sandbox);
+                }
+            }
+            else if (request.ProviderOptions.TryGetValue("dangerouslySkipPermissions", out var skipRaw) &&
+                     bool.TryParse(skipRaw, out var skip) && skip)
+            {
+                args.Add("--dangerously-bypass-approvals-and-sandbox");
+            }
         }
         else if (request.ProviderOptions.TryGetValue("dangerouslySkipPermissions", out var skipRaw) &&
                  bool.TryParse(skipRaw, out var skip) && skip)
         {
+            // --dangerously-bypass-approvals-and-sandbox IS present on exec resume.
             args.Add("--dangerously-bypass-approvals-and-sandbox");
         }
 
-        if (request.ProviderOptions.TryGetValue("addDir", out var addDir) && !string.IsNullOrWhiteSpace(addDir))
+        // --add-dir is only valid on bare `exec`, not on `exec resume`.
+        if (!isResume)
         {
-            args.Add("--add-dir");
-            args.Add(addDir);
-        }
-
-        foreach (var dir in request.AddDirs ?? [])
-        {
-            if (string.IsNullOrWhiteSpace(dir))
+            if (request.ProviderOptions.TryGetValue("addDir", out var addDir) && !string.IsNullOrWhiteSpace(addDir))
             {
-                continue;
+                args.Add("--add-dir");
+                args.Add(addDir);
             }
 
-            args.Add("--add-dir");
-            args.Add(dir);
+            foreach (var dir in request.AddDirs ?? [])
+            {
+                if (string.IsNullOrWhiteSpace(dir))
+                {
+                    continue;
+                }
+
+                args.Add("--add-dir");
+                args.Add(dir);
+            }
         }
 
         // The Vault (GC's cwd) is not required to be a git repo, and `codex exec`
         // refuses to start outside one without this flag. Harmless when the cwd
-        // is a repo.
+        // is a repo. Present on both exec and exec resume.
         args.Add("--skip-git-repo-check");
 
         // Same defence as ClaudeCodeProvider: -i/--image and --add-dir are

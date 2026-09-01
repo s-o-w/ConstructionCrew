@@ -42,10 +42,20 @@ public static class AppSettingsLoader
         var vaultRoot = config.GetValue<string?>("Vault:Root") ?? defaults.VaultRoot;
         var notificationsCommand = config.GetValue<string?>("Notifications:Command") ?? defaults.NotificationsCommand;
 
+        var resolvedVaultRoot = string.IsNullOrWhiteSpace(vaultRoot) ? null : vaultRoot;
+
+        // State lives in the vault when one is configured, so jobs.jsonl and
+        // tools.json survive a clean repo clone and sync across machines via
+        // Obsidian Sync. Falls back to repoRoot/state/ when no vault is set.
+        var stateDirectory = resolvedVaultRoot is not null
+            ? Path.Combine(resolvedVaultRoot, "AI", "ConstructionCrew", "state")
+            : defaults.StateDirectory;
+
         return defaults with
         {
             HomeOfficePort = port,
-            VaultRoot = string.IsNullOrWhiteSpace(vaultRoot) ? null : vaultRoot,
+            VaultRoot = resolvedVaultRoot,
+            StateDirectory = stateDirectory,
             NotificationsCommand = string.IsNullOrWhiteSpace(notificationsCommand) ? null : notificationsCommand,
         };
     }

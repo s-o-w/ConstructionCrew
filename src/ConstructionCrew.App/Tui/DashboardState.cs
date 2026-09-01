@@ -96,6 +96,14 @@ public sealed class DashboardState
     /// </summary>
     public ForemanActivitySnapshot? Activity { get; set; }
 
+    /// <summary>
+    /// GC's live activity while a job is in flight. Shown in the main chat
+    /// pane as a "working..." tail below the conversation history, so the Boss
+    /// always sees what GC is doing without having to /watch GC explicitly.
+    /// Null when GC is idle or before the first heartbeat read.
+    /// </summary>
+    public ForemanActivitySnapshot? GcActivity { get; set; }
+
     /// <summary>The transcript the output pane is currently showing.</summary>
     public List<TranscriptLine> ActiveTranscript => TranscriptFor(DrivenForeman);
 

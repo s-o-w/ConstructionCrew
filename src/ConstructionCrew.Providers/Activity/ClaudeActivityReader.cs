@@ -60,6 +60,53 @@ public sealed class ClaudeActivityReader : IForemanActivityReader
         });
     }
 
+    /// <summary>
+    /// Finds the most-recently-written transcript in the project directory for
+    /// <paramref name="cwd"/>. Used while a turn is in-flight and the session ID
+    /// has not yet been extracted (that only happens after the process exits in
+    /// buffered mode). All <c>.jsonl</c> files in a project directory belong to
+    /// the same working directory by construction, so the most-recently-modified
+    /// file is the active session without needing a CWD check inside the file.
+    /// </summary>
+    public ForemanActivitySnapshot? TryReadForCwd(string cwd)
+    {
+        if (string.IsNullOrWhiteSpace(cwd))
+        {
+            return null;
+        }
+
+        var projectDir = Path.Combine(_projectsRoot, EncodeClaudeProjectPath(cwd));
+
+        string[] files;
+        try
+        {
+            files = Directory.GetFiles(projectDir, "*.jsonl");
+        }
+        catch (DirectoryNotFoundException) { return null; }
+        catch (IOException) { return null; }
+        catch (UnauthorizedAccessException) { return null; }
+
+        if (files.Length == 0)
+        {
+            return null;
+        }
+
+        // Most-recently-modified = the active session (being written to right now).
+        var mostRecent = files
+            .Select(f => (Path: f, Modified: File.GetLastWriteTimeUtc(f)))
+            .OrderByDescending(x => x.Modified)
+            .First()
+            .Path;
+
+        var lines = SessionTranscriptTail.ReadLines(mostRecent, out var error);
+        if (lines is null)
+        {
+            return new ForemanActivitySnapshot("no activity yet", null, error);
+        }
+
+        return Summarize(lines) ?? new ForemanActivitySnapshot("starting up", null, null);
+    }
+
     public ForemanActivitySnapshot? Read(string sessionId, string workingDirectory)
     {
         if (string.IsNullOrWhiteSpace(sessionId))
@@ -128,8 +175,12 @@ public sealed class ClaudeActivityReader : IForemanActivityReader
         return null;
     }
 
+    private const int MaxActivityLines = 8;
+
     /// <summary>
-    /// Walks the tail newest-first and reports the first thing worth showing.
+    /// Walks the tail newest-first and collects up to <see cref="MaxActivityLines"/>
+    /// events, then returns them in chronological order so the watch panel renders
+    /// as a transcript tail (oldest at top, newest at bottom).
     ///
     /// <para>
     /// Within one entry the blocks are in the order they happened, so they are
@@ -140,15 +191,14 @@ public sealed class ClaudeActivityReader : IForemanActivityReader
     /// </summary>
     private static ForemanActivitySnapshot? Summarize(IReadOnlyList<string> lines)
     {
-        for (var i = lines.Count - 1; i >= 0; i--)
+        var collected = new List<(string Text, DateTimeOffset? At)>();
+
+        for (var i = lines.Count - 1; i >= 0 && collected.Count < MaxActivityLines; i--)
         {
-            JsonElement root;
             JsonDocument document;
 
             try
             {
-                // A partially written line is expected, not an error: the engine
-                // is appending to this file while it is being read.
                 document = JsonDocument.Parse(lines[i]);
             }
             catch (JsonException)
@@ -158,7 +208,7 @@ public sealed class ClaudeActivityReader : IForemanActivityReader
 
             using (document)
             {
-                root = document.RootElement;
+                var root = document.RootElement;
                 if (root.ValueKind != JsonValueKind.Object)
                 {
                     continue;
@@ -167,12 +217,20 @@ public sealed class ClaudeActivityReader : IForemanActivityReader
                 var summary = SummarizeEntry(root);
                 if (summary is not null)
                 {
-                    return new ForemanActivitySnapshot(summary, ReadTimestamp(root), null);
+                    collected.Add((summary, ReadTimestamp(root)));
                 }
             }
         }
 
-        return null;
+        if (collected.Count == 0)
+        {
+            return null;
+        }
+
+        // collected is newest-first; reverse to chronological for display.
+        collected.Reverse();
+        var lineTexts = collected.Select(c => c.Text).ToList();
+        return new ForemanActivitySnapshot(lineTexts[^1], collected[^1].At, null, lineTexts);
     }
 
     private static string? SummarizeEntry(JsonElement root)
